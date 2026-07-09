@@ -44,6 +44,8 @@ unknown cluster-wide (proven in run6).
 | c1bf266e1 | `k8s_config_file` env on kube-vip pods | Static pods have no in-cluster config |
 | 5b311c8ee | `kubernetes_addr=https://localhost:6443` | Leader election must not depend on the VIP it manages (teardown deadlock) |
 | bd240b8c6 | Drop label-node init container | NodeRestriction denies node-credential labels; superseded by role-based anti-affinity |
+| d6b2df182 | `--pod-name=frr-k8s-$(NODE_NAME)` for frr-status | Static pods must name their mirror pod; exporter fatals otherwise |
+| 29e4f8042 | Ingress gate endpoint :29445 → :1936/healthz | 29445 is the API haproxy monitor; 1936 is the router health keepalived's chk_ingress uses. EP doc needs the same correction |
 
 ## 4. openshift/cluster-network-operator — branch `OPNET-595-bgp-vip-management-vendored`
 
@@ -60,6 +62,7 @@ unknown cluster-wide (proven in run6).
 | 9222d8407 | **Advertise via gated redistribution, not CRD prefixes** (rawConfig route-maps/prefix-lists) | CRD prefixes render as unconditional network statements → health gating destroyed → ECMP to dead apiservers |
 | ecb5282fe | `toAdvertise.allowed.mode: all` per neighbor | frr-k8s renders deny-all egress maps without it; redistribute is the ingress filter |
 | 93e48830e | `ip import-table 198` first line of rawConfig | zebra only tracks non-main tables when instructed |
+| be5b5ae9a | Drop toAdvertise; raw high-seq permits into frr-k8s's generated `<peer>-out` route-maps | frr-k8s mode:all egress is bound to DECLARED router prefixes (deny-any otherwise); CRD cannot express advertising redistributed routes. Fall-through permits open exactly the VIP prefix-lists. Upstream frr-k8s feature request candidate |
 
 ## 5. kube-vip (downstream fork) — branch `OPNET-595-bgp-vip-management`
 
