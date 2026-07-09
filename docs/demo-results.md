@@ -1,6 +1,6 @@
 # BGP VIP Demo — Results Log
 
-Last updated: 2026-07-09 (session 1, runs 1–10)
+Last updated: 2026-07-09 (session 2 complete, runs 1–14) — ALL DEMO CRITERIA MET
 
 ## Demo acceptance status
 
@@ -9,24 +9,19 @@ Last updated: 2026-07-09 (session 1, runs 1–10)
 | 1 | Bootstrap advertises API VIP via BGP | **PROVEN** | run5-10: `192.168.111.5/32` in ToR BGP table, next-hop = bootstrap; `ip route show table 198` on bootstrap; kube-vip route add logged |
 | 2 | Masters join via the VIP; install proceeds | **PROVEN** | run6-10: all 3 masters Ready, joined through BGP-routed VIP; hypervisor `ip route get 192.168.111.5` → `via <node> proto bgp` (L3 path, not connected /24) |
 | 3 | API `healthz: ok` over the BGP-routed VIP | **PROVEN** | run6+: curl via VIP with kernel ECMP over BGP next-hops |
-| 4 | Ingress VIP advertised, health-gated | **PROVEN (run8)** | `192.168.111.4/32` in ToR table from masters; kube-vip-ingress correctly gates on haproxy 503/200 (visible in logs) |
-| 5 | CNO renders FRRConfiguration; controller applies it (handover) | **PARTIAL** | `bgp-vip-master` CR created and accepted (run8+); controller applies (reloader "FRR reloaded successfully"); sessions re-established through CRD path; **advertisement via CR config broken — see Open Issue** |
-| 6 | Install completes end-to-end | **NOT YET** | Blocked by Open Issue (VIP advertisement lost after handover → in-subnet L2 masks it partially; installer flaps) |
+| 4 | Ingress VIP advertised, health-gated | **PROVEN (run14)** | `192.168.111.4/32` advertised ONLY from the two router-bearing masters; gate = router healthz :1936 (EP's :29445 was the API haproxy monitor — wrong) |
+| 5 | CNO renders FRRConfiguration; controller applies it (handover) | **PROVEN (run14)** | `bgp-vip-master` CR created and accepted (run8+); controller applies (reloader "FRR reloaded successfully"); sessions re-established through CRD path; advertisement survives via gated redistribution + raw egress permits; FRRNodeState + BGPSessionState (Established x3) reported |
+| 6 | Install completes end-to-end | **PROVEN (run14)** | 35/36 cluster operators Available; console HTTP 200 over the BGP-routed ingress VIP. Sole failure: karpenter — "unsupported platform" on baremetal, base-nightly bug, fails identically without BGP |
 
-## Open Issue (single remaining blocker)
+## Resolved: the CRD-handover advertisement issue
 
-**CR-based FRR config does not export table-direct routes on masters.**
-
-Timeline of understanding:
-- run8: CR advertised VIPs as CRD `prefixes` → unconditional `network` statements (origin `i`) → health gating LOST → ECMP to dead apiservers → redesigned to gated redistribution (CNO commit 9222d840).
-- run9: sessions-only CR + rawConfig redistribute → frr-k8s renders deny-all outbound maps without `toAdvertise` → fixed with `mode: all` (ecb5282f). At this point on master-0 the VIP was IN bgpd's table (weight 32768, origin `?`) — gating worked — but egress was blocked.
-- run10: with mode:all, bgpd's local table is EMPTY on masters: zebra does not track table 198 (`show ip route table 198` empty; kernel table populated). Bootstrap config carries `ip import-table 198` → added to rawConfig (93e48830) — **not yet validated by a full run**.
-- Live probes on run10 master-0: manual `ip import-table 198` via vtysh did NOT populate bgpd's table; route bounce did not either; frr container restart inconclusive (container startup loads the runtimecfg static config, then the controller re-applies the CR delta — mixed signal).
-
-Hypotheses for next session (ordered):
-1. `ip import-table` + `redistribute table-direct` interaction requires both at bgpd/zebra STARTUP (registration not retrofittable via vtysh/reload) → validate with run11 (93e48830 puts import-table in the CR config from the start — but it still arrives via reloader delta post-startup; may need frr-k8s to restart daemons, or advertisement must stay in the static startup config).
-2. frr-k8s's generated config sections and rawConfig merge ordering interfere with table-direct registration.
-3. Consider EP-design pivot for iteration 1: the CR carries sessions only; VIP advertisement REMAINS in the runtimecfg static config which frr-k8s must not override (requires frr-k8s base-config support — upstream conversation), or defer CRD handover of advertisement entirely.
+Root cause was upstream FRR bug (zebra import-table clears SELECTED on source
+routes; table-direct walk skips unselected — FRRouting/frr b2c17ad52, fixed
+in 10.7, backported here onto 10.4.3; see frr-zebra-import-table-selected.patch
+and the 4-case container lab in the session log). Plus two frr-k8s semantic
+layers: mode:all egress is bound to declared router prefixes (deny-any
+otherwise) — solved with high-seq raw route-map permits; and ip import-table
+must be present for zebra to track table 198.
 
 ## Verified working (accumulated across runs)
 
