@@ -43,7 +43,7 @@ Findings the demo proved against the current EP text — update the doc:
 
 | Where | What | Artifact |
 |-------|------|----------|
-| kube-vip | manager + backend honor `k8sConfigPath`/`k8s_config_file` (+`kubernetes_addr`) | commits 173173011, 8cd17f786 — generic fixes, PR-ready |
+| kube-vip | **PR OPEN** — https://github.com/kube-vip/kube-vip/pull/1627 (manager + backend honor the configured kubeconfig). NOTE: the RT-mode HTTP health check (51e05fd) is ALREADY upstream as kube-vip/kube-vip#1604 (fcd3eec) — drop that patch from the downstream fork on the next rebase |
 | frr-k8s (metallb/frr-k8s) | Feature request: advertise redistributed/table-direct routes (CRD egress is bound to declared prefixes; our raw `-out` route-map permits couple to internal naming — fragile across bumps) | design note in CNO bgp_vip.go comments |
 | FRR | b2c17ad52 backport request to stable/10.4 (or confirm 10.7 uptake downstream) | `patches/frr/0001-zebra-Do-not-clear-selected-flag-on-route-about-to-b.patch` |
 | dev-scripts | **PR OPEN** — https://github.com/openshift-metal3/dev-scripts/pull/1929 (`ENABLE_BGP_TOR`, live-validated) | dev-scripts repo |
