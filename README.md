@@ -27,7 +27,8 @@ working, console reachable over the BGP-routed path. See
 | Path | What |
 |------|------|
 | `bgp-tor.sh`, `tor/` | FRR ToR container helper for the hypervisor (up/down/status) |
-| `frr-zebra-import-table-selected.patch` | FRR backport (upstream b2c17ad52) fixing table-direct redistribution of pre-existing routes |
+| `patches/` | **Complete git-am-able patch series for every repository** (openshift-api, installer, MCO, CNO, kube-vip, baremetal-runtimecfg, dev-scripts, FRR backport) — base SHAs + apply caveats in `patches/README.md` |
+| `patches/frr/0001-zebra-Do-not-clear-selected-flag-on-route-about-to-b.patch` | FRR backport (upstream b2c17ad52) fixing table-direct redistribution of pre-existing routes |
 | `build/` | Dockerfiles used for the demo image builds (incl. the CI-builder tag substitutions) + FRR build script |
 | `lab/` | Standalone FRR reproduction lab (4-case matrix) that isolated the zebra bug without a cluster |
 
@@ -46,7 +47,8 @@ working, console reachable over the BGP-routed path. See
 
 ## Where the code lives
 
-All work is on local branches (see PATCHES.md for commits):
+Canonical carrier: **`patches/` in this repo** (git-am-able series per
+repository, with bases). The same content exists on local branches:
 
 | Repo (local path under ~/git/github.com) | Branch |
 |---|---|

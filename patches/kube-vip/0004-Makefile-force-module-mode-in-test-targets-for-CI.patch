@@ -1,0 +1,54 @@
+From 9531dd05ad7eef3d594b3f2bc2a2bc9f179ac27b Mon Sep 17 00:00:00 2001
+From: Mat Kowalski <mko@redhat.com>
+Date: Wed, 24 Jun 2026 15:50:49 +0200
+Subject: [PATCH 4/6] Makefile: force module mode in test targets for CI
+
+The OpenShift ART golang builder image exports GOFLAGS=-mod=vendor. Since
+kube-vip is not a vendored module, 'go test' then fails with:
+
+  go: inconsistent vendoring in ...:
+  ... is explicitly required in go.mod, but not marked as explicit in vendor/modules.txt
+
+Set GOFLAGS=-mod=mod on the unit-tests and integration-tests recipes so go
+resolves modules from the cache instead of a non-existent vendor/ directory.
+A dedicated TEST_GOFLAGS (declared with override) is used so an inherited
+GOFLAGS from the environment cannot win. Local runs without GOFLAGS set are
+unaffected.
+---
+ Makefile | 11 +++++++++--
+ 1 file changed, 9 insertions(+), 2 deletions(-)
+
+diff --git a/Makefile b/Makefile
+index 3caf676..b6f3868 100644
+--- a/Makefile
++++ b/Makefile
+@@ -19,6 +19,13 @@ REPOSITORY ?= docker.io/plndr
+ GO_VERSION := 1.25.6
+ K8S_VERSION ?= v1.35.0
+ 
++# Module mode for the test targets. Some CI builder images (e.g. the OpenShift
++# ART golang builder) export GOFLAGS=-mod=vendor, which breaks `go test` in this
++# non-vendored repository. Override it on the test recipes so the tests resolve
++# modules from the cache instead of a non-existent vendor/ directory.
++# Use override so an inherited GOFLAGS from the environment cannot win.
++override TEST_GOFLAGS := -mod=mod
++
+ .PHONY: all build clean install uninstall simplify check run e2e-tests unit-tests integration-tests unit-tests-docker integration-tests-docker
+ 
+ all: check install
+@@ -129,13 +136,13 @@ manifest-test:
+ 	docker run $(REPOSITORY)/$(TARGET):$(DOCKERTAG) manifest daemonset --interface eth0 --vip 192.168.0.1 --image "$(REPOSITORY)/$(TARGET):$(DOCKERTAG)" --bgp --leaderElection --controlplane --services --inCluster
+ 
+ unit-tests:
+-	go test -race ./...
++	GOFLAGS="$(TEST_GOFLAGS)" go test -race ./...
+ 
+ unit-tests-docker:
+ 	docker run --rm -w /kube-vip -v $$(pwd):/kube-vip -v kube-vip-gomod-cache:/go/pkg/mod -v kube-vip-gobuild-cache:/root/.cache/go-build golang:$(GO_VERSION) make unit-tests
+ 
+ integration-tests:
+-	go test -tags=integration,e2e -v ./pkg/etcd
++	GOFLAGS="$(TEST_GOFLAGS)" go test -tags=integration,e2e -v ./pkg/etcd
+ 
+ e2e-tests-arp: get-whoami
+ 	GOMAXPROCS=4 TEST_MODE=arp K8S_IMAGE_PATH=kindest/node:$(K8S_VERSION) E2E_IMAGE_PATH=$(REPOSITORY)/$(TARGET):$(DOCKERTAG) go run github.com/onsi/ginkgo/v2/ginkgo --tags=e2e -v -p ./testing/e2e

@@ -1,0 +1,48 @@
+From 509b1bd094ed82434fa339a23a819a7d0c06f825 Mon Sep 17 00:00:00 2001
+From: Mat Kowalski <mko@redhat.com>
+Date: Mon, 15 Jun 2026 16:06:15 +0200
+Subject: [PATCH 4/4] runtimecfg: add --peer-file flag for FRR config rendering
+
+---
+ cmd/runtimecfg/render.go | 16 ++++++++++++++--
+ 1 file changed, 14 insertions(+), 2 deletions(-)
+
+diff --git a/cmd/runtimecfg/render.go b/cmd/runtimecfg/render.go
+index 96dc153..75180be 100644
+--- a/cmd/runtimecfg/render.go
++++ b/cmd/runtimecfg/render.go
+@@ -37,6 +37,7 @@ func init() {
+ 	renderCmd.Flags().IPSlice("cloud-int-lb-ips", nil, "IP Addresses of Cloud Internal Load Balancers for OpenShift Internal API")
+ 	renderCmd.Flags().IPSlice("cloud-ingress-lb-ips", nil, "IP Addresses of Cloud Ingress Load Balancers")
+ 	renderCmd.Flags().StringP("platform", "p", "", "Cluster Platform")
++	renderCmd.Flags().String("peer-file", "", "Path to frr-peers.json for FRR config rendering. When set, templates receive FRR-specific data (Hostname, RouterID, LocalASN, Peers, Communities) instead of the standard Node struct.")
+ 	rootCmd.AddCommand(renderCmd)
+ }
+ 
+@@ -111,7 +112,7 @@ func runRender(cmd *cobra.Command, args []string) error {
+ 	}
+ 
+ 	clusterLBConfig := config.ClusterLBConfig{ApiLBIPs: apiLBIPs, ApiIntLBIPs: apiIntLBIPs, IngressLBIPs: ingressLBIPs}
+-	config, err := config.GetConfig(kubeCfgPath, clusterConfigPath, resolveConfPath, apiVips, ingressVips, apiPort, lbPort, statPort, clusterLBConfig, platformType)
++	cfg, err := config.GetConfig(kubeCfgPath, clusterConfigPath, resolveConfPath, apiVips, ingressVips, apiPort, lbPort, statPort, clusterLBConfig, platformType)
+ 	if err != nil {
+ 		return err
+ 	}
+@@ -128,5 +129,16 @@ func runRender(cmd *cobra.Command, args []string) error {
+ 		return err
+ 	}
+ 
+-	return render.Render(outDir, args[1:], config)
++	// Check if FRR peer file is provided for FRR config rendering
++	peerFilePath, _ := cmd.Flags().GetString("peer-file")
++	if peerFilePath != "" {
++		peerMapping, err := config.LoadFRRPeerMapping(peerFilePath)
++		if err != nil {
++			return err
++		}
++		frrConfig := config.BuildFRRRenderConfig(cfg, peerMapping)
++		return render.Render(outDir, args[1:], frrConfig)
++	}
++
++	return render.Render(outDir, args[1:], cfg)
+ }

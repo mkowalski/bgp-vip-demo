@@ -1,0 +1,196 @@
+From 56cb9e404a5de3c137f1dfdec4be2a8753248536 Mon Sep 17 00:00:00 2001
+From: Mat Kowalski <mko@redhat.com>
+Date: Wed, 8 Jul 2026 14:04:47 +0200
+Subject: [PATCH 18/26] MCO: resolve frr-k8s and kube-vip images from the
+ release payload
+
+frr-k8s reuses the existing metallb-frr payload tag (same image CNO
+uses for the DaemonSet); kube-vip is a new payload tag. Replaces the
+hardcoded development pullspec.
+---
+ cmd/machine-config-operator/bootstrap.go      | 20 +++++++++++++++++++
+ ...80_machine-config_02_images.configmap.yaml |  4 +++-
+ install/image-references                      |  8 ++++++++
+ manifests/on-prem/0010-kube-vip-api.yaml      |  2 +-
+ pkg/controller/common/images.go               |  4 ++++
+ pkg/operator/bootstrap.go                     |  2 ++
+ pkg/operator/sync.go                          |  2 ++
+ .../on-prem/files/0010-kube-vip-api.yaml      |  2 +-
+ .../on-prem/files/0020-kube-vip-ingress.yaml  |  2 +-
+ 9 files changed, 42 insertions(+), 4 deletions(-)
+
+diff --git a/cmd/machine-config-operator/bootstrap.go b/cmd/machine-config-operator/bootstrap.go
+index 29120787b..d1ae50d15 100644
+--- a/cmd/machine-config-operator/bootstrap.go
++++ b/cmd/machine-config-operator/bootstrap.go
+@@ -31,6 +31,8 @@ var (
+ 		infraImage                     string
+ 		releaseImage                   string
+ 		keepalivedImage                string
++		frrK8sImage                    string
++		kubeVipImage                   string
+ 		mcoImage                       string
+ 		oauthProxyImage                string
+ 		kubeRbacProxyImage             string
+@@ -68,6 +70,8 @@ func init() {
+ 	bootstrapCmd.PersistentFlags().StringVar(&bootstrapOpts.dependencyFiles.DNS, "dns-config-file", "/assets/manifests/cluster-dns-02-config.yml", "File containing dns.config.openshift.io manifest.")
+ 	bootstrapCmd.PersistentFlags().StringVar(&bootstrapOpts.dependencyFiles.AdditionalTrustBundle, "additional-trust-bundle-config-file", "/assets/manifests/user-ca-bundle-config.yaml", "File containing the additional user provided CA bundle manifest.")
+ 	bootstrapCmd.PersistentFlags().StringVar(&bootstrapOpts.keepalivedImage, "keepalived-image", "", "Image for Keepalived.")
++	bootstrapCmd.PersistentFlags().StringVar(&bootstrapOpts.frrK8sImage, "frr-k8s-image", "", "Image for frr-k8s.")
++	bootstrapCmd.PersistentFlags().StringVar(&bootstrapOpts.kubeVipImage, "kube-vip-image", "", "Image for kube-vip.")
+ 	bootstrapCmd.PersistentFlags().StringVar(&bootstrapOpts.corednsImage, "coredns-image", "", "Image for CoreDNS.")
+ 	bootstrapCmd.PersistentFlags().StringVar(&bootstrapOpts.haproxyImage, "haproxy-image", "", "Image for haproxy.")
+ 	bootstrapCmd.PersistentFlags().StringVar(&bootstrapOpts.baremetalRuntimeCfgImage, "baremetal-runtimecfg-image", "", "Image for baremetal-runtimecfg.")
+@@ -143,6 +147,18 @@ func runBootstrapCmd(_ *cobra.Command, _ []string) {
+ 		if err != nil {
+ 			klog.Warningf("Base OS extensions container not found: %s", err)
+ 		}
++		// The frr-k8s and kube-vip images are only present in payloads that
++		// support BGP-based VIP management, so their absence is not fatal.
++		if img, err := findImage(imgstream, "metallb-frr"); err == nil {
++			bootstrapOpts.frrK8sImage = img
++		} else {
++			klog.Warningf("metallb-frr image not found in image references: %v", err)
++		}
++		if img, err := findImage(imgstream, "kube-vip"); err == nil {
++			bootstrapOpts.kubeVipImage = img
++		} else {
++			klog.Warningf("kube-vip image not found in image references: %v", err)
++		}
+ 	}
+ 
+ 	imgs := ctrlcommon.Images{
+@@ -156,6 +172,8 @@ func runBootstrapCmd(_ *cobra.Command, _ []string) {
+ 			BaseOSContainerImage:           bootstrapOpts.baseOSContainerImage,
+ 			BaseOSExtensionsContainerImage: bootstrapOpts.baseOSExtensionsContainerImage,
+ 			DockerRegistryBootstrap:        bootstrapOpts.dockerRegistryImage,
++			FRRK8sBootstrap:                bootstrapOpts.frrK8sImage,
++			KubeVIPBootstrap:               bootstrapOpts.kubeVipImage,
+ 		},
+ 		ControllerConfigImages: ctrlcommon.ControllerConfigImages{
+ 			InfraImage:          bootstrapOpts.infraImage,
+@@ -164,6 +182,8 @@ func runBootstrapCmd(_ *cobra.Command, _ []string) {
+ 			Haproxy:             bootstrapOpts.haproxyImage,
+ 			BaremetalRuntimeCfg: bootstrapOpts.baremetalRuntimeCfgImage,
+ 			DockerRegistry:      bootstrapOpts.dockerRegistryImage,
++			FRRK8s:              bootstrapOpts.frrK8sImage,
++			KubeVip:             bootstrapOpts.kubeVipImage,
+ 		},
+ 	}
+ 
+diff --git a/install/0000_80_machine-config_02_images.configmap.yaml b/install/0000_80_machine-config_02_images.configmap.yaml
+index 0ee80876b..0b8ae8580 100644
+--- a/install/0000_80_machine-config_02_images.configmap.yaml
++++ b/install/0000_80_machine-config_02_images.configmap.yaml
+@@ -19,5 +19,7 @@ data:
+       "baremetalRuntimeCfgImage": "placeholder.url.oc.will.replace.this.org/placeholdernamespace:baremetal-runtimecfg",
+       "oauthProxy": "placeholder.url.oc.will.replace.this.org/placeholdernamespace:oauth-proxy",
+       "kubeRbacProxy": "placeholder.url.oc.will.replace.this.org/placeholdernamespace:kube-rbac-proxy",
+-      "dockerRegistryImage": "placeholder.url.oc.will.replace.this.org/placeholdernamespace:docker-registry"
++      "dockerRegistryImage": "placeholder.url.oc.will.replace.this.org/placeholdernamespace:docker-registry",
++      "frrK8sImage": "placeholder.url.oc.will.replace.this.org/placeholdernamespace:metallb-frr",
++      "kubeVipImage": "placeholder.url.oc.will.replace.this.org/placeholdernamespace:kube-vip"
+     }
+diff --git a/install/image-references b/install/image-references
+index 44917fd2e..5fd196142 100644
+--- a/install/image-references
++++ b/install/image-references
+@@ -56,3 +56,11 @@ spec:
+     from:
+       kind: DockerImage
+       name: placeholder.url.oc.will.replace.this.org/placeholdernamespace:docker-registry
++  - name: metallb-frr
++    from:
++      kind: DockerImage
++      name: placeholder.url.oc.will.replace.this.org/placeholdernamespace:metallb-frr
++  - name: kube-vip
++    from:
++      kind: DockerImage
++      name: placeholder.url.oc.will.replace.this.org/placeholdernamespace:kube-vip
+diff --git a/manifests/on-prem/0010-kube-vip-api.yaml b/manifests/on-prem/0010-kube-vip-api.yaml
+index 42a1b365b..c1b725e31 100644
+--- a/manifests/on-prem/0010-kube-vip-api.yaml
++++ b/manifests/on-prem/0010-kube-vip-api.yaml
+@@ -14,7 +14,7 @@ spec:
+   - operator: Exists
+   containers:
+   - name: kube-vip
+-    image: quay.io/mkowalski/kube-vip:latest
++    image: {{ .Images.KubeVIPBootstrap }}
+     env:
+     - name: address
+       value: "{{ onPremPlatformAPIServerInternalIP .ControllerConfig }}"
+diff --git a/pkg/controller/common/images.go b/pkg/controller/common/images.go
+index edb7fb039..976225406 100644
+--- a/pkg/controller/common/images.go
++++ b/pkg/controller/common/images.go
+@@ -41,6 +41,8 @@ type RenderConfigImages struct {
+ 	OauthProxy                   string `json:"oauthProxy"`
+ 	KubeRbacProxy                string `json:"kubeRbacProxy"`
+ 	DockerRegistryBootstrap      string `json:"dockerRegistry"`
++	FRRK8sBootstrap              string `json:"frrK8s"`
++	KubeVIPBootstrap             string `json:"kubeVip"`
+ }
+ 
+ // ControllerConfigImages are image names used to render templates under ./templates/
+@@ -51,6 +53,8 @@ type ControllerConfigImages struct {
+ 	Haproxy             string `json:"haproxyImage"`
+ 	BaremetalRuntimeCfg string `json:"baremetalRuntimeCfgImage"`
+ 	DockerRegistry      string `json:"dockerRegistryImage"`
++	FRRK8s              string `json:"frrK8sImage"`
++	KubeVip             string `json:"kubeVipImage"`
+ }
+ 
+ // Parses the JSON blob containing the images information into an Images struct.
+diff --git a/pkg/operator/bootstrap.go b/pkg/operator/bootstrap.go
+index ac28ce215..beb6345a3 100644
+--- a/pkg/operator/bootstrap.go
++++ b/pkg/operator/bootstrap.go
+@@ -146,6 +146,8 @@ func buildSpec(dependencies *BootstrapDependencies, imgs *ctrlcommon.Images, rel
+ 		templatectrl.BaremetalRuntimeCfgKey: imgs.BaremetalRuntimeCfg,
+ 		templatectrl.KubeRbacProxyKey:       imgs.KubeRbacProxy,
+ 		templatectrl.DockerRegistryKey:      imgs.DockerRegistry,
++		templatectrl.FRRK8sKey:              imgs.FRRK8s,
++		templatectrl.KubeVIPKey:             imgs.KubeVip,
+ 	}
+ 
+ 	config := getRenderConfig("", dependencies.KubeAPIServerServingCA, spec,
+diff --git a/pkg/operator/sync.go b/pkg/operator/sync.go
+index 6837083c0..a34d699ad 100644
+--- a/pkg/operator/sync.go
++++ b/pkg/operator/sync.go
+@@ -669,6 +669,8 @@ func (optr *Operator) syncRenderConfig(_ *renderConfig, _ *configv1.ClusterOpera
+ 		templatectrl.BaremetalRuntimeCfgKey:   imgs.BaremetalRuntimeCfg,
+ 		templatectrl.KubeRbacProxyKey:         imgs.KubeRbacProxy,
+ 		templatectrl.DockerRegistryKey:        imgs.DockerRegistry,
++		templatectrl.FRRK8sKey:                imgs.FRRK8s,
++		templatectrl.KubeVIPKey:               imgs.KubeVip,
+ 	}
+ 
+ 	ignitionHost, err := getIgnitionHost(&infra.Status)
+diff --git a/templates/common/on-prem/files/0010-kube-vip-api.yaml b/templates/common/on-prem/files/0010-kube-vip-api.yaml
+index 1eba2a1c5..851ad7544 100644
+--- a/templates/common/on-prem/files/0010-kube-vip-api.yaml
++++ b/templates/common/on-prem/files/0010-kube-vip-api.yaml
+@@ -18,7 +18,7 @@ contents:
+       - operator: Exists
+       containers:
+       - name: kube-vip
+-        image: quay.io/mkowalski/kube-vip:latest
++        image: {{.Images.kubeVipImage}}
+         env:
+         - name: address
+           value: "{{ onPremPlatformAPIServerInternalIP . }}"
+diff --git a/templates/common/on-prem/files/0020-kube-vip-ingress.yaml b/templates/common/on-prem/files/0020-kube-vip-ingress.yaml
+index c3ddbf3be..ced2f0206 100644
+--- a/templates/common/on-prem/files/0020-kube-vip-ingress.yaml
++++ b/templates/common/on-prem/files/0020-kube-vip-ingress.yaml
+@@ -18,7 +18,7 @@ contents:
+       - operator: Exists
+       containers:
+       - name: kube-vip
+-        image: quay.io/mkowalski/kube-vip:latest
++        image: {{.Images.kubeVipImage}}
+         env:
+         - name: address
+           value: "{{ onPremPlatformIngressIP . }}"

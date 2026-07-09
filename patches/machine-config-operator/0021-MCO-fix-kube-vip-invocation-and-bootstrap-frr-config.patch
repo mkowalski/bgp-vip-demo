@@ -1,0 +1,88 @@
+From fd072b1a02fc5d8ba442c8f3f9a02f137d05890b Mon Sep 17 00:00:00 2001
+From: Mat Kowalski <mko@redhat.com>
+Date: Wed, 8 Jul 2026 19:10:47 +0200
+Subject: [PATCH 21/26] MCO: fix kube-vip invocation and bootstrap frr config
+ rendering
+
+kube-vip requires the manager subcommand; without it the static pod
+prints usage and exits. runtimecfg render cannot derive the cluster
+domain from the bootstrap kubeconfig, so pass --cluster-config exactly
+like the keepalived bootstrap pod does.
+
+Found during the first end-to-end BGP VIP install.
+---
+ manifests/on-prem/0000-frr-k8s.yaml                       | 8 ++++++++
+ manifests/on-prem/0010-kube-vip-api.yaml                  | 2 ++
+ .../master/00-master/on-prem/files/0010-kube-vip-api.yaml | 2 ++
+ .../00-master/on-prem/files/0020-kube-vip-ingress.yaml    | 2 ++
+ 4 files changed, 14 insertions(+)
+
+diff --git a/manifests/on-prem/0000-frr-k8s.yaml b/manifests/on-prem/0000-frr-k8s.yaml
+index 6e9bcb868..31927e3bb 100644
+--- a/manifests/on-prem/0000-frr-k8s.yaml
++++ b/manifests/on-prem/0000-frr-k8s.yaml
+@@ -24,6 +24,8 @@ spec:
+     - {{ onPremPlatformAPIServerInternalIP .ControllerConfig }}
+     - --ingress-vips
+     - {{ onPremPlatformIngressIP .ControllerConfig }}
++    - "--cluster-config"
++    - "/opt/openshift/manifests/cluster-config.yaml"
+     - /config/frr.conf.tmpl
+     - --out-dir
+     - /etc/frr
+@@ -44,6 +46,9 @@ spec:
+       mountPath: /etc/frr
+     - name: kubeconfig
+       mountPath: /etc/kubernetes
++    - name: manifests
++      mountPath: "/opt/openshift/manifests"
++      mountPropagation: HostToContainer
+   - name: cp-frr-files
+     image: {{ .Images.FRRK8sBootstrap }}
+     command:
+@@ -116,3 +121,6 @@ spec:
+   - name: kubeconfig
+     hostPath:
+       path: /etc/kubernetes
++  - name: manifests
++    hostPath:
++      path: "/opt/openshift/manifests"
+diff --git a/manifests/on-prem/0010-kube-vip-api.yaml b/manifests/on-prem/0010-kube-vip-api.yaml
+index c1b725e31..b48417c22 100644
+--- a/manifests/on-prem/0010-kube-vip-api.yaml
++++ b/manifests/on-prem/0010-kube-vip-api.yaml
+@@ -15,6 +15,8 @@ spec:
+   containers:
+   - name: kube-vip
+     image: {{ .Images.KubeVIPBootstrap }}
++    args:
++    - manager
+     env:
+     - name: address
+       value: "{{ onPremPlatformAPIServerInternalIP .ControllerConfig }}"
+diff --git a/templates/master/00-master/on-prem/files/0010-kube-vip-api.yaml b/templates/master/00-master/on-prem/files/0010-kube-vip-api.yaml
+index 851ad7544..fecd40ca6 100644
+--- a/templates/master/00-master/on-prem/files/0010-kube-vip-api.yaml
++++ b/templates/master/00-master/on-prem/files/0010-kube-vip-api.yaml
+@@ -19,6 +19,8 @@ contents:
+       containers:
+       - name: kube-vip
+         image: {{.Images.kubeVipImage}}
++        args:
++        - manager
+         env:
+         - name: address
+           value: "{{ onPremPlatformAPIServerInternalIP . }}"
+diff --git a/templates/master/00-master/on-prem/files/0020-kube-vip-ingress.yaml b/templates/master/00-master/on-prem/files/0020-kube-vip-ingress.yaml
+index 077c9aa74..57f116a52 100644
+--- a/templates/master/00-master/on-prem/files/0020-kube-vip-ingress.yaml
++++ b/templates/master/00-master/on-prem/files/0020-kube-vip-ingress.yaml
+@@ -19,6 +19,8 @@ contents:
+       containers:
+       - name: kube-vip
+         image: {{.Images.kubeVipImage}}
++        args:
++        - manager
+         env:
+         - name: address
+           value: "{{ onPremPlatformIngressIP . }}"

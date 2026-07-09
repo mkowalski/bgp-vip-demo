@@ -1,0 +1,273 @@
+From 9199298554dca455bc8d3012e4d0ae2d178c02c0 Mon Sep 17 00:00:00 2001
+From: Mat Kowalski <mko@redhat.com>
+Date: Wed, 8 Jul 2026 14:26:07 +0200
+Subject: [PATCH 19/26] MCO: make bootstrap frr-k8s static pod FRR-only
+
+The frr-k8s controller, status reporter and metrics exporter cannot
+function on the bootstrap node: there is no Node object (label-node
+blocks all FRR containers retrying a patch that 404s), no metrics
+certs, and the CRD-based config path is not used during bootstrap.
+Bootstrap needs only runtimecfg config rendering plus the FRR daemons
+advertising the API VIP from table 198.
+---
+ manifests/on-prem/0000-frr-k8s.yaml | 211 ----------------------------
+ 1 file changed, 211 deletions(-)
+
+diff --git a/manifests/on-prem/0000-frr-k8s.yaml b/manifests/on-prem/0000-frr-k8s.yaml
+index cae033e70..6e9bcb868 100644
+--- a/manifests/on-prem/0000-frr-k8s.yaml
++++ b/manifests/on-prem/0000-frr-k8s.yaml
+@@ -44,27 +44,6 @@ spec:
+       mountPath: /etc/frr
+     - name: kubeconfig
+       mountPath: /etc/kubernetes
+-  - name: label-node
+-    image: {{ .Images.BaremetalRuntimeCfgBootstrap }}
+-    command:
+-    - /usr/bin/runtimecfg
+-    - label-node
+-    - /etc/kubernetes/kubeconfig
+-    - --label
+-    - network.openshift.io/frr-k8s-static-pod
+-    env:
+-    - name: NODE_NAME
+-      valueFrom:
+-        fieldRef:
+-          fieldPath: spec.nodeName
+-    resources:
+-      requests:
+-        cpu: 10m
+-        memory: 20Mi
+-    terminationMessagePolicy: FallbackToLogsOnError
+-    volumeMounts:
+-    - name: kubeconfig
+-      mountPath: /etc/kubernetes
+   - name: cp-frr-files
+     image: {{ .Images.FRRK8sBootstrap }}
+     command:
+@@ -86,105 +65,7 @@ spec:
+       mountPath: /tmp/frr
+     - name: frr-conf
+       mountPath: /etc/frr
+-  - name: cp-reloader
+-    image: {{ .Images.FRRK8sBootstrap }}
+-    command:
+-    - /bin/sh
+-    - -c
+-    - cp -f /frr-reloader.sh /etc/frr_reloader/
+-    resources:
+-      requests:
+-        cpu: 10m
+-        memory: 20Mi
+-    terminationMessagePolicy: FallbackToLogsOnError
+-    volumeMounts:
+-    - name: reloader
+-      mountPath: /etc/frr_reloader
+-  - name: cp-metrics
+-    image: {{ .Images.FRRK8sBootstrap }}
+-    command:
+-    - /bin/sh
+-    - -c
+-    - cp -f /frr-metrics /etc/frr_metrics/
+-    resources:
+-      requests:
+-        cpu: 10m
+-        memory: 20Mi
+-    terminationMessagePolicy: FallbackToLogsOnError
+-    volumeMounts:
+-    - name: metrics
+-      mountPath: /etc/frr_metrics
+-  - name: cp-frr-status
+-    image: {{ .Images.FRRK8sBootstrap }}
+-    command:
+-    - /bin/sh
+-    - -c
+-    - cp -f /frr-status /etc/frr_status/
+-    resources:
+-      requests:
+-        cpu: 10m
+-        memory: 20Mi
+-    terminationMessagePolicy: FallbackToLogsOnError
+-    volumeMounts:
+-    - name: frr-status
+-      mountPath: /etc/frr_status
+   containers:
+-  - name: controller
+-    image: {{ .Images.FRRK8sBootstrap }}
+-    command:
+-    - /frr-k8s
+-    args:
+-    - --node-name=$(NODE_NAME)
+-    - --namespace=openshift-frr-k8s
+-    - --metrics-bind-address=0.0.0.0:9140
+-    - --metrics-cert-dir=/etc/metrics
+-    env:
+-    - name: FRR_CONFIG_FILE
+-      value: /etc/frr_reloader/frr.conf
+-    - name: FRR_RELOADER_PID_FILE
+-      value: /etc/frr_reloader/reloader.pid
+-    - name: NODE_NAME
+-      valueFrom:
+-        fieldRef:
+-          fieldPath: spec.nodeName
+-    - name: IS_BOOTSTRAP
+-      value: "yes"
+-    ports:
+-    - name: metricshttps
+-      containerPort: 9140
+-    resources:
+-      requests:
+-        cpu: 100m
+-        memory: 200Mi
+-    securityContext:
+-      allowPrivilegeEscalation: false
+-      readOnlyRootFilesystem: true
+-      capabilities:
+-        drop:
+-        - ALL
+-        add:
+-        - NET_RAW
+-    livenessProbe:
+-      httpGet:
+-        path: /healthz
+-        port: 7572
+-        host: 127.0.0.1
+-      initialDelaySeconds: 10
+-      periodSeconds: 10
+-    readinessProbe:
+-      httpGet:
+-        path: /readyz
+-        port: 7572
+-        host: 127.0.0.1
+-      initialDelaySeconds: 10
+-      periodSeconds: 10
+-    terminationMessagePolicy: FallbackToLogsOnError
+-    volumeMounts:
+-    - name: reloader
+-      mountPath: /etc/frr_reloader
+-    - name: metrics-certs
+-      mountPath: /etc/metrics
+-      readOnly: true
+   - name: frr
+     image: {{ .Images.FRRK8sBootstrap }}
+     command:
+@@ -207,20 +88,6 @@ spec:
+         - NET_RAW
+         - SYS_ADMIN
+         - NET_BIND_SERVICE
+-    livenessProbe:
+-      httpGet:
+-        path: /livez
+-        port: 9141
+-        scheme: HTTPS
+-      periodSeconds: 10
+-      failureThreshold: 3
+-    startupProbe:
+-      httpGet:
+-        path: /livez
+-        port: 9141
+-        scheme: HTTPS
+-      failureThreshold: 30
+-      periodSeconds: 5
+     terminationMessagePolicy: FallbackToLogsOnError
+     volumeMounts:
+     - name: frr-sockets
+@@ -231,75 +98,6 @@ spec:
+       mountPath: /var/lib/frr
+     - name: frr-tmp
+       mountPath: /var/tmp/frr
+-  - name: reloader
+-    image: {{ .Images.FRRK8sBootstrap }}
+-    command:
+-    - /etc/frr_reloader/frr-reloader.sh
+-    resources:
+-      requests:
+-        cpu: 10m
+-        memory: 20Mi
+-    terminationMessagePolicy: FallbackToLogsOnError
+-    volumeMounts:
+-    - name: frr-sockets
+-      mountPath: /var/run/frr
+-    - name: frr-conf
+-      mountPath: /etc/frr
+-    - name: reloader
+-      mountPath: /etc/frr_reloader
+-  - name: frr-metrics
+-    image: {{ .Images.FRRK8sBootstrap }}
+-    command:
+-    - /etc/frr_metrics/frr-metrics
+-    args:
+-    - --metrics-port=9141
+-    - --metrics-bind-address=0.0.0.0
+-    - --tls-cert-file=/etc/metrics/tls.crt
+-    - --tls-private-key-file=/etc/metrics/tls.key
+-    ports:
+-    - name: frrmetricshttps
+-      containerPort: 9141
+-    resources:
+-      requests:
+-        cpu: 10m
+-        memory: 20Mi
+-    terminationMessagePolicy: FallbackToLogsOnError
+-    volumeMounts:
+-    - name: frr-sockets
+-      mountPath: /var/run/frr
+-    - name: frr-conf
+-      mountPath: /etc/frr
+-    - name: metrics
+-      mountPath: /etc/frr_metrics
+-    - name: metrics-certs
+-      mountPath: /etc/metrics
+-      readOnly: true
+-  - name: frr-status
+-    image: {{ .Images.FRRK8sBootstrap }}
+-    command:
+-    - /etc/frr_status/frr-status
+-    args:
+-    - --node-name=$(NODE_NAME)
+-    - --namespace=openshift-frr-k8s
+-    env:
+-    - name: NODE_NAME
+-      valueFrom:
+-        fieldRef:
+-          fieldPath: spec.nodeName
+-    - name: IS_BOOTSTRAP
+-      value: "yes"
+-    resources:
+-      requests:
+-        cpu: 10m
+-        memory: 20Mi
+-    terminationMessagePolicy: FallbackToLogsOnError
+-    volumeMounts:
+-    - name: frr-sockets
+-      mountPath: /var/run/frr
+-    - name: frr-conf
+-      mountPath: /etc/frr
+-    - name: frr-status
+-      mountPath: /etc/frr_status
+   volumes:
+   - name: resource-dir
+     hostPath:
+@@ -308,12 +106,6 @@ spec:
+     emptyDir: {}
+   - name: frr-sockets
+     emptyDir: {}
+-  - name: reloader
+-    emptyDir: {}
+-  - name: metrics
+-    emptyDir: {}
+-  - name: frr-status
+-    emptyDir: {}
+   - name: frr-lib
+     emptyDir: {}
+   - name: frr-tmp
+@@ -321,9 +113,6 @@ spec:
+   - name: frr-startup
+     hostPath:
+       path: /etc/kubernetes/static-pod-resources/frr-k8s/startup
+-  - name: metrics-certs
+-    hostPath:
+-      path: /etc/kubernetes/static-pod-resources/frr-k8s/certs
+   - name: kubeconfig
+     hostPath:
+       path: /etc/kubernetes

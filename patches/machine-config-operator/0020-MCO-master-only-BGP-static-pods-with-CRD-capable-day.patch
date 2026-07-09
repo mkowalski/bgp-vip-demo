@@ -1,0 +1,297 @@
+From c7ff25af2197bded598bb578fb727e49739576f2 Mon Sep 17 00:00:00 2001
+From: Mat Kowalski <mko@redhat.com>
+Date: Wed, 8 Jul 2026 14:36:30 +0200
+Subject: [PATCH 20/26] MCO: master-only BGP static pods with CRD-capable day-2
+ frr-k8s
+
+Move the frr-k8s and kube-vip static pod templates from common to
+master: workers are served by CNO's frr-k8s DaemonSet and must not run
+the API VIP leader election. Give the frr-k8s controller and status
+containers a kubeconfig so the CRD-based configuration handover works,
+drop the metrics exporter (no cert provisioning for static pods yet),
+and activate kube-vip-ingress under BGP mode - its haproxy health gate
+keeps it inert until a router runs on the node.
+---
+ .../on-prem/files/0000-frr-k8s.yaml           |  0
+ .../on-prem/files/0010-kube-vip-api.yaml      |  0
+ .../on-prem/files/0020-kube-vip-ingress.yaml  |  0
+ .../on-prem/files/0000-frr-k8s.yaml           | 76 +++----------------
+ .../on-prem/files/0010-kube-vip-api.yaml      |  0
+ .../on-prem/files/0020-kube-vip-ingress.yaml  |  2 +-
+ .../files/frr-k8s-startup-daemons.yaml        |  0
+ .../on-prem/files/frr-k8s-startup-vtysh.yaml  |  0
+ .../00-worker/on-prem/files/frr-k8s-conf.yaml | 56 --------------
+ .../on-prem/files/frr-k8s-peers.yaml          |  5 --
+ 10 files changed, 10 insertions(+), 129 deletions(-)
+ delete mode 100644 templates/arbiter/00-arbiter/on-prem/files/0000-frr-k8s.yaml
+ delete mode 100644 templates/arbiter/00-arbiter/on-prem/files/0010-kube-vip-api.yaml
+ delete mode 100644 templates/arbiter/00-arbiter/on-prem/files/0020-kube-vip-ingress.yaml
+ rename templates/{common => master/00-master}/on-prem/files/0000-frr-k8s.yaml (79%)
+ rename templates/{common => master/00-master}/on-prem/files/0010-kube-vip-api.yaml (100%)
+ rename templates/{common => master/00-master}/on-prem/files/0020-kube-vip-ingress.yaml (90%)
+ rename templates/{common => master/00-master}/on-prem/files/frr-k8s-startup-daemons.yaml (100%)
+ rename templates/{common => master/00-master}/on-prem/files/frr-k8s-startup-vtysh.yaml (100%)
+ delete mode 100644 templates/worker/00-worker/on-prem/files/frr-k8s-conf.yaml
+ delete mode 100644 templates/worker/00-worker/on-prem/files/frr-k8s-peers.yaml
+
+diff --git a/templates/arbiter/00-arbiter/on-prem/files/0000-frr-k8s.yaml b/templates/arbiter/00-arbiter/on-prem/files/0000-frr-k8s.yaml
+deleted file mode 100644
+index e69de29bb..000000000
+diff --git a/templates/arbiter/00-arbiter/on-prem/files/0010-kube-vip-api.yaml b/templates/arbiter/00-arbiter/on-prem/files/0010-kube-vip-api.yaml
+deleted file mode 100644
+index e69de29bb..000000000
+diff --git a/templates/arbiter/00-arbiter/on-prem/files/0020-kube-vip-ingress.yaml b/templates/arbiter/00-arbiter/on-prem/files/0020-kube-vip-ingress.yaml
+deleted file mode 100644
+index e69de29bb..000000000
+diff --git a/templates/common/on-prem/files/0000-frr-k8s.yaml b/templates/master/00-master/on-prem/files/0000-frr-k8s.yaml
+similarity index 79%
+rename from templates/common/on-prem/files/0000-frr-k8s.yaml
+rename to templates/master/00-master/on-prem/files/0000-frr-k8s.yaml
+index e8c0c4894..94da69b7f 100644
+--- a/templates/common/on-prem/files/0000-frr-k8s.yaml
++++ b/templates/master/00-master/on-prem/files/0000-frr-k8s.yaml
+@@ -104,20 +104,6 @@ contents:
+         volumeMounts:
+         - name: reloader
+           mountPath: /etc/frr_reloader
+-      - name: cp-metrics
+-        image: {{.Images.frrK8sImage}}
+-        command:
+-        - /bin/sh
+-        - -c
+-        - cp -f /frr-metrics /etc/frr_metrics/
+-        resources:
+-          requests:
+-            cpu: 10m
+-            memory: 20Mi
+-        terminationMessagePolicy: FallbackToLogsOnError
+-        volumeMounts:
+-        - name: metrics
+-          mountPath: /etc/frr_metrics
+       - name: cp-frr-status
+         image: {{.Images.frrK8sImage}}
+         command:
+@@ -140,8 +126,6 @@ contents:
+         args:
+         - --node-name=$(NODE_NAME)
+         - --namespace=openshift-frr-k8s
+-        - --metrics-bind-address=0.0.0.0:9140
+-        - --metrics-cert-dir=/etc/metrics
+         env:
+         - name: FRR_CONFIG_FILE
+           value: /etc/frr_reloader/frr.conf
+@@ -151,9 +135,8 @@ contents:
+           valueFrom:
+             fieldRef:
+               fieldPath: spec.nodeName
+-        ports:
+-        - name: metricshttps
+-          containerPort: 9140
++        - name: KUBECONFIG
++          value: /etc/kubernetes/kubeconfig
+         resources:
+           requests:
+             cpu: 100m
+@@ -184,8 +167,8 @@ contents:
+         volumeMounts:
+         - name: reloader
+           mountPath: /etc/frr_reloader
+-        - name: metrics-certs
+-          mountPath: /etc/metrics
++        - name: kubeconfig
++          mountPath: /etc/kubernetes
+           readOnly: true
+       - name: frr
+         image: {{.Images.frrK8sImage}}
+@@ -209,20 +192,6 @@ contents:
+             - NET_RAW
+             - SYS_ADMIN
+             - NET_BIND_SERVICE
+-        livenessProbe:
+-          httpGet:
+-            path: /livez
+-            port: 9141
+-            scheme: HTTPS
+-          periodSeconds: 10
+-          failureThreshold: 3
+-        startupProbe:
+-          httpGet:
+-            path: /livez
+-            port: 9141
+-            scheme: HTTPS
+-          failureThreshold: 30
+-          periodSeconds: 5
+         terminationMessagePolicy: FallbackToLogsOnError
+         volumeMounts:
+         - name: frr-sockets
+@@ -249,33 +218,6 @@ contents:
+           mountPath: /etc/frr
+         - name: reloader
+           mountPath: /etc/frr_reloader
+-      - name: frr-metrics
+-        image: {{.Images.frrK8sImage}}
+-        command:
+-        - /etc/frr_metrics/frr-metrics
+-        args:
+-        - --metrics-port=9141
+-        - --metrics-bind-address=0.0.0.0
+-        - --tls-cert-file=/etc/metrics/tls.crt
+-        - --tls-private-key-file=/etc/metrics/tls.key
+-        ports:
+-        - name: frrmetricshttps
+-          containerPort: 9141
+-        resources:
+-          requests:
+-            cpu: 10m
+-            memory: 20Mi
+-        terminationMessagePolicy: FallbackToLogsOnError
+-        volumeMounts:
+-        - name: frr-sockets
+-          mountPath: /var/run/frr
+-        - name: frr-conf
+-          mountPath: /etc/frr
+-        - name: metrics
+-          mountPath: /etc/frr_metrics
+-        - name: metrics-certs
+-          mountPath: /etc/metrics
+-          readOnly: true
+       - name: frr-status
+         image: {{.Images.frrK8sImage}}
+         command:
+@@ -288,6 +230,8 @@ contents:
+           valueFrom:
+             fieldRef:
+               fieldPath: spec.nodeName
++        - name: KUBECONFIG
++          value: /etc/kubernetes/kubeconfig
+         resources:
+           requests:
+             cpu: 10m
+@@ -300,6 +244,9 @@ contents:
+           mountPath: /etc/frr
+         - name: frr-status
+           mountPath: /etc/frr_status
++        - name: kubeconfig
++          mountPath: /etc/kubernetes
++          readOnly: true
+       volumes:
+       - name: resource-dir
+         hostPath:
+@@ -310,8 +257,6 @@ contents:
+         emptyDir: {}
+       - name: reloader
+         emptyDir: {}
+-      - name: metrics
+-        emptyDir: {}
+       - name: frr-status
+         emptyDir: {}
+       - name: frr-lib
+@@ -321,9 +266,6 @@ contents:
+       - name: frr-startup
+         hostPath:
+           path: /etc/kubernetes/static-pod-resources/frr-k8s/startup
+-      - name: metrics-certs
+-        hostPath:
+-          path: /etc/kubernetes/static-pod-resources/frr-k8s/certs
+       - name: kubeconfig
+         hostPath:
+           path: /etc/kubernetes
+diff --git a/templates/common/on-prem/files/0010-kube-vip-api.yaml b/templates/master/00-master/on-prem/files/0010-kube-vip-api.yaml
+similarity index 100%
+rename from templates/common/on-prem/files/0010-kube-vip-api.yaml
+rename to templates/master/00-master/on-prem/files/0010-kube-vip-api.yaml
+diff --git a/templates/common/on-prem/files/0020-kube-vip-ingress.yaml b/templates/master/00-master/on-prem/files/0020-kube-vip-ingress.yaml
+similarity index 90%
+rename from templates/common/on-prem/files/0020-kube-vip-ingress.yaml
+rename to templates/master/00-master/on-prem/files/0020-kube-vip-ingress.yaml
+index ced2f0206..077c9aa74 100644
+--- a/templates/common/on-prem/files/0020-kube-vip-ingress.yaml
++++ b/templates/master/00-master/on-prem/files/0020-kube-vip-ingress.yaml
+@@ -1,5 +1,5 @@
+ mode: 0644
+-path: "/etc/kubernetes/disabled-manifests/0020-kube-vip-ingress.yaml"
++path: {{ if isBGPVIPManagement . }}"/etc/kubernetes/manifests/0020-kube-vip-ingress.yaml"{{ else }}"/etc/kubernetes/disabled-manifests/0020-kube-vip-ingress.yaml"{{ end }}
+ contents:
+   inline: |
+     ---
+diff --git a/templates/common/on-prem/files/frr-k8s-startup-daemons.yaml b/templates/master/00-master/on-prem/files/frr-k8s-startup-daemons.yaml
+similarity index 100%
+rename from templates/common/on-prem/files/frr-k8s-startup-daemons.yaml
+rename to templates/master/00-master/on-prem/files/frr-k8s-startup-daemons.yaml
+diff --git a/templates/common/on-prem/files/frr-k8s-startup-vtysh.yaml b/templates/master/00-master/on-prem/files/frr-k8s-startup-vtysh.yaml
+similarity index 100%
+rename from templates/common/on-prem/files/frr-k8s-startup-vtysh.yaml
+rename to templates/master/00-master/on-prem/files/frr-k8s-startup-vtysh.yaml
+diff --git a/templates/worker/00-worker/on-prem/files/frr-k8s-conf.yaml b/templates/worker/00-worker/on-prem/files/frr-k8s-conf.yaml
+deleted file mode 100644
+index d3ecf0253..000000000
+--- a/templates/worker/00-worker/on-prem/files/frr-k8s-conf.yaml
++++ /dev/null
+@@ -1,56 +0,0 @@
+-mode: 0644
+-path: "/etc/kubernetes/static-pod-resources/frr-k8s/frr.conf.tmpl"
+-contents:
+-  inline: |
+-    frr version 9.1
+-    frr defaults traditional
+-    hostname {{`{{.Hostname}}`}}
+-    !
+-    router bgp {{`{{.LocalASN}}`}}
+-     bgp router-id {{`{{.RouterID}}`}}
+-     no bgp ebgp-requires-policy
+-     no bgp default ipv4-unicast
+-     !
+-    {{`{{- range .Peers}}`}}
+-     neighbor {{`{{.PeerAddress}}`}} remote-as {{`{{.PeerASN}}`}}
+-    {{`{{- if .Password}}`}}
+-     neighbor {{`{{.PeerAddress}}`}} password {{`{{.Password}}`}}
+-    {{`{{- end}}`}}
+-    {{`{{- if eq .BFDEnabled "true"}}`}}
+-     neighbor {{`{{.PeerAddress}}`}} bfd
+-    {{`{{- end}}`}}
+-    {{`{{- if eq .EBGPMultiHop "true"}}`}}
+-     neighbor {{`{{.PeerAddress}}`}} ebgp-multihop
+-    {{`{{- end}}`}}
+-    {{`{{- if .HoldTime}}`}}
+-     neighbor {{`{{.PeerAddress}}`}} timers {{`{{.KeepaliveTime}}`}} {{`{{.HoldTime}}`}}
+-    {{`{{- end}}`}}
+-    {{`{{- end}}`}}
+-     !
+-     address-family ipv4 unicast
+-      redistribute table-direct 198
+-    {{`{{- range .Peers}}`}}
+-    {{`{{- if isIPv4 .PeerAddress}}`}}
+-      neighbor {{`{{.PeerAddress}}`}} activate
+-    {{`{{- end}}`}}
+-    {{`{{- end}}`}}
+-     exit-address-family
+-     !
+-     address-family ipv6 unicast
+-      redistribute table-direct 198
+-    {{`{{- range .Peers}}`}}
+-    {{`{{- if isIPv6 .PeerAddress}}`}}
+-      neighbor {{`{{.PeerAddress}}`}} activate
+-    {{`{{- end}}`}}
+-    {{`{{- end}}`}}
+-     exit-address-family
+-    !
+-    {{`{{- if .Communities}}`}}
+-    route-map VIP-COMMUNITY permit 10
+-    {{`{{- range .Communities}}`}}
+-     set community {{`{{.}}`}} additive
+-    {{`{{- end}}`}}
+-    !
+-    {{`{{- end}}`}}
+-    line vty
+-    !
+diff --git a/templates/worker/00-worker/on-prem/files/frr-k8s-peers.yaml b/templates/worker/00-worker/on-prem/files/frr-k8s-peers.yaml
+deleted file mode 100644
+index 3cbbfc999..000000000
+--- a/templates/worker/00-worker/on-prem/files/frr-k8s-peers.yaml
++++ /dev/null
+@@ -1,5 +0,0 @@
+-mode: 0644
+-path: "/etc/kubernetes/static-pod-resources/frr-k8s/frr-peers.json"
+-contents:
+-  inline: |-
+-    {{.BGPVIPPeersJSON}}

@@ -1,0 +1,28 @@
+From 58d436e177c66536b39ce8274d0248ad28e8e283 Mon Sep 17 00:00:00 2001
+From: Mat Kowalski <mko@redhat.com>
+Date: Mon, 15 Jun 2026 14:58:04 +0200
+Subject: [PATCH 01/14] CNO: add anti-affinity to frr-k8s DaemonSet for static
+ pod conflict avoidance
+
+---
+ bindata/network/frr-k8s/frr-k8s.yaml | 7 +++++++
+ 1 file changed, 7 insertions(+)
+
+diff --git a/bindata/network/frr-k8s/frr-k8s.yaml b/bindata/network/frr-k8s/frr-k8s.yaml
+index 102c5007d..78b40fda8 100644
+--- a/bindata/network/frr-k8s/frr-k8s.yaml
++++ b/bindata/network/frr-k8s/frr-k8s.yaml
+@@ -294,6 +294,13 @@ spec:
+           requests:
+             cpu: 10m
+             memory: 20Mi
++      affinity:
++        nodeAffinity:
++          requiredDuringSchedulingIgnoredDuringExecution:
++            nodeSelectorTerms:
++            - matchExpressions:
++              - key: network.openshift.io/frr-k8s-static-pod
++                operator: DoesNotExist
+       nodeSelector:
+         kubernetes.io/os: linux
+       tolerations:

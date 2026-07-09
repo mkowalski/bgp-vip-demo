@@ -1,0 +1,178 @@
+From 4ec6515bcd487597d7317a541d9722e24cb089fd Mon Sep 17 00:00:00 2001
+From: Mat Kowalski <mko@redhat.com>
+Date: Mon, 15 Jun 2026 12:10:12 +0200
+Subject: [PATCH 05/26] MCO: add isBGPVIPManagement template function
+
+Adds a template function that checks BareMetalPlatformStatus.VIPManagement
+for BGP mode. Used by MachineConfig templates to conditionally place the
+frr-k8s static pod manifest in /etc/kubernetes/manifests/ (active) or
+/etc/kubernetes/disabled-manifests/ (inactive).
+---
+ pkg/controller/template/render.go      |  24 ++++++
+ pkg/controller/template/render_test.go | 114 +++++++++++++++++++++++++
+ 2 files changed, 138 insertions(+)
+
+diff --git a/pkg/controller/template/render.go b/pkg/controller/template/render.go
+index 39492770f..1caec0fa2 100644
+--- a/pkg/controller/template/render.go
++++ b/pkg/controller/template/render.go
+@@ -386,6 +386,7 @@ func renderTemplate(config RenderConfig, path string, b []byte) ([]byte, error)
+ 	funcs["urlHost"] = urlHost
+ 	funcs["urlPort"] = urlPort
+ 	funcs["isOpenShiftManagedDefaultLB"] = isOpenShiftManagedDefaultLB
++	funcs["isBGPVIPManagement"] = isBGPVIPManagement
+ 	funcs["dnsRecordsType"] = dnsRecordsType
+ 	funcs["cloudPlatformAPIIntLoadBalancerIPs"] = cloudPlatformAPIIntLoadBalancerIPs
+ 	funcs["cloudPlatformAPILoadBalancerIPs"] = cloudPlatformAPILoadBalancerIPs
+@@ -723,6 +724,29 @@ func isOpenShiftManagedDefaultLB(cfg RenderConfig) bool {
+ 	return false
+ }
+ 
++// isBGPVIPManagement returns true when the cluster is configured to use
++// BGP-based VIP management instead of keepalived/VRRP. This controls
++// whether MCO renders frr-k8s static pod manifests (BGP) or keepalived
++// static pod manifests (default).
++func isBGPVIPManagement(cfg RenderConfig) bool {
++	if cfg.Infra == nil {
++		return false
++	}
++	ps := cfg.Infra.Status.PlatformStatus
++	if ps == nil {
++		return false
++	}
++	switch ps.Type {
++	case configv1.BareMetalPlatformType:
++		if ps.BareMetal == nil {
++			return false
++		}
++		return ps.BareMetal.VIPManagement == "BGP"
++	default:
++		return false
++	}
++}
++
+ func dnsRecordsType(cfg RenderConfig) configv1.DNSRecordsType {
+ 	if cfg.Infra.Status.PlatformStatus != nil {
+ 		switch cfg.Infra.Status.PlatformStatus.Type {
+diff --git a/pkg/controller/template/render_test.go b/pkg/controller/template/render_test.go
+index 01c5834c7..cc9b1fae6 100644
+--- a/pkg/controller/template/render_test.go
++++ b/pkg/controller/template/render_test.go
+@@ -513,3 +513,117 @@ func verifyIgn(actual [][]byte, dir string, t *testing.T) {
+ 		t.Errorf("can't find expected file:\n%v", key)
+ 	}
+ }
++
++func TestIsBGPVIPManagement(t *testing.T) {
++	dummyTemplate := []byte(`{{isBGPVIPManagement .}}`)
++
++	cases := []struct {
++		name   string
++		infra  *configv1.Infrastructure
++		result string
++	}{
++		{
++			name:   "nil infra",
++			infra:  nil,
++			result: "false",
++		},
++		{
++			name: "nil platform status",
++			infra: &configv1.Infrastructure{
++				Status: configv1.InfrastructureStatus{},
++			},
++			result: "false",
++		},
++		{
++			name: "baremetal without VIPManagement",
++			infra: &configv1.Infrastructure{
++				Status: configv1.InfrastructureStatus{
++					PlatformStatus: &configv1.PlatformStatus{
++						Type:      configv1.BareMetalPlatformType,
++						BareMetal: &configv1.BareMetalPlatformStatus{},
++					},
++				},
++			},
++			result: "false",
++		},
++		{
++			name: "baremetal with VIPManagement BGP",
++			infra: &configv1.Infrastructure{
++				Status: configv1.InfrastructureStatus{
++					PlatformStatus: &configv1.PlatformStatus{
++						Type: configv1.BareMetalPlatformType,
++						BareMetal: &configv1.BareMetalPlatformStatus{
++							VIPManagement: "BGP",
++						},
++					},
++				},
++			},
++			result: "true",
++		},
++		{
++			name: "baremetal with VIPManagement Keepalived",
++			infra: &configv1.Infrastructure{
++				Status: configv1.InfrastructureStatus{
++					PlatformStatus: &configv1.PlatformStatus{
++						Type: configv1.BareMetalPlatformType,
++						BareMetal: &configv1.BareMetalPlatformStatus{
++							VIPManagement: "Keepalived",
++						},
++					},
++				},
++			},
++			result: "false",
++		},
++		{
++			name: "nil baremetal status",
++			infra: &configv1.Infrastructure{
++				Status: configv1.InfrastructureStatus{
++					PlatformStatus: &configv1.PlatformStatus{
++						Type: configv1.BareMetalPlatformType,
++					},
++				},
++			},
++			result: "false",
++		},
++		{
++			name: "vsphere platform",
++			infra: &configv1.Infrastructure{
++				Status: configv1.InfrastructureStatus{
++					PlatformStatus: &configv1.PlatformStatus{
++						Type: configv1.VSpherePlatformType,
++					},
++				},
++			},
++			result: "false",
++		},
++		{
++			name: "aws platform",
++			infra: &configv1.Infrastructure{
++				Status: configv1.InfrastructureStatus{
++					PlatformStatus: &configv1.PlatformStatus{
++						Type: configv1.AWSPlatformType,
++					},
++				},
++			},
++			result: "false",
++		},
++	}
++
++	for _, c := range cases {
++		t.Run(c.name, func(t *testing.T) {
++			config := &mcfgv1.ControllerConfig{
++				Spec: mcfgv1.ControllerConfigSpec{
++					Infra: c.infra,
++				},
++			}
++
++			got, err := renderTemplate(RenderConfig{&config.Spec, `{"dummy":"dummy"}`, "dummy", nil, nil}, c.name, dummyTemplate)
++			if err != nil {
++				t.Fatalf("expected nil error, got: %v", err)
++			}
++			if string(got) != c.result {
++				t.Fatalf("mismatch: got %q, want %q", string(got), c.result)
++			}
++		})
++	}
++}

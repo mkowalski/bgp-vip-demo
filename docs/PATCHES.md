@@ -81,7 +81,7 @@ Upstreamable: both kubeconfig commits are generic fixes.
 |--------|------|-----|
 | (pre-session x4) | `render --peer-file` (FRRPeerMapping resolution by hostname), isIPv4/isIPv6 template funcs, label-node cmd | Per-node frr.conf rendering. NOTE: `label-node` is now unused (NodeRestriction) — candidate for removal |
 
-## 7. FRR (upstream backport) — `bgp-vip-demo/frr-zebra-import-table-selected.patch`
+## 7. FRR (upstream backport) — `patches/frr/`
 
 | Patch | What | Why |
 |-------|------|-----|

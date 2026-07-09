@@ -1,0 +1,25 @@
+From f562b08adcb1155aaf9d66a179ec2eaa3411f850 Mon Sep 17 00:00:00 2001
+From: Mat Kowalski <mko@redhat.com>
+Date: Mon, 15 Jun 2026 15:45:42 +0200
+Subject: [PATCH 08/26] MCO: add KubeVIPKey image constant
+
+---
+ pkg/controller/template/constants.go | 5 +++++
+ 1 file changed, 5 insertions(+)
+
+diff --git a/pkg/controller/template/constants.go b/pkg/controller/template/constants.go
+index 3711ed07e..d033553bf 100644
+--- a/pkg/controller/template/constants.go
++++ b/pkg/controller/template/constants.go
+@@ -27,6 +27,11 @@ const (
+ 	// reloader, metrics, status) in OpenShift.
+ 	FRRK8sKey string = "frrK8sImage"
+ 
++	// KubeVIPKey is the key for the kube-vip image used by the kube-vip static pods.
++	// kube-vip manages API and Ingress VIPs in Routing Table Mode for BGP-based
++	// VIP management.
++	KubeVIPKey string = "kubeVipImage"
++
+ 	// KubeRbacProxyKey the key that references the kubeRbacProxy image
+ 	KubeRbacProxyKey string = "kubeRbacProxyImage"
+ 

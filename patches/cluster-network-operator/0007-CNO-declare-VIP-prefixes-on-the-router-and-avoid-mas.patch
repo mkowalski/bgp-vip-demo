@@ -1,0 +1,232 @@
+From a62d892c0c11d64c84279ec69f1accf218688719 Mon Sep 17 00:00:00 2001
+From: Mat Kowalski <mko@redhat.com>
+Date: Wed, 8 Jul 2026 22:54:18 +0200
+Subject: [PATCH 07/14] CNO: declare VIP prefixes on the router and avoid
+ masters by role
+
+The frr-k8s validation webhook requires advertised prefixes to be
+declared at router level. The DaemonSet now avoids control plane nodes
+by role whenever BGP VIP management is active: label-based
+anti-affinity raced DaemonSet scheduling and NodeRestriction denies
+the static pod's node labeling anyway.
+
+Found during the first end-to-end BGP VIP install.
+---
+ bindata/network/frr-k8s/frr-k8s.yaml |  4 +-
+ pkg/network/bgp_vip.go               |  6 ++-
+ pkg/network/bgp_vip_test.go          | 13 ++++++
+ pkg/network/render.go                | 15 +++++-
+ pkg/network/render_test.go           | 70 +++++++++++++++++++++++++++-
+ 5 files changed, 103 insertions(+), 5 deletions(-)
+
+diff --git a/bindata/network/frr-k8s/frr-k8s.yaml b/bindata/network/frr-k8s/frr-k8s.yaml
+index 78b40fda8..6a66108da 100644
+--- a/bindata/network/frr-k8s/frr-k8s.yaml
++++ b/bindata/network/frr-k8s/frr-k8s.yaml
+@@ -294,13 +294,15 @@ spec:
+           requests:
+             cpu: 10m
+             memory: 20Mi
++{{ if .BGPVIPManagement }}
+       affinity:
+         nodeAffinity:
+           requiredDuringSchedulingIgnoredDuringExecution:
+             nodeSelectorTerms:
+             - matchExpressions:
+-              - key: network.openshift.io/frr-k8s-static-pod
++              - key: node-role.kubernetes.io/master
+                 operator: DoesNotExist
++{{ end }}
+       nodeSelector:
+         kubernetes.io/os: linux
+       tolerations:
+diff --git a/pkg/network/bgp_vip.go b/pkg/network/bgp_vip.go
+index 966d4fa10..dd19f7ec1 100644
+--- a/pkg/network/bgp_vip.go
++++ b/pkg/network/bgp_vip.go
+@@ -160,7 +160,11 @@ func buildFRRConfigurationObjects(cfg bgpVIPConfigData) ([]*uns.Unstructured, er
+ 			"bfdProfiles": bfdProfiles,
+ 			"routers": []interface{}{
+ 				map[string]interface{}{
+-					"asn":       cfg.LocalASN,
++					"asn": cfg.LocalASN,
++					// The frr-k8s validation webhook requires every prefix
++					// advertised to a neighbor to also be declared at the
++					// router level.
++					"prefixes":  prefixes,
+ 					"neighbors": neighbors,
+ 				},
+ 			},
+diff --git a/pkg/network/bgp_vip_test.go b/pkg/network/bgp_vip_test.go
+index bc0df7bd5..615ce7051 100644
+--- a/pkg/network/bgp_vip_test.go
++++ b/pkg/network/bgp_vip_test.go
+@@ -27,6 +27,14 @@ func TestBuildFRRConfigurationObjects(t *testing.T) {
+ 	g.Expect(err).NotTo(HaveOccurred())
+ 	g.Expect(found).To(BeTrue())
+ 	g.Expect(neighbors).To(HaveLen(1))
++
++	// The VIP prefixes must be declared at router level as well: the frr-k8s
++	// validation webhook rejects advertising prefixes not configured on the
++	// router.
++	routerPrefixes, found, err := uns.NestedStringSlice(routers[0].(map[string]interface{}), "prefixes")
++	g.Expect(err).NotTo(HaveOccurred())
++	g.Expect(found).To(BeTrue())
++	g.Expect(routerPrefixes).To(ConsistOf("192.168.111.5/32", "192.168.111.4/32"))
+ }
+ 
+ // TestBuildFRRConfigurationObjectsAllOptionalFields locks the full
+@@ -62,6 +70,11 @@ func TestBuildFRRConfigurationObjectsAllOptionalFields(t *testing.T) {
+ 	g.Expect(neighbor["password"]).To(Equal("s3cret"))
+ 	g.Expect(neighbor["bfdProfile"]).To(Equal("vip-bfd"))
+ 
++	routerPrefixes, found, err := uns.NestedStringSlice(routers[0].(map[string]interface{}), "prefixes")
++	g.Expect(err).NotTo(HaveOccurred())
++	g.Expect(found).To(BeTrue())
++	g.Expect(routerPrefixes).To(ConsistOf("192.168.111.5/32", "192.168.111.4/32"))
++
+ 	bfdProfiles, found, err := uns.NestedSlice(objs[0].Object, "spec", "bgp", "bfdProfiles")
+ 	g.Expect(err).NotTo(HaveOccurred())
+ 	g.Expect(found).To(BeTrue())
+diff --git a/pkg/network/render.go b/pkg/network/render.go
+index b7fdb0fd9..238e0e762 100644
+--- a/pkg/network/render.go
++++ b/pkg/network/render.go
+@@ -8,6 +8,7 @@ import (
+ 	"os"
+ 	"path/filepath"
+ 	"reflect"
++	"slices"
+ 	"sort"
+ 	"strings"
+ 
+@@ -129,7 +130,7 @@ func Render(operConf *operv1.NetworkSpec, clusterConf *configv1.NetworkSpec, man
+ 	}
+ 	objs = append(objs, o...)
+ 
+-	o, err = renderAdditionalRoutingCapabilities(operConf, manifestDir)
++	o, err = renderAdditionalRoutingCapabilities(operConf, manifestDir, bootstrapResult, featureGates)
+ 	if err != nil {
+ 		return nil, progressing, err
+ 	}
+@@ -856,10 +857,19 @@ func registerNetworkingConsolePlugin(bootstrapResult *bootstrap.BootstrapResult,
+ 	})
+ }
+ 
+-func renderAdditionalRoutingCapabilities(conf *operv1.NetworkSpec, manifestDir string) ([]*uns.Unstructured, error) {
++func renderAdditionalRoutingCapabilities(conf *operv1.NetworkSpec, manifestDir string, bootstrapResult *bootstrap.BootstrapResult, featureGates featuregates.FeatureGate) ([]*uns.Unstructured, error) {
+ 	if conf == nil || conf.AdditionalRoutingCapabilities == nil {
+ 		return nil, nil
+ 	}
++	// Under BGP VIP management the static FRR pods own the control plane
++	// nodes, so the frr-k8s DaemonSet must avoid masters by role.
++	bgpVIP := false
++	if bootstrapResult != nil && bootstrapResult.Infra.PlatformStatus != nil &&
++		bootstrapResult.Infra.PlatformStatus.BareMetal != nil &&
++		slices.Contains(featureGates.KnownFeatures(), apifeatures.FeatureGateBGPBasedVIPManagement) &&
++		featureGates.Enabled(apifeatures.FeatureGateBGPBasedVIPManagement) {
++		bgpVIP = bootstrapResult.Infra.PlatformStatus.BareMetal.VIPManagement == "BGP"
++	}
+ 	var out []*uns.Unstructured
+ 	for _, provider := range conf.AdditionalRoutingCapabilities.Providers {
+ 		switch provider {
+@@ -869,6 +879,7 @@ func renderAdditionalRoutingCapabilities(conf *operv1.NetworkSpec, manifestDir s
+ 			data.Data["ReleaseVersion"] = os.Getenv("RELEASE_VERSION")
+ 			data.Data["NoOverlayManagedEnabled"] = conf.DefaultNetwork.OVNKubernetesConfig != nil &&
+ 				conf.DefaultNetwork.OVNKubernetesConfig.BGPManagedConfig.BGPTopology != ""
++			data.Data["BGPVIPManagement"] = bgpVIP
+ 			objs, err := render.RenderDir(filepath.Join(manifestDir, "network/frr-k8s"), &data)
+ 			if err != nil {
+ 				return nil, fmt.Errorf("failed to render frr-k8s manifests: %w", err)
+diff --git a/pkg/network/render_test.go b/pkg/network/render_test.go
+index c7ec17809..642cb8295 100644
+--- a/pkg/network/render_test.go
++++ b/pkg/network/render_test.go
+@@ -18,6 +18,7 @@ import (
+ 	operv1 "github.com/openshift/api/operator/v1"
+ 	"github.com/openshift/cluster-network-operator/pkg/bootstrap"
+ 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
++	uns "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+ )
+ 
+ var manifestDir = "../../bindata"
+@@ -596,7 +597,7 @@ func Test_renderAdditionalRoutingCapabilities(t *testing.T) {
+ 	}
+ 	for _, tt := range tests {
+ 		t.Run(tt.name, func(t *testing.T) {
+-			got, err := renderAdditionalRoutingCapabilities(tt.args.operConf, manifestDir)
++			got, err := renderAdditionalRoutingCapabilities(tt.args.operConf, manifestDir, nil, getDefaultFeatureGatesWithDualStack())
+ 			if !reflect.DeepEqual(tt.expectedErr, err) {
+ 				t.Errorf("renderAdditionalRoutingCapabilities() err = %v, want %v", err, tt.expectedErr)
+ 			}
+@@ -604,3 +605,70 @@ func Test_renderAdditionalRoutingCapabilities(t *testing.T) {
+ 		})
+ 	}
+ }
++
++// Test_renderAdditionalRoutingCapabilitiesBGPVIPManagement verifies the
++// frr-k8s DaemonSet affinity: with BGP VIP management active the DaemonSet
++// must avoid control plane nodes by role (the static FRR pods own them);
++// otherwise no affinity is rendered at all.
++func Test_renderAdditionalRoutingCapabilitiesBGPVIPManagement(t *testing.T) {
++	g := NewGomegaWithT(t)
++
++	operConf := &operv1.NetworkSpec{
++		AdditionalRoutingCapabilities: &operv1.AdditionalRoutingCapabilities{
++			Providers: []operv1.RoutingCapabilitiesProvider{
++				operv1.RoutingCapabilitiesProviderFRR,
++			},
++		},
++	}
++	featureGates := featuregates.NewFeatureGate(
++		[]configv1.FeatureGateName{apifeatures.FeatureGateBGPBasedVIPManagement},
++		[]configv1.FeatureGateName{},
++	)
++	bootstrapResult := &bootstrap.BootstrapResult{
++		Infra: bootstrap.InfraStatus{
++			PlatformType: configv1.BareMetalPlatformType,
++			PlatformStatus: &configv1.PlatformStatus{
++				Type: configv1.BareMetalPlatformType,
++				BareMetal: &configv1.BareMetalPlatformStatus{
++					VIPManagement: "BGP",
++				},
++			},
++		},
++	}
++
++	daemonSetAffinity := func(objs []*uns.Unstructured) (map[string]interface{}, bool) {
++		for _, obj := range objs {
++			if obj.GetKind() == "DaemonSet" && obj.GetName() == "frr-k8s" {
++				affinity, found, err := uns.NestedMap(obj.Object, "spec", "template", "spec", "affinity")
++				g.Expect(err).NotTo(HaveOccurred())
++				return affinity, found
++			}
++		}
++		t.Fatal("frr-k8s DaemonSet not found in rendered objects")
++		return nil, false
++	}
++
++	// BGP VIP management active: the DaemonSet must avoid masters by role.
++	got, err := renderAdditionalRoutingCapabilities(operConf, manifestDir, bootstrapResult, featureGates)
++	g.Expect(err).NotTo(HaveOccurred())
++	g.Expect(got).To(HaveLen(23))
++	affinity, found := daemonSetAffinity(got)
++	g.Expect(found).To(BeTrue())
++	terms, found, err := uns.NestedSlice(affinity, "nodeAffinity", "requiredDuringSchedulingIgnoredDuringExecution", "nodeSelectorTerms")
++	g.Expect(err).NotTo(HaveOccurred())
++	g.Expect(found).To(BeTrue())
++	g.Expect(terms).To(HaveLen(1))
++	matchExpressions := terms[0].(map[string]interface{})["matchExpressions"].([]interface{})
++	g.Expect(matchExpressions).To(HaveLen(1))
++	g.Expect(matchExpressions[0]).To(Equal(map[string]interface{}{
++		"key":      "node-role.kubernetes.io/master",
++		"operator": "DoesNotExist",
++	}))
++
++	// BGP VIP management inactive (nil bootstrap result): no affinity.
++	got, err = renderAdditionalRoutingCapabilities(operConf, manifestDir, nil, featureGates)
++	g.Expect(err).NotTo(HaveOccurred())
++	g.Expect(got).To(HaveLen(23))
++	_, found = daemonSetAffinity(got)
++	g.Expect(found).To(BeFalse())
++}

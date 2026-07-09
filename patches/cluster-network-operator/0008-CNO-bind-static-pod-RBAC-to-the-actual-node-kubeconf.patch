@@ -1,0 +1,52 @@
+From 07a24912c00e03b135e2a29d33a2ae0dc1d28f23 Mon Sep 17 00:00:00 2001
+From: Mat Kowalski <mko@redhat.com>
+Date: Wed, 8 Jul 2026 23:56:01 +0200
+Subject: [PATCH 08/14] CNO: bind static pod RBAC to the actual node kubeconfig
+ identity
+
+The node kubeconfig authenticates as the MCO node-bootstrapper
+ServiceAccount, not system:nodes (verified live). The controller also
+watches FRRK8sConfiguration, which the role now grants.
+
+Found during the first end-to-end BGP VIP install.
+---
+ bindata/network/frr-k8s/003-static-pod-rbac.yaml | 16 ++++++++--------
+ 1 file changed, 8 insertions(+), 8 deletions(-)
+
+diff --git a/bindata/network/frr-k8s/003-static-pod-rbac.yaml b/bindata/network/frr-k8s/003-static-pod-rbac.yaml
+index 8902626b2..fc6d080b2 100644
+--- a/bindata/network/frr-k8s/003-static-pod-rbac.yaml
++++ b/bindata/network/frr-k8s/003-static-pod-rbac.yaml
+@@ -1,10 +1,9 @@
+ # RBAC for the frr-k8s static pod on control plane nodes (BGP VIP management).
+ # The static pod has no ServiceAccount; its controller and frr-status
+-# containers authenticate with the node kubeconfig, so grant the nodes group
+-# read access to FRRConfigurations and write access to node state CRs.
+-# NOTE: the exact subject is verified on a live cluster during the demo
+-# (oc --kubeconfig=/etc/kubernetes/kubeconfig auth whoami); adjust if the
+-# identity is not in system:nodes.
++# containers authenticate with the node kubeconfig
++# (/etc/kubernetes/kubeconfig), whose identity is the MCO node-bootstrapper
++# ServiceAccount (verified live via oc auth whoami). Grant it read access to
++# FRRConfigurations/FRRK8sConfigurations and write access to node state CRs.
+ apiVersion: rbac.authorization.k8s.io/v1
+ kind: ClusterRole
+ metadata:
+@@ -14,6 +13,7 @@ rules:
+   - frrk8s.metallb.io
+   resources:
+   - frrconfigurations
++  - frrk8sconfigurations
+   verbs:
+   - get
+   - list
+@@ -58,6 +58,6 @@ roleRef:
+   kind: ClusterRole
+   name: frr-k8s-static-pod
+ subjects:
+-- apiGroup: rbac.authorization.k8s.io
+-  kind: Group
+-  name: system:nodes
++- kind: ServiceAccount
++  name: node-bootstrapper
++  namespace: openshift-machine-config-operator

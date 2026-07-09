@@ -1,0 +1,27 @@
+From 29e4f8042eaba6f46ab0d98296535a9237253e5f Mon Sep 17 00:00:00 2001
+From: Mat Kowalski <mko@redhat.com>
+Date: Thu, 9 Jul 2026 12:47:55 +0200
+Subject: [PATCH 26/26] MCO: gate the ingress VIP on the router health endpoint
+
+Port 29445 is the API haproxy monitor, not the ingress signal. Use the
+router healthz on 1936 - the same check keepalived's chk_ingress uses.
+
+Found during the first end-to-end BGP VIP install; the enhancement
+document needs the same correction.
+---
+ .../master/00-master/on-prem/files/0020-kube-vip-ingress.yaml   | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/templates/master/00-master/on-prem/files/0020-kube-vip-ingress.yaml b/templates/master/00-master/on-prem/files/0020-kube-vip-ingress.yaml
+index 30158e9bf..039e33fbc 100644
+--- a/templates/master/00-master/on-prem/files/0020-kube-vip-ingress.yaml
++++ b/templates/master/00-master/on-prem/files/0020-kube-vip-ingress.yaml
+@@ -45,7 +45,7 @@ contents:
+         - name: backend_health_check_interval
+           value: "5"
+         - name: control_plane_health_check_address
+-          value: "http://localhost:29445/healthz"
++          value: "http://localhost:1936/healthz"
+         - name: control_plane_health_check_timeout_seconds
+           value: "3"
+         resources:

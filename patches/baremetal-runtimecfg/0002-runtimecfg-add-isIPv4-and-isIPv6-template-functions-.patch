@@ -1,0 +1,45 @@
+From 6fd8db8e767e3e781859843805df518189b4b6c4 Mon Sep 17 00:00:00 2001
+From: Mat Kowalski <mko@redhat.com>
+Date: Mon, 15 Jun 2026 16:04:36 +0200
+Subject: [PATCH 2/4] runtimecfg: add isIPv4 and isIPv6 template functions for
+ FRR rendering
+
+---
+ pkg/render/render.go | 15 ++++++++++++++-
+ 1 file changed, 14 insertions(+), 1 deletion(-)
+
+diff --git a/pkg/render/render.go b/pkg/render/render.go
+index 181b745..6b8a061 100644
+--- a/pkg/render/render.go
++++ b/pkg/render/render.go
+@@ -4,8 +4,10 @@ import (
+ 	"bytes"
+ 	"fmt"
+ 	"io/ioutil"
++	"net"
+ 	"os"
+ 	"path"
++	"path/filepath"
+ 	"strings"
+ 	"text/template"
+ 
+@@ -19,7 +21,18 @@ var extLen = len(ext)
+ var log = logrus.New()
+ 
+ func RenderFile(renderPath, templatePath string, cfg interface{}) error {
+-	tmpl, err := template.ParseFiles(templatePath)
++	funcMap := template.FuncMap{
++		"isIPv4": func(addr string) bool {
++			ip := net.ParseIP(addr)
++			return ip != nil && ip.To4() != nil
++		},
++		"isIPv6": func(addr string) bool {
++			ip := net.ParseIP(addr)
++			return ip != nil && ip.To4() == nil
++		},
++	}
++	name := filepath.Base(templatePath)
++	tmpl, err := template.New(name).Funcs(funcMap).ParseFiles(templatePath)
+ 	if err != nil {
+ 		log.WithFields(logrus.Fields{
+ 			"path": templatePath,

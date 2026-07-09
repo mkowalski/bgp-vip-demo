@@ -1,0 +1,47 @@
+From bd240b8c60c41cf051ffb1b1112241fdf6fb4f89 Mon Sep 17 00:00:00 2001
+From: Mat Kowalski <mko@redhat.com>
+Date: Wed, 8 Jul 2026 22:56:20 +0200
+Subject: [PATCH 24/26] MCO: drop the label-node init container
+
+NodeRestriction denies node-credentialed label writes, deadlocking the
+static pod init sequence on control plane nodes. CNO's frr-k8s
+DaemonSet now avoids masters by role when BGP VIP management is
+active, so the label serves no purpose.
+
+Found during the first end-to-end BGP VIP install.
+---
+ .../00-master/on-prem/files/0000-frr-k8s.yaml | 21 -------------------
+ 1 file changed, 21 deletions(-)
+
+diff --git a/templates/master/00-master/on-prem/files/0000-frr-k8s.yaml b/templates/master/00-master/on-prem/files/0000-frr-k8s.yaml
+index 94da69b7f..2533098c6 100644
+--- a/templates/master/00-master/on-prem/files/0000-frr-k8s.yaml
++++ b/templates/master/00-master/on-prem/files/0000-frr-k8s.yaml
+@@ -48,27 +48,6 @@ contents:
+           mountPath: /etc/frr
+         - name: kubeconfig
+           mountPath: /etc/kubernetes
+-      - name: label-node
+-        image: {{.Images.baremetalRuntimeCfgImage}}
+-        command:
+-        - /usr/bin/runtimecfg
+-        - label-node
+-        - /etc/kubernetes/kubeconfig
+-        - --label
+-        - network.openshift.io/frr-k8s-static-pod
+-        env:
+-        - name: NODE_NAME
+-          valueFrom:
+-            fieldRef:
+-              fieldPath: spec.nodeName
+-        resources:
+-          requests:
+-            cpu: 10m
+-            memory: 20Mi
+-        terminationMessagePolicy: FallbackToLogsOnError
+-        volumeMounts:
+-        - name: kubeconfig
+-          mountPath: /etc/kubernetes
+       - name: cp-frr-files
+         image: {{.Images.frrK8sImage}}
+         command:

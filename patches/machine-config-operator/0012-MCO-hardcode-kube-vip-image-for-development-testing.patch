@@ -1,0 +1,54 @@
+From 8fcfdb7772119097d406740d88bca5dd460a28bf Mon Sep 17 00:00:00 2001
+From: Mat Kowalski <mko@redhat.com>
+Date: Tue, 16 Jun 2026 09:34:11 +0200
+Subject: [PATCH 12/26] MCO: hardcode kube-vip image for development testing
+
+Use quay.io/mkowalski/kube-vip:latest as a hardcoded image reference
+since kube-vip is not yet in the OpenShift release payload. This will
+be replaced with {{.Images.kubeVipImage}} once kube-vip is added to
+the payload.
+---
+ manifests/on-prem/0010-kube-vip-api.yaml                  | 2 +-
+ templates/common/on-prem/files/0010-kube-vip-api.yaml     | 2 +-
+ templates/common/on-prem/files/0020-kube-vip-ingress.yaml | 2 +-
+ 3 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/manifests/on-prem/0010-kube-vip-api.yaml b/manifests/on-prem/0010-kube-vip-api.yaml
+index 04d3a57af..a8571f791 100644
+--- a/manifests/on-prem/0010-kube-vip-api.yaml
++++ b/manifests/on-prem/0010-kube-vip-api.yaml
+@@ -14,7 +14,7 @@ spec:
+   - operator: Exists
+   containers:
+   - name: kube-vip
+-    image: {{ .Images.KubeVIPBootstrap }}
++    image: quay.io/mkowalski/kube-vip:latest
+     env:
+     - name: address
+       value: "{{ onPremPlatformAPIServerInternalIP . }}"
+diff --git a/templates/common/on-prem/files/0010-kube-vip-api.yaml b/templates/common/on-prem/files/0010-kube-vip-api.yaml
+index 851ad7544..1eba2a1c5 100644
+--- a/templates/common/on-prem/files/0010-kube-vip-api.yaml
++++ b/templates/common/on-prem/files/0010-kube-vip-api.yaml
+@@ -18,7 +18,7 @@ contents:
+       - operator: Exists
+       containers:
+       - name: kube-vip
+-        image: {{.Images.kubeVipImage}}
++        image: quay.io/mkowalski/kube-vip:latest
+         env:
+         - name: address
+           value: "{{ onPremPlatformAPIServerInternalIP . }}"
+diff --git a/templates/common/on-prem/files/0020-kube-vip-ingress.yaml b/templates/common/on-prem/files/0020-kube-vip-ingress.yaml
+index ced2f0206..c3ddbf3be 100644
+--- a/templates/common/on-prem/files/0020-kube-vip-ingress.yaml
++++ b/templates/common/on-prem/files/0020-kube-vip-ingress.yaml
+@@ -18,7 +18,7 @@ contents:
+       - operator: Exists
+       containers:
+       - name: kube-vip
+-        image: {{.Images.kubeVipImage}}
++        image: quay.io/mkowalski/kube-vip:latest
+         env:
+         - name: address
+           value: "{{ onPremPlatformIngressIP . }}"

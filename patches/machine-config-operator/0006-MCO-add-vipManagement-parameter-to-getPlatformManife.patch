@@ -1,0 +1,265 @@
+From 584fa64dedd6cb5e04e3d1ef678b8922e3cc70c0 Mon Sep 17 00:00:00 2001
+From: Mat Kowalski <mko@redhat.com>
+Date: Mon, 15 Jun 2026 12:11:20 +0200
+Subject: [PATCH 06/26] MCO: add vipManagement parameter to
+ getPlatformManifests
+
+Modify getPlatformManifests() to accept a vipManagement string parameter.
+When vipManagement is 'BGP' and the LB type is OpenShiftManagedDefault,
+frr-k8s manifests are included instead of keepalived. Extract
+VIPManagement from BareMetalPlatformStatus in appendManifestsByPlatform().
+All non-BareMetal platforms pass empty string (no BGP support yet).
+---
+ pkg/operator/bootstrap.go      |  50 ++++++++------
+ pkg/operator/bootstrap_test.go | 118 +++++++++++++++++++++++++++++++++
+ 2 files changed, 149 insertions(+), 19 deletions(-)
+ create mode 100644 pkg/operator/bootstrap_test.go
+
+diff --git a/pkg/operator/bootstrap.go b/pkg/operator/bootstrap.go
+index 459143e43..290a8f563 100644
+--- a/pkg/operator/bootstrap.go
++++ b/pkg/operator/bootstrap.go
+@@ -154,25 +154,27 @@ func buildSpec(dependencies *BootstrapDependencies, imgs *ctrlcommon.Images, rel
+ 
+ func appendManifestsByPlatform(manifests []manifest, infra *configv1.Infrastructure) []manifest {
+ 	lbType := configv1.LoadBalancerTypeOpenShiftManagedDefault
++	vipManagement := ""
+ 	if infra.Status.PlatformStatus.BareMetal != nil {
+ 		if infra.Status.PlatformStatus.BareMetal.LoadBalancer != nil {
+ 			lbType = infra.Status.PlatformStatus.BareMetal.LoadBalancer.Type
+ 		}
+-		manifests = getPlatformManifests(manifests, strings.ToLower(string(configv1.BareMetalPlatformType)), lbType)
++		vipManagement = infra.Status.PlatformStatus.BareMetal.VIPManagement
++		manifests = getPlatformManifests(manifests, strings.ToLower(string(configv1.BareMetalPlatformType)), lbType, vipManagement)
+ 	}
+ 
+ 	if infra.Status.PlatformStatus.OpenStack != nil {
+ 		if infra.Status.PlatformStatus.OpenStack.LoadBalancer != nil {
+ 			lbType = infra.Status.PlatformStatus.OpenStack.LoadBalancer.Type
+ 		}
+-		manifests = getPlatformManifests(manifests, strings.ToLower(string(configv1.OpenStackPlatformType)), lbType)
++		manifests = getPlatformManifests(manifests, strings.ToLower(string(configv1.OpenStackPlatformType)), lbType, "")
+ 	}
+ 
+ 	if infra.Status.PlatformStatus.Ovirt != nil {
+ 		if infra.Status.PlatformStatus.Ovirt.LoadBalancer != nil {
+ 			lbType = infra.Status.PlatformStatus.Ovirt.LoadBalancer.Type
+ 		}
+-		manifests = getPlatformManifests(manifests, strings.ToLower(string(configv1.OvirtPlatformType)), lbType)
++		manifests = getPlatformManifests(manifests, strings.ToLower(string(configv1.OvirtPlatformType)), lbType, "")
+ 	}
+ 
+ 	if infra.Status.PlatformStatus.VSphere != nil {
+@@ -189,14 +191,14 @@ func appendManifestsByPlatform(manifests []manifest, infra *configv1.Infrastruct
+ 				return manifests
+ 			}
+ 		}
+-		manifests = getPlatformManifests(manifests, strings.ToLower(string(configv1.VSpherePlatformType)), lbType)
++		manifests = getPlatformManifests(manifests, strings.ToLower(string(configv1.VSpherePlatformType)), lbType, "")
+ 	}
+ 
+ 	if infra.Status.PlatformStatus.Nutanix != nil {
+ 		if infra.Status.PlatformStatus.Nutanix.LoadBalancer != nil {
+ 			lbType = infra.Status.PlatformStatus.Nutanix.LoadBalancer.Type
+ 		}
+-		manifests = getPlatformManifests(manifests, strings.ToLower(string(configv1.NutanixPlatformType)), lbType)
++		manifests = getPlatformManifests(manifests, strings.ToLower(string(configv1.NutanixPlatformType)), lbType, "")
+ 	}
+ 
+ 	if infra.Status.PlatformStatus.GCP != nil {
+@@ -205,7 +207,7 @@ func appendManifestsByPlatform(manifests []manifest, infra *configv1.Infrastruct
+ 			// We do not need the keepalived manifests to be generated because the cloud default Load Balancers are in use.
+ 			// So, setting the lbType to `UserManaged` although the default cloud LBs are not user managed.
+ 			lbType = configv1.LoadBalancerTypeUserManaged
+-			manifests = getPlatformManifests(manifests, strings.ToLower(string(configv1.GCPPlatformType)), lbType)
++			manifests = getPlatformManifests(manifests, strings.ToLower(string(configv1.GCPPlatformType)), lbType, "")
+ 		}
+ 	}
+ 	if infra.Status.PlatformStatus.AWS != nil {
+@@ -214,7 +216,7 @@ func appendManifestsByPlatform(manifests []manifest, infra *configv1.Infrastruct
+ 			// We do not need the keepalived manifests to be generated because the cloud default Load Balancers are in use.
+ 			// So, setting the lbType to `UserManaged` although the default cloud LBs are not user managed.
+ 			lbType = configv1.LoadBalancerTypeUserManaged
+-			manifests = getPlatformManifests(manifests, strings.ToLower(string(configv1.AWSPlatformType)), lbType)
++			manifests = getPlatformManifests(manifests, strings.ToLower(string(configv1.AWSPlatformType)), lbType, "")
+ 		}
+ 	}
+ 	if infra.Status.PlatformStatus.Azure != nil {
+@@ -223,14 +225,14 @@ func appendManifestsByPlatform(manifests []manifest, infra *configv1.Infrastruct
+ 			// We do not need the keepalived manifests to be generated because the cloud default Load Balancers are in use.
+ 			// So, setting the lbType to `UserManaged` although the default cloud LBs are not user managed.
+ 			lbType = configv1.LoadBalancerTypeUserManaged
+-			manifests = getPlatformManifests(manifests, strings.ToLower(string(configv1.AzurePlatformType)), lbType)
++			manifests = getPlatformManifests(manifests, strings.ToLower(string(configv1.AzurePlatformType)), lbType, "")
+ 		}
+ 	}
+ 
+ 	return manifests
+ }
+ 
+-func getPlatformManifests(manifests []manifest, platformName string, lbType configv1.PlatformLoadBalancerType) []manifest {
++func getPlatformManifests(manifests []manifest, platformName string, lbType configv1.PlatformLoadBalancerType, vipManagement string) []manifest {
+ 	var corednsName string
+ 	var corefileName string
+ 	switch platformName {
+@@ -254,16 +256,26 @@ func getPlatformManifests(manifests []manifest, platformName string, lbType conf
+ 	)
+ 
+ 	if lbType == configv1.LoadBalancerTypeOpenShiftManagedDefault || lbType == "" {
+-		platformManifests = append(platformManifests,
+-			manifest{
+-				name:     "manifests/on-prem/keepalived.yaml",
+-				filename: platformName + "/manifests/keepalived.yaml",
+-			},
+-			manifest{
+-				name:     "manifests/on-prem/keepalived.conf.tmpl",
+-				filename: platformName + "/static-pod-resources/keepalived/keepalived.conf.tmpl",
+-			},
+-		)
++		if vipManagement == "BGP" {
++			platformManifests = append(platformManifests,
++				manifest{name: "manifests/on-prem/frr-k8s.yaml", filename: platformName + "/manifests/frr-k8s.yaml"},
++				manifest{name: "manifests/on-prem/frr.conf.tmpl", filename: platformName + "/static-pod-resources/frr-k8s/frr.conf.tmpl"},
++				manifest{name: "manifests/on-prem/frr-peers.json.tmpl", filename: platformName + "/static-pod-resources/frr-k8s/frr-peers.json"},
++				manifest{name: "manifests/on-prem/frr-startup-daemons", filename: platformName + "/static-pod-resources/frr-k8s/startup/daemons"},
++				manifest{name: "manifests/on-prem/frr-startup-vtysh.conf", filename: platformName + "/static-pod-resources/frr-k8s/startup/vtysh.conf"},
++			)
++		} else {
++			platformManifests = append(platformManifests,
++				manifest{
++					name:     "manifests/on-prem/keepalived.yaml",
++					filename: platformName + "/manifests/keepalived.yaml",
++				},
++				manifest{
++					name:     "manifests/on-prem/keepalived.conf.tmpl",
++					filename: platformName + "/static-pod-resources/keepalived/keepalived.conf.tmpl",
++				},
++			)
++		}
+ 	}
+ 
+ 	return append(manifests, platformManifests...)
+diff --git a/pkg/operator/bootstrap_test.go b/pkg/operator/bootstrap_test.go
+new file mode 100644
+index 000000000..87fae3ddc
+--- /dev/null
++++ b/pkg/operator/bootstrap_test.go
+@@ -0,0 +1,118 @@
++package operator
++
++import (
++	"testing"
++
++	configv1 "github.com/openshift/api/config/v1"
++	"github.com/stretchr/testify/assert"
++)
++
++func TestGetPlatformManifests(t *testing.T) {
++	cases := []struct {
++		name             string
++		platformName     string
++		lbType           configv1.PlatformLoadBalancerType
++		vipManagement    string
++		expectKeepalived bool
++		expectFRRK8s     bool
++		expectCoredns    bool
++	}{
++		{
++			name:             "baremetal default LB, no BGP",
++			platformName:     "baremetal",
++			lbType:           configv1.LoadBalancerTypeOpenShiftManagedDefault,
++			vipManagement:    "",
++			expectKeepalived: true,
++			expectFRRK8s:     false,
++			expectCoredns:    true,
++		},
++		{
++			name:             "baremetal default LB, BGP enabled",
++			platformName:     "baremetal",
++			lbType:           configv1.LoadBalancerTypeOpenShiftManagedDefault,
++			vipManagement:    "BGP",
++			expectKeepalived: false,
++			expectFRRK8s:     true,
++			expectCoredns:    true,
++		},
++		{
++			name:             "baremetal user-managed LB, no BGP",
++			platformName:     "baremetal",
++			lbType:           configv1.LoadBalancerTypeUserManaged,
++			vipManagement:    "",
++			expectKeepalived: false,
++			expectFRRK8s:     false,
++			expectCoredns:    true,
++		},
++		{
++			name:             "baremetal user-managed LB, BGP enabled",
++			platformName:     "baremetal",
++			lbType:           configv1.LoadBalancerTypeUserManaged,
++			vipManagement:    "BGP",
++			expectKeepalived: false,
++			expectFRRK8s:     false,
++			expectCoredns:    true,
++		},
++		{
++			name:             "baremetal empty LB type, no BGP",
++			platformName:     "baremetal",
++			lbType:           "",
++			vipManagement:    "",
++			expectKeepalived: true,
++			expectFRRK8s:     false,
++			expectCoredns:    true,
++		},
++		{
++			name:             "baremetal empty LB type, BGP enabled",
++			platformName:     "baremetal",
++			lbType:           "",
++			vipManagement:    "BGP",
++			expectKeepalived: false,
++			expectFRRK8s:     true,
++			expectCoredns:    true,
++		},
++		{
++			name:             "openstack default LB, no BGP",
++			platformName:     "openstack",
++			lbType:           configv1.LoadBalancerTypeOpenShiftManagedDefault,
++			vipManagement:    "",
++			expectKeepalived: true,
++			expectFRRK8s:     false,
++			expectCoredns:    true,
++		},
++		{
++			name:             "gcp cloud platform",
++			platformName:     "gcp",
++			lbType:           configv1.LoadBalancerTypeUserManaged,
++			vipManagement:    "",
++			expectKeepalived: false,
++			expectFRRK8s:     false,
++			expectCoredns:    true,
++		},
++	}
++
++	for _, c := range cases {
++		t.Run(c.name, func(t *testing.T) {
++			result := getPlatformManifests(nil, c.platformName, c.lbType, c.vipManagement)
++
++			hasKeepalived := false
++			hasFRRK8s := false
++			hasCoredns := false
++			for _, m := range result {
++				if m.name == "manifests/on-prem/keepalived.yaml" {
++					hasKeepalived = true
++				}
++				if m.name == "manifests/on-prem/frr-k8s.yaml" {
++					hasFRRK8s = true
++				}
++				if m.name == "manifests/on-prem/coredns.yaml" || m.name == "manifests/cloud-platform-alt-dns/coredns.yaml" {
++					hasCoredns = true
++				}
++			}
++
++			assert.Equal(t, c.expectKeepalived, hasKeepalived, "keepalived manifest presence")
++			assert.Equal(t, c.expectFRRK8s, hasFRRK8s, "frr-k8s manifest presence")
++			assert.Equal(t, c.expectCoredns, hasCoredns, "coredns manifest presence")
++		})
++	}
++}

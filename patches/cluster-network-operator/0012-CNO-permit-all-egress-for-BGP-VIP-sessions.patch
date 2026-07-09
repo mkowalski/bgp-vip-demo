@@ -1,0 +1,107 @@
+From ecb5282fe875df9cdd4e5423897a8b487dc6c667 Mon Sep 17 00:00:00 2001
+From: Mat Kowalski <mko@redhat.com>
+Date: Thu, 9 Jul 2026 02:07:50 +0200
+Subject: [PATCH 12/14] CNO: permit-all egress for BGP VIP sessions
+
+frr-k8s renders deny-all outbound route-maps when toAdvertise is
+absent. Egress opens to everything in the local BGP table, which the
+filtered table-direct redistribution constrains to the VIP prefixes.
+---
+ pkg/network/bgp_vip.go      | 25 +++++++++++++++++++------
+ pkg/network/bgp_vip_test.go | 29 ++++++++++++++++++++++++-----
+ 2 files changed, 43 insertions(+), 11 deletions(-)
+
+diff --git a/pkg/network/bgp_vip.go b/pkg/network/bgp_vip.go
+index 72ef8211a..7f21456b9 100644
+--- a/pkg/network/bgp_vip.go
++++ b/pkg/network/bgp_vip.go
+@@ -100,12 +100,13 @@ func renderBGPVIPFRRConfiguration(client cnoclient.Client, bootstrapResult *boot
+ // buildFRRConfigurationObjects constructs FRRConfiguration unstructured objects
+ // from the parsed BGP VIP config data.
+ //
+-// The CR carries only the BGP sessions (neighbors, BFD). VIP advertisement
+-// deliberately does NOT use CRD prefixes/toAdvertise: frr-k8s renders those
+-// as unconditional `network` statements, which would bypass the kube-vip
+-// health gate. Instead, advertisement happens exclusively via the rawConfig
+-// redistribution of routing table 198 (see buildBGPVIPRawConfig), into which
+-// kube-vip only installs routes for VIPs whose backends are healthy.
++// The CR carries the BGP sessions (neighbors, BFD) with permit-all egress.
++// VIP advertisement deliberately does NOT use CRD prefixes/toAdvertise
++// prefix lists: frr-k8s renders those as unconditional `network` statements,
++// which would bypass the kube-vip health gate. Instead, advertisement
++// happens exclusively via the rawConfig redistribution of routing table 198
++// (see buildBGPVIPRawConfig), into which kube-vip only installs routes for
++// VIPs whose backends are healthy.
+ func buildFRRConfigurationObjects(cfg bgpVIPConfigData) ([]*uns.Unstructured, error) {
+ 	// Build neighbors list.
+ 	neighbors := []interface{}{}
+@@ -113,6 +114,18 @@ func buildFRRConfigurationObjects(cfg bgpVIPConfigData) ([]*uns.Unstructured, er
+ 		neighbor := map[string]interface{}{
+ 			"address": peer.PeerAddress,
+ 			"asn":     peer.PeerASN,
++			// frr-k8s renders deny-all per-neighbor outbound route-maps when
++			// toAdvertise is absent, so egress must be opened explicitly.
++			// mode=all is safe because this FRR instance is VIP-dedicated:
++			// the filtered `redistribute table-direct 198` rawConfig is the
++			// ingress filter and nothing else feeds this BGP table, so only
++			// the VIP prefixes exist to advertise. Revisit if the static pod
++			// ever merges additional consumers.
++			"toAdvertise": map[string]interface{}{
++				"allowed": map[string]interface{}{
++					"mode": "all",
++				},
++			},
+ 		}
+ 		if peer.Password != "" {
+ 			neighbor["password"] = peer.Password
+diff --git a/pkg/network/bgp_vip_test.go b/pkg/network/bgp_vip_test.go
+index 3d33e98fc..f184aca2c 100644
+--- a/pkg/network/bgp_vip_test.go
++++ b/pkg/network/bgp_vip_test.go
+@@ -30,12 +30,23 @@ func TestBuildFRRConfigurationObjects(t *testing.T) {
+ 
+ 	// VIP advertisement must NOT use CRD prefixes: frr-k8s renders those as
+ 	// unconditional `network` statements, which bypass the kube-vip health
+-	// gate (routing table 198). No router-level prefixes, no toAdvertise.
++	// gate (routing table 198). No router-level prefixes, no prefixes list
++	// under toAdvertise.
+ 	_, found, err = uns.NestedStringSlice(routers[0].(map[string]interface{}), "prefixes")
+ 	g.Expect(err).NotTo(HaveOccurred())
+ 	g.Expect(found).To(BeFalse())
+ 	neighbor := neighbors[0].(map[string]interface{})
+-	g.Expect(neighbor).NotTo(HaveKey("toAdvertise"))
++	// Egress must be opened explicitly: frr-k8s renders deny-all outbound
++	// route-maps when toAdvertise is absent. mode=all is safe because the
++	// filtered table-direct redistribution is the ingress filter, so only
++	// the VIP prefixes exist in the BGP table to advertise.
++	mode, found, err := uns.NestedString(neighbor, "toAdvertise", "allowed", "mode")
++	g.Expect(err).NotTo(HaveOccurred())
++	g.Expect(found).To(BeTrue())
++	g.Expect(mode).To(Equal("all"))
++	_, found, err = uns.NestedStringSlice(neighbor, "toAdvertise", "allowed", "prefixes")
++	g.Expect(err).NotTo(HaveOccurred())
++	g.Expect(found).To(BeFalse())
+ 	g.Expect(neighbor["address"]).To(Equal("192.168.111.1"))
+ 	g.Expect(neighbor["asn"]).To(Equal(int64(64513)))
+ 
+@@ -90,9 +101,17 @@ func TestBuildFRRConfigurationObjectsAllOptionalFields(t *testing.T) {
+ 	g.Expect(neighbor["ebgpMultiHop"]).To(Equal(true))
+ 	g.Expect(neighbor["password"]).To(Equal("s3cret"))
+ 	g.Expect(neighbor["bfdProfile"]).To(Equal("vip-bfd"))
+-	// Sessions only: advertisement is done via gated redistribution in
+-	// rawConfig, never via toAdvertise/prefixes.
+-	g.Expect(neighbor).NotTo(HaveKey("toAdvertise"))
++	// Sessions carry permit-all egress (frr-k8s renders deny-all outbound
++	// route-maps when toAdvertise is absent), but advertisement content is
++	// still controlled exclusively by gated redistribution in rawConfig:
++	// no prefixes list under toAdvertise, no router-level prefixes.
++	mode, found, err := uns.NestedString(neighbor, "toAdvertise", "allowed", "mode")
++	g.Expect(err).NotTo(HaveOccurred())
++	g.Expect(found).To(BeTrue())
++	g.Expect(mode).To(Equal("all"))
++	_, found, err = uns.NestedStringSlice(neighbor, "toAdvertise", "allowed", "prefixes")
++	g.Expect(err).NotTo(HaveOccurred())
++	g.Expect(found).To(BeFalse())
+ 	_, found, err = uns.NestedStringSlice(routers[0].(map[string]interface{}), "prefixes")
+ 	g.Expect(err).NotTo(HaveOccurred())
+ 	g.Expect(found).To(BeFalse())

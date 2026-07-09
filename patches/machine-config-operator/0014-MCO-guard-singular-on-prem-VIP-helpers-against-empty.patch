@@ -1,0 +1,79 @@
+From 2e5240b156af602933f67cc7660ebc1bc4e8a727 Mon Sep 17 00:00:00 2001
+From: Mat Kowalski <mko@redhat.com>
+Date: Wed, 8 Jul 2026 12:40:26 +0200
+Subject: [PATCH 14/26] MCO: guard singular on-prem VIP helpers against empty
+ VIP lists
+
+The BGP VIP static pod templates render these helpers unconditionally
+(only the target path is gated), so VIP-less on-prem configs must not
+panic with index out of range. The templates live in common/on-prem
+and render for every on-prem platform, so BareMetal, Ovirt, OpenStack
+and Nutanix all need the guard; VSphere was already guarded.
+---
+ pkg/controller/template/render.go | 24 ++++++++++++++++++++++++
+ 1 file changed, 24 insertions(+)
+
+diff --git a/pkg/controller/template/render.go b/pkg/controller/template/render.go
+index 1caec0fa2..5c28d3c08 100644
+--- a/pkg/controller/template/render.go
++++ b/pkg/controller/template/render.go
+@@ -498,10 +498,19 @@ func onPremPlatformIngressIP(cfg RenderConfig) (interface{}, error) {
+ 	if cfg.Infra.Status.PlatformStatus != nil {
+ 		switch cfg.Infra.Status.PlatformStatus.Type {
+ 		case configv1.BareMetalPlatformType:
++			if len(cfg.Infra.Status.PlatformStatus.BareMetal.IngressIPs) == 0 {
++				return nil, nil
++			}
+ 			return cfg.Infra.Status.PlatformStatus.BareMetal.IngressIPs[0], nil
+ 		case configv1.OvirtPlatformType:
++			if len(cfg.Infra.Status.PlatformStatus.Ovirt.IngressIPs) == 0 {
++				return nil, nil
++			}
+ 			return cfg.Infra.Status.PlatformStatus.Ovirt.IngressIPs[0], nil
+ 		case configv1.OpenStackPlatformType:
++			if len(cfg.Infra.Status.PlatformStatus.OpenStack.IngressIPs) == 0 {
++				return nil, nil
++			}
+ 			return cfg.Infra.Status.PlatformStatus.OpenStack.IngressIPs[0], nil
+ 		case configv1.VSpherePlatformType:
+ 			if cfg.Infra.Status.PlatformStatus.VSphere != nil {
+@@ -514,6 +523,9 @@ func onPremPlatformIngressIP(cfg RenderConfig) (interface{}, error) {
+ 			// and there is also no data
+ 			return nil, nil
+ 		case configv1.NutanixPlatformType:
++			if len(cfg.Infra.Status.PlatformStatus.Nutanix.IngressIPs) == 0 {
++				return nil, nil
++			}
+ 			return cfg.Infra.Status.PlatformStatus.Nutanix.IngressIPs[0], nil
+ 		default:
+ 			return nil, fmt.Errorf("invalid platform for Ingress IP")
+@@ -558,10 +570,19 @@ func onPremPlatformAPIServerInternalIP(cfg RenderConfig) (interface{}, error) {
+ 	if cfg.Infra.Status.PlatformStatus != nil {
+ 		switch cfg.Infra.Status.PlatformStatus.Type {
+ 		case configv1.BareMetalPlatformType:
++			if len(cfg.Infra.Status.PlatformStatus.BareMetal.APIServerInternalIPs) == 0 {
++				return nil, nil
++			}
+ 			return cfg.Infra.Status.PlatformStatus.BareMetal.APIServerInternalIPs[0], nil
+ 		case configv1.OvirtPlatformType:
++			if len(cfg.Infra.Status.PlatformStatus.Ovirt.APIServerInternalIPs) == 0 {
++				return nil, nil
++			}
+ 			return cfg.Infra.Status.PlatformStatus.Ovirt.APIServerInternalIPs[0], nil
+ 		case configv1.OpenStackPlatformType:
++			if len(cfg.Infra.Status.PlatformStatus.OpenStack.APIServerInternalIPs) == 0 {
++				return nil, nil
++			}
+ 			return cfg.Infra.Status.PlatformStatus.OpenStack.APIServerInternalIPs[0], nil
+ 		case configv1.VSpherePlatformType:
+ 			if cfg.Infra.Status.PlatformStatus.VSphere != nil {
+@@ -574,6 +595,9 @@ func onPremPlatformAPIServerInternalIP(cfg RenderConfig) (interface{}, error) {
+ 			// and there is also no data
+ 			return nil, nil
+ 		case configv1.NutanixPlatformType:
++			if len(cfg.Infra.Status.PlatformStatus.Nutanix.APIServerInternalIPs) == 0 {
++				return nil, nil
++			}
+ 			return cfg.Infra.Status.PlatformStatus.Nutanix.APIServerInternalIPs[0], nil
+ 		default:
+ 			return nil, fmt.Errorf("invalid platform for API Server Internal IP")

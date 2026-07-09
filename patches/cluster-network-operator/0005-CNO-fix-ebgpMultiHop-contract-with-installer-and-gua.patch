@@ -1,0 +1,122 @@
+From bcb76bbafbad0f44e99db5ad607322d848349750 Mon Sep 17 00:00:00 2001
+From: Mat Kowalski <mko@redhat.com>
+Date: Wed, 8 Jul 2026 15:14:13 +0200
+Subject: [PATCH 05/14] CNO: fix ebgpMultiHop contract with installer and guard
+ the feature gate
+
+The installer serializes ebgpMultiHop as a string; parsing it as bool
+hard-failed rendering for valid configs. Guard the gate lookup against
+clusters that do not know BGPBasedVIPManagement yet, and lock the full
+installer-shaped payload in the test fixture.
+---
+ pkg/network/bgp_vip.go      | 16 ++++++++++-----
+ pkg/network/bgp_vip_test.go | 39 +++++++++++++++++++++++++++++++++++++
+ 2 files changed, 50 insertions(+), 5 deletions(-)
+
+diff --git a/pkg/network/bgp_vip.go b/pkg/network/bgp_vip.go
+index 59b499591..966d4fa10 100644
+--- a/pkg/network/bgp_vip.go
++++ b/pkg/network/bgp_vip.go
+@@ -5,6 +5,7 @@ import (
+ 	"encoding/json"
+ 	"fmt"
+ 	"log"
++	"slices"
+ 
+ 	configv1 "github.com/openshift/api/config/v1"
+ 	apifeatures "github.com/openshift/api/features"
+@@ -20,12 +21,14 @@ import (
+ )
+ 
+ // bgpVIPPeer represents a BGP peer configuration from the bgp-vip-config ConfigMap.
++// String-typed BFDEnabled and EBGPMultiHop ("true"/"false") match the
++// installer's BGPPeerConfig serialization.
+ type bgpVIPPeer struct {
+ 	PeerAddress   string `json:"peerAddress"`
+ 	PeerASN       int64  `json:"peerASN"`
+ 	Password      string `json:"password,omitempty"`
+ 	BFDEnabled    string `json:"bfdEnabled,omitempty"`
+-	EBGPMultiHop  bool   `json:"ebgpMultiHop,omitempty"`
++	EBGPMultiHop  string `json:"ebgpMultiHop,omitempty"`
+ 	HoldTime      string `json:"holdTime,omitempty"`
+ 	KeepaliveTime string `json:"keepaliveTime,omitempty"`
+ }
+@@ -55,7 +58,10 @@ func renderBGPVIPFRRConfiguration(client cnoclient.Client, bootstrapResult *boot
+ 		return nil, nil
+ 	}
+ 
+-	if !featureGates.Enabled(apifeatures.FeatureGateBGPBasedVIPManagement) {
++	// Enabled panics on gates unknown to the cluster's FeatureGate status,
++	// so guard the lookup (same idiom as the NoOverlayMode gate).
++	if !slices.Contains(featureGates.KnownFeatures(), apifeatures.FeatureGateBGPBasedVIPManagement) ||
++		!featureGates.Enabled(apifeatures.FeatureGateBGPBasedVIPManagement) {
+ 		return nil, nil
+ 	}
+ 	if bootstrapResult.Infra.PlatformStatus.BareMetal.VIPManagement != "BGP" {
+@@ -121,7 +127,7 @@ func buildFRRConfigurationObjects(cfg bgpVIPConfigData) ([]*uns.Unstructured, er
+ 		if peer.BFDEnabled == "true" {
+ 			neighbor["bfdProfile"] = "vip-bfd"
+ 		}
+-		if peer.EBGPMultiHop {
++		if peer.EBGPMultiHop == "true" {
+ 			neighbor["ebgpMultiHop"] = true
+ 		}
+ 		neighbors = append(neighbors, neighbor)
+@@ -133,8 +139,8 @@ func buildFRRConfigurationObjects(cfg bgpVIPConfigData) ([]*uns.Unstructured, er
+ 		if peer.BFDEnabled == "true" {
+ 			bfdProfiles = append(bfdProfiles, map[string]interface{}{
+ 				"name":             "vip-bfd",
+-				"receiveInterval":  300,
+-				"transmitInterval": 300,
++				"receiveInterval":  int64(300),
++				"transmitInterval": int64(300),
+ 			})
+ 			break
+ 		}
+diff --git a/pkg/network/bgp_vip_test.go b/pkg/network/bgp_vip_test.go
+index 45139f0fb..bc0df7bd5 100644
+--- a/pkg/network/bgp_vip_test.go
++++ b/pkg/network/bgp_vip_test.go
+@@ -28,3 +28,42 @@ func TestBuildFRRConfigurationObjects(t *testing.T) {
+ 	g.Expect(found).To(BeTrue())
+ 	g.Expect(neighbors).To(HaveLen(1))
+ }
++
++// TestBuildFRRConfigurationObjectsAllOptionalFields locks the full
++// installer-shaped config.json payload, with every optional field populated
++// exactly as the installer emits them (string-typed bfdEnabled/ebgpMultiHop,
++// see installer pkg/types/baremetal BGPPeerConfig).
++func TestBuildFRRConfigurationObjectsAllOptionalFields(t *testing.T) {
++	g := NewGomegaWithT(t)
++	raw := `{"localASN":64512,"defaultPeers":[{"peerAddress":"192.168.111.1","peerASN":64513,"password":"s3cret","bfdEnabled":"true","ebgpMultiHop":"true","holdTime":"90s","keepaliveTime":"30s"}],"communities":["64512:100"],"apiVIPs":["192.168.111.5"],"ingressVIPs":["192.168.111.4"],"hostOverrides":{"master-0":[{"peerAddress":"192.168.1.1","peerASN":64513}]}}`
++	var cfg bgpVIPConfigData
++	g.Expect(json.Unmarshal([]byte(raw), &cfg)).To(Succeed())
++	g.Expect(cfg.DefaultPeers).To(HaveLen(1))
++	g.Expect(cfg.HostOverrides).To(HaveLen(1))
++	g.Expect(cfg.HostOverrides["master-0"]).To(HaveLen(1))
++
++	objs, err := buildFRRConfigurationObjects(cfg)
++	g.Expect(err).NotTo(HaveOccurred())
++	g.Expect(objs).To(HaveLen(1))
++
++	routers, found, err := uns.NestedSlice(objs[0].Object, "spec", "bgp", "routers")
++	g.Expect(err).NotTo(HaveOccurred())
++	g.Expect(found).To(BeTrue())
++	g.Expect(routers).To(HaveLen(1))
++	neighbors, found, err := uns.NestedSlice(routers[0].(map[string]interface{}), "neighbors")
++	g.Expect(err).NotTo(HaveOccurred())
++	g.Expect(found).To(BeTrue())
++	g.Expect(neighbors).To(HaveLen(1))
++
++	neighbor := neighbors[0].(map[string]interface{})
++	// ebgpMultiHop must be emitted as a real bool in the CR even though the
++	// installer serializes it as a string.
++	g.Expect(neighbor["ebgpMultiHop"]).To(Equal(true))
++	g.Expect(neighbor["password"]).To(Equal("s3cret"))
++	g.Expect(neighbor["bfdProfile"]).To(Equal("vip-bfd"))
++
++	bfdProfiles, found, err := uns.NestedSlice(objs[0].Object, "spec", "bgp", "bfdProfiles")
++	g.Expect(err).NotTo(HaveOccurred())
++	g.Expect(found).To(BeTrue())
++	g.Expect(bfdProfiles).To(HaveLen(1))
++}

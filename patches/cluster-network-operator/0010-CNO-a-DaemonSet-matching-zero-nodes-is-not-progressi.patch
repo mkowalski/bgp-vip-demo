@@ -1,0 +1,153 @@
+From c04ab0abbcccce4a5f22ef4993d949562b3b4d58 Mon Sep 17 00:00:00 2001
+From: Mat Kowalski <mko@redhat.com>
+Date: Thu, 9 Jul 2026 00:24:04 +0200
+Subject: [PATCH 10/14] CNO: a DaemonSet matching zero nodes is not progressing
+
+Under BGP VIP management the frr-k8s DaemonSet legitimately schedules
+zero pods on compact clusters (control plane nodes run the static pod
+instead). desiredNumberScheduled == 0 means fully rolled out; do not
+report it as unscheduled or hung.
+
+Found during the first end-to-end BGP VIP install.
+---
+ pkg/controller/statusmanager/pod_status.go    |   6 +-
+ .../statusmanager/status_manager_test.go      | 109 ++++++++++++++++++
+ 2 files changed, 114 insertions(+), 1 deletion(-)
+
+diff --git a/pkg/controller/statusmanager/pod_status.go b/pkg/controller/statusmanager/pod_status.go
+index 6e83c910f..f8797c399 100644
+--- a/pkg/controller/statusmanager/pod_status.go
++++ b/pkg/controller/statusmanager/pod_status.go
+@@ -112,7 +112,11 @@ func (status *StatusManager) SetFromPods() {
+ 			if !isNonCritical(ds) {
+ 				clbo = append(clbo, status.CheckCrashLoopBackOffPods(dsName, ds.Spec.Selector.MatchLabels, "DaemonSet")...)
+ 			}
+-		} else if ds.Status.NumberAvailable == 0 && dsRolloutActive {
++		} else if ds.Status.NumberAvailable == 0 && (ds.Status.DesiredNumberScheduled > 0 || ds.Status.ObservedGeneration < ds.Generation) && dsRolloutActive {
++			// A DaemonSet whose observed status desires zero pods (e.g. its
++			// node selector matches no nodes) is fully rolled out. Only treat
++			// NumberAvailable == 0 as "unscheduled" if pods are desired or the
++			// DaemonSet controller has not yet observed the current generation.
+ 			progressing = append(progressing, fmt.Sprintf("DaemonSet %q is not yet scheduled on any nodes", dsName.String()))
+ 			dsProgressing = true
+ 		}
+diff --git a/pkg/controller/statusmanager/status_manager_test.go b/pkg/controller/statusmanager/status_manager_test.go
+index 6911e0c0e..a99fc1090 100644
+--- a/pkg/controller/statusmanager/status_manager_test.go
++++ b/pkg/controller/statusmanager/status_manager_test.go
+@@ -1618,6 +1618,115 @@ func TestStatusManagerIgnoresDaemonSetNodeScaleChurnAfterInstall(t *testing.T) {
+ 	}
+ }
+ 
++func TestStatusManagerDaemonSetMatchingZeroNodes(t *testing.T) {
++	client := fake.NewFakeClient()
++	status := New(client, "testing", names.StandAloneClusterName)
++	status.clock = testingclock.NewFakeClock(time.Now())
++	setFakeListers(status)
++	no := &operv1.Network{ObjectMeta: metav1.ObjectMeta{Name: names.OPERATOR_CONFIG}}
++	setOC(t, client, no)
++
++	// A DaemonSet whose scheduling constraints match zero nodes (e.g.
++	// frr-k8s on a compact cluster, where the control plane nodes run a
++	// static pod instead) is fully rolled out. It must not be reported as
++	// Progressing or Degraded, even during install.
++	ds := &appsv1.DaemonSet{
++		ObjectMeta: metav1.ObjectMeta{Namespace: "one", Name: "alpha", Generation: 1, Labels: sl},
++		Spec: appsv1.DaemonSetSpec{
++			Selector: &metav1.LabelSelector{
++				MatchLabels: map[string]string{"app": "alpha"},
++			},
++		},
++		Status: appsv1.DaemonSetStatus{
++			CurrentNumberScheduled: 0,
++			DesiredNumberScheduled: 0,
++			UpdatedNumberScheduled: 0,
++			NumberAvailable:        0,
++			NumberReady:            0,
++			ObservedGeneration:     1,
++		},
++	}
++	set(t, client, ds)
++	status.SetFromPods()
++
++	_, oc, err := getStatuses(client, "testing")
++	if err != nil {
++		t.Fatalf("error getting ClusterOperator: %v", err)
++	}
++	if !conditionsInclude(oc.Status.Conditions, []operv1.OperatorCondition{
++		{
++			Type:   operv1.OperatorStatusTypeDegraded,
++			Status: operv1.ConditionFalse,
++		},
++		{
++			Type:   operv1.OperatorStatusTypeProgressing,
++			Status: operv1.ConditionFalse,
++		},
++		{
++			Type:   operv1.OperatorStatusTypeUpgradeable,
++			Status: operv1.ConditionTrue,
++		},
++		{
++			Type:   operv1.OperatorStatusTypeAvailable,
++			Status: operv1.ConditionTrue,
++		},
++	}) {
++		t.Fatalf("unexpected Status.Conditions: %#v", oc.Status.Conditions)
++	}
++
++	// The DaemonSet must not be tracked as an in-flight rollout, so it can
++	// never feed the hung-rollout degraded path.
++	ps := getLastPodState(t, client, "testing")
++	if len(ps.DaemonsetStates) != 0 {
++		t.Fatalf("expected no daemonset rollout state for a daemonset matching zero nodes: %#v", ps.DaemonsetStates)
++	}
++
++	// Even with stale last-seen state (as if it had been tracked as
++	// progressing for over ProgressTimeout), it must not be reported hung.
++	ps.DaemonsetStates = []daemonsetState{{
++		ClusteredName:  ClusteredName{Namespace: "one", Name: "alpha"},
++		LastSeenStatus: ds.Status,
++		LastChangeTime: time.Now().Add(-time.Hour),
++	}}
++	ps.InstallComplete = false
++	setLastPodState(t, client, "testing", ps)
++	status.SetFromPods()
++	// RolloutHung is debounced for 2 min, so advance clock and call again
++	status.clock.(*testingclock.FakeClock).Step(3 * time.Minute)
++	status.SetFromPods()
++
++	_, oc, err = getStatuses(client, "testing")
++	if err != nil {
++		t.Fatalf("error getting ClusterOperator: %v", err)
++	}
++	if !conditionsInclude(oc.Status.Conditions, []operv1.OperatorCondition{
++		{
++			Type:   operv1.OperatorStatusTypeDegraded,
++			Status: operv1.ConditionFalse,
++		},
++		{
++			Type:   operv1.OperatorStatusTypeProgressing,
++			Status: operv1.ConditionFalse,
++		},
++	}) {
++		t.Fatalf("unexpected Status.Conditions: %#v", oc.Status.Conditions)
++	}
++
++	// The stale state must have been pruned, not marked hung.
++	ps = getLastPodState(t, client, "testing")
++	if len(ps.DaemonsetStates) != 0 {
++		t.Fatalf("expected stale daemonset rollout state to be pruned: %#v", ps.DaemonsetStates)
++	}
++
++	err = client.ClientFor("").CRClient().Get(t.Context(), types.NamespacedName{Namespace: "one", Name: "alpha"}, ds)
++	if err != nil {
++		t.Fatalf("error getting DaemonSet: %v", err)
++	}
++	if val, set := ds.GetAnnotations()[names.RolloutHungAnnotation]; set {
++		t.Fatalf("Expected no rollout-hung annotation, but was present %s", val)
++	}
++}
++
+ func TestStatusManagerSetFromDeployments(t *testing.T) {
+ 	client := fake.NewFakeClient()
+ 	status := New(client, "testing", names.StandAloneClusterName)

@@ -1,0 +1,65 @@
+From 28d38a84f968c10c6127bd2342f0c10070895469 Mon Sep 17 00:00:00 2001
+From: Mat Kowalski <mko@redhat.com>
+Date: Mon, 15 Jun 2026 15:47:02 +0200
+Subject: [PATCH 09/26] MCO: rename frr-k8s manifests with 0000- prefix for
+ startup ordering
+
+---
+ manifests/on-prem/{frr-k8s.yaml => 0000-frr-k8s.yaml}           | 0
+ pkg/operator/bootstrap.go                                       | 2 +-
+ pkg/operator/bootstrap_test.go                                  | 2 +-
+ .../on-prem/files/{frr-k8s.yaml => 0000-frr-k8s.yaml}           | 0
+ .../common/on-prem/files/{frr-k8s.yaml => 0000-frr-k8s.yaml}    | 2 +-
+ 5 files changed, 3 insertions(+), 3 deletions(-)
+ rename manifests/on-prem/{frr-k8s.yaml => 0000-frr-k8s.yaml} (100%)
+ rename templates/arbiter/00-arbiter/on-prem/files/{frr-k8s.yaml => 0000-frr-k8s.yaml} (100%)
+ rename templates/common/on-prem/files/{frr-k8s.yaml => 0000-frr-k8s.yaml} (98%)
+
+diff --git a/manifests/on-prem/frr-k8s.yaml b/manifests/on-prem/0000-frr-k8s.yaml
+similarity index 100%
+rename from manifests/on-prem/frr-k8s.yaml
+rename to manifests/on-prem/0000-frr-k8s.yaml
+diff --git a/pkg/operator/bootstrap.go b/pkg/operator/bootstrap.go
+index 290a8f563..0cbf26588 100644
+--- a/pkg/operator/bootstrap.go
++++ b/pkg/operator/bootstrap.go
+@@ -258,7 +258,7 @@ func getPlatformManifests(manifests []manifest, platformName string, lbType conf
+ 	if lbType == configv1.LoadBalancerTypeOpenShiftManagedDefault || lbType == "" {
+ 		if vipManagement == "BGP" {
+ 			platformManifests = append(platformManifests,
+-				manifest{name: "manifests/on-prem/frr-k8s.yaml", filename: platformName + "/manifests/frr-k8s.yaml"},
++				manifest{name: "manifests/on-prem/0000-frr-k8s.yaml", filename: platformName + "/manifests/0000-frr-k8s.yaml"},
+ 				manifest{name: "manifests/on-prem/frr.conf.tmpl", filename: platformName + "/static-pod-resources/frr-k8s/frr.conf.tmpl"},
+ 				manifest{name: "manifests/on-prem/frr-peers.json.tmpl", filename: platformName + "/static-pod-resources/frr-k8s/frr-peers.json"},
+ 				manifest{name: "manifests/on-prem/frr-startup-daemons", filename: platformName + "/static-pod-resources/frr-k8s/startup/daemons"},
+diff --git a/pkg/operator/bootstrap_test.go b/pkg/operator/bootstrap_test.go
+index 87fae3ddc..8c5812ae7 100644
+--- a/pkg/operator/bootstrap_test.go
++++ b/pkg/operator/bootstrap_test.go
+@@ -102,7 +102,7 @@ func TestGetPlatformManifests(t *testing.T) {
+ 				if m.name == "manifests/on-prem/keepalived.yaml" {
+ 					hasKeepalived = true
+ 				}
+-				if m.name == "manifests/on-prem/frr-k8s.yaml" {
++				if m.name == "manifests/on-prem/0000-frr-k8s.yaml" {
+ 					hasFRRK8s = true
+ 				}
+ 				if m.name == "manifests/on-prem/coredns.yaml" || m.name == "manifests/cloud-platform-alt-dns/coredns.yaml" {
+diff --git a/templates/arbiter/00-arbiter/on-prem/files/frr-k8s.yaml b/templates/arbiter/00-arbiter/on-prem/files/0000-frr-k8s.yaml
+similarity index 100%
+rename from templates/arbiter/00-arbiter/on-prem/files/frr-k8s.yaml
+rename to templates/arbiter/00-arbiter/on-prem/files/0000-frr-k8s.yaml
+diff --git a/templates/common/on-prem/files/frr-k8s.yaml b/templates/common/on-prem/files/0000-frr-k8s.yaml
+similarity index 98%
+rename from templates/common/on-prem/files/frr-k8s.yaml
+rename to templates/common/on-prem/files/0000-frr-k8s.yaml
+index 5cdaa2085..e8c0c4894 100644
+--- a/templates/common/on-prem/files/frr-k8s.yaml
++++ b/templates/common/on-prem/files/0000-frr-k8s.yaml
+@@ -1,5 +1,5 @@
+ mode: 0644
+-path: {{ if isBGPVIPManagement . }}"/etc/kubernetes/manifests/frr-k8s.yaml"{{ else }}"/etc/kubernetes/disabled-manifests/frr-k8s.yaml"{{ end }}
++path: {{ if isBGPVIPManagement . }}"/etc/kubernetes/manifests/0000-frr-k8s.yaml"{{ else }}"/etc/kubernetes/disabled-manifests/0000-frr-k8s.yaml"{{ end }}
+ contents:
+   inline: |
+     ---

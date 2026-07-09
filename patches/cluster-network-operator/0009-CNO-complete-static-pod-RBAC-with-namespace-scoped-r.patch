@@ -1,0 +1,105 @@
+From 0a457915577768a36d25985301fed5335d8b468c Mon Sep 17 00:00:00 2001
+From: Mat Kowalski <mko@redhat.com>
+Date: Thu, 9 Jul 2026 00:04:45 +0200
+Subject: [PATCH 09/14] CNO: complete static pod RBAC with namespace-scoped
+ reads
+
+Mirror the DaemonSet service account's read grants (secrets for BGP
+passwords, pods) so the controller's informer caches can sync, instead
+of discovering one missing permission per crashloop.
+---
+ .../network/frr-k8s/003-static-pod-rbac.yaml  | 45 ++++++++++++++++++-
+ pkg/network/render_test.go                    |  6 +--
+ 2 files changed, 47 insertions(+), 4 deletions(-)
+
+diff --git a/bindata/network/frr-k8s/003-static-pod-rbac.yaml b/bindata/network/frr-k8s/003-static-pod-rbac.yaml
+index fc6d080b2..3dca54eb9 100644
+--- a/bindata/network/frr-k8s/003-static-pod-rbac.yaml
++++ b/bindata/network/frr-k8s/003-static-pod-rbac.yaml
+@@ -3,7 +3,10 @@
+ # containers authenticate with the node kubeconfig
+ # (/etc/kubernetes/kubeconfig), whose identity is the MCO node-bootstrapper
+ # ServiceAccount (verified live via oc auth whoami). Grant it read access to
+-# FRRConfigurations/FRRK8sConfigurations and write access to node state CRs.
++# FRRConfigurations/FRRK8sConfigurations and write access to node state CRs,
++# plus the namespace-scoped reads (secrets for BGP session passwords, pods)
++# that 002-rbac.yaml grants the DaemonSet service account, so the
++# controller's informer caches can sync.
+ apiVersion: rbac.authorization.k8s.io/v1
+ kind: ClusterRole
+ metadata:
+@@ -61,3 +64,43 @@ subjects:
+ - kind: ServiceAccount
+   name: node-bootstrapper
+   namespace: openshift-machine-config-operator
++---
++# Namespace-scoped reads mirroring the DaemonSet SA's Role in 002-rbac.yaml
++# (read-only: the static pod controller watches Secrets for BGP session
++# passwords and pods; it does not need the DaemonSet's secrets update grant).
++apiVersion: rbac.authorization.k8s.io/v1
++kind: Role
++metadata:
++  name: frr-k8s-static-pod
++  namespace: openshift-frr-k8s
++rules:
++- apiGroups:
++  - ""
++  resources:
++  - secrets
++  verbs:
++  - get
++  - list
++  - watch
++- apiGroups:
++  - ""
++  resources:
++  - pods
++  verbs:
++  - get
++  - list
++  - watch
++---
++apiVersion: rbac.authorization.k8s.io/v1
++kind: RoleBinding
++metadata:
++  name: frr-k8s-static-pod
++  namespace: openshift-frr-k8s
++roleRef:
++  apiGroup: rbac.authorization.k8s.io
++  kind: Role
++  name: frr-k8s-static-pod
++subjects:
++- kind: ServiceAccount
++  name: node-bootstrapper
++  namespace: openshift-machine-config-operator
+diff --git a/pkg/network/render_test.go b/pkg/network/render_test.go
+index 642cb8295..fe55bd93f 100644
+--- a/pkg/network/render_test.go
++++ b/pkg/network/render_test.go
+@@ -591,7 +591,7 @@ func Test_renderAdditionalRoutingCapabilities(t *testing.T) {
+ 					},
+ 				},
+ 			},
+-			want:        23,
++			want:        25,
+ 			expectedErr: nil,
+ 		},
+ 	}
+@@ -651,7 +651,7 @@ func Test_renderAdditionalRoutingCapabilitiesBGPVIPManagement(t *testing.T) {
+ 	// BGP VIP management active: the DaemonSet must avoid masters by role.
+ 	got, err := renderAdditionalRoutingCapabilities(operConf, manifestDir, bootstrapResult, featureGates)
+ 	g.Expect(err).NotTo(HaveOccurred())
+-	g.Expect(got).To(HaveLen(23))
++	g.Expect(got).To(HaveLen(25))
+ 	affinity, found := daemonSetAffinity(got)
+ 	g.Expect(found).To(BeTrue())
+ 	terms, found, err := uns.NestedSlice(affinity, "nodeAffinity", "requiredDuringSchedulingIgnoredDuringExecution", "nodeSelectorTerms")
+@@ -668,7 +668,7 @@ func Test_renderAdditionalRoutingCapabilitiesBGPVIPManagement(t *testing.T) {
+ 	// BGP VIP management inactive (nil bootstrap result): no affinity.
+ 	got, err = renderAdditionalRoutingCapabilities(operConf, manifestDir, nil, featureGates)
+ 	g.Expect(err).NotTo(HaveOccurred())
+-	g.Expect(got).To(HaveLen(23))
++	g.Expect(got).To(HaveLen(25))
+ 	_, found = daemonSetAffinity(got)
+ 	g.Expect(found).To(BeFalse())
+ }

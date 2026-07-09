@@ -1,0 +1,291 @@
+From e7f3eb426657a0885cf9dda947042a598eb43099 Mon Sep 17 00:00:00 2001
+From: Mat Kowalski <mko@redhat.com>
+Date: Wed, 8 Jul 2026 13:49:14 +0200
+Subject: [PATCH 16/26] MCO: harden bgp-vip-config ingestion
+
+Degrade instead of blanking peers when the ConfigMap disappears on a
+live BGP cluster, validate and compact the JSON payload at both
+ingestion points, strip the trailing newline from the rendered peer
+file, and tighten the new RBAC to the single ConfigMap actually read.
+---
+ install/0000_80_machine-config_00_rbac.yaml   |  5 +-
+ pkg/operator/bootstrap_dependencies.go        |  6 +-
+ pkg/operator/bootstrap_test.go                | 21 +++-
+ pkg/operator/sync.go                          | 24 ++++-
+ pkg/operator/sync_test.go                     | 96 +++++++++++++++++++
+ .../on-prem/files/frr-k8s-peers.yaml          |  2 +-
+ .../on-prem/files/frr-k8s-peers.yaml          |  2 +-
+ 7 files changed, 146 insertions(+), 10 deletions(-)
+
+diff --git a/install/0000_80_machine-config_00_rbac.yaml b/install/0000_80_machine-config_00_rbac.yaml
+index 8c9275903..16cd883db 100644
+--- a/install/0000_80_machine-config_00_rbac.yaml
++++ b/install/0000_80_machine-config_00_rbac.yaml
+@@ -231,13 +231,13 @@ metadata:
+   name: machine-config-operator-bgp-vip
+   namespace: openshift-network-operator
+   annotations:
+-    include.release.openshift.io/ibm-cloud-managed: "true"
+     include.release.openshift.io/self-managed-high-availability: "true"
+     include.release.openshift.io/single-node-developer: "true"
+ rules:
+   - apiGroups: [""]
+     resources: ["configmaps"]
+-    verbs: ["get", "list", "watch"]
++    resourceNames: ["bgp-vip-config"]
++    verbs: ["get"]
+ ---
+ apiVersion: rbac.authorization.k8s.io/v1
+ kind: RoleBinding
+@@ -245,7 +245,6 @@ metadata:
+   name: machine-config-operator-bgp-vip
+   namespace: openshift-network-operator
+   annotations:
+-    include.release.openshift.io/ibm-cloud-managed: "true"
+     include.release.openshift.io/self-managed-high-availability: "true"
+     include.release.openshift.io/single-node-developer: "true"
+ roleRef:
+diff --git a/pkg/operator/bootstrap_dependencies.go b/pkg/operator/bootstrap_dependencies.go
+index d51044e4d..4a16d43e0 100644
+--- a/pkg/operator/bootstrap_dependencies.go
++++ b/pkg/operator/bootstrap_dependencies.go
+@@ -296,6 +296,10 @@ func (b *BootstrapDependencies) fillBGPVIPConfig(path string) error {
+ 	if err != nil {
+ 		return fmt.Errorf("failed to read bgp-vip-config ConfigMap: %w", err)
+ 	}
+-	b.BGPVIPPeersJSON = cm.Data["config.json"]
++	peersJSON, err := compactBGPVIPPeersJSON(cm.Data["config.json"])
++	if err != nil {
++		return err
++	}
++	b.BGPVIPPeersJSON = peersJSON
+ 	return nil
+ }
+diff --git a/pkg/operator/bootstrap_test.go b/pkg/operator/bootstrap_test.go
+index b9e71420e..06853f3af 100644
+--- a/pkg/operator/bootstrap_test.go
++++ b/pkg/operator/bootstrap_test.go
+@@ -136,23 +136,40 @@ func TestGetPlatformManifests(t *testing.T) {
+ 
+ func TestFillBGPVIPConfig(t *testing.T) {
+ 	dir := t.TempDir()
++	peersJSON := `{"localASN":64512,"defaultPeers":[{"peerAddress":"192.168.111.1","peerASN":64513}],"apiVIPs":["192.168.111.5"],"ingressVIPs":["192.168.111.4"]}`
+ 	cmYAML := `apiVersion: v1
+ kind: ConfigMap
+ metadata:
+   name: bgp-vip-config
+   namespace: openshift-network-operator
+ data:
+-  config.json: '{"localASN":64512,"defaultPeers":[{"peerAddress":"192.168.111.1","peerASN":64513}],"apiVIPs":["192.168.111.5"],"ingressVIPs":["192.168.111.4"]}'
++  config.json: '` + peersJSON + `'
+ `
+ 	path := filepath.Join(dir, "bgp-vip-config.yaml")
+ 	require.NoError(t, os.WriteFile(path, []byte(cmYAML), 0o644))
+ 
+ 	deps := &BootstrapDependencies{}
+ 	require.NoError(t, deps.fillBGPVIPConfig(path), "fillBGPVIPConfig")
+-	assert.Contains(t, deps.BGPVIPPeersJSON, `"defaultPeers"`, "BGPVIPPeersJSON missing defaultPeers")
++	assert.Equal(t, peersJSON, deps.BGPVIPPeersJSON, "BGPVIPPeersJSON must be the compacted config.json payload")
+ 
+ 	// Missing file is tolerated (optional dependency).
+ 	deps2 := &BootstrapDependencies{}
+ 	require.NoError(t, deps2.fillBGPVIPConfig(filepath.Join(dir, "nonexistent.yaml")), "missing file must not error")
+ 	assert.Empty(t, deps2.BGPVIPPeersJSON, "expected empty for missing file")
++
++	// Malformed config.json payload must be rejected.
++	badCMYAML := `apiVersion: v1
++kind: ConfigMap
++metadata:
++  name: bgp-vip-config
++  namespace: openshift-network-operator
++data:
++  config.json: '{not json'
++`
++	badPath := filepath.Join(dir, "bgp-vip-config-bad.yaml")
++	require.NoError(t, os.WriteFile(badPath, []byte(badCMYAML), 0o644))
++
++	deps3 := &BootstrapDependencies{}
++	assert.Error(t, deps3.fillBGPVIPConfig(badPath), "malformed config.json must error")
++	assert.Empty(t, deps3.BGPVIPPeersJSON, "expected empty for malformed config.json")
+ }
+diff --git a/pkg/operator/sync.go b/pkg/operator/sync.go
+index 74f567bf4..b7e4c3739 100644
+--- a/pkg/operator/sync.go
++++ b/pkg/operator/sync.go
+@@ -370,6 +370,19 @@ func (optr *Operator) syncCloudConfig(spec *mcfgv1.ControllerConfigSpec, infra *
+ 	return nil
+ }
+ 
++// compactBGPVIPPeersJSON validates and compacts the bgp-vip-config payload so
++// it is safe to embed in single-line template contexts.
++func compactBGPVIPPeersJSON(raw string) (string, error) {
++	if raw == "" {
++		return "", nil
++	}
++	var buf bytes.Buffer
++	if err := json.Compact(&buf, []byte(raw)); err != nil {
++		return "", fmt.Errorf("bgp-vip-config config.json is not valid JSON: %w", err)
++	}
++	return buf.String(), nil
++}
++
+ // syncBGPVIPPeersJSON populates spec.BGPVIPPeersJSON from the
+ // openshift-network-operator/bgp-vip-config ConfigMap when BGP-based VIP
+ // management is enabled on a BareMetal platform.
+@@ -383,11 +396,18 @@ func (optr *Operator) syncBGPVIPPeersJSON(spec *mcfgv1.ControllerConfigSpec, inf
+ 		context.TODO(), "bgp-vip-config", metav1.GetOptions{})
+ 	if err != nil {
+ 		if apierrors.IsNotFound(err) {
+-			return nil // tolerate absence; bootstrap-rendered peers file remains in place
++			// The spec is rebuilt from scratch on every sync, so silently
++			// tolerating absence would blank the peers file fleet-wide.
++			// Degrade instead, holding the last good ControllerConfig.
++			return fmt.Errorf("BGP VIP management is enabled but the openshift-network-operator/bgp-vip-config ConfigMap is missing")
+ 		}
+ 		return fmt.Errorf("failed to read bgp-vip-config ConfigMap: %w", err)
+ 	}
+-	spec.BGPVIPPeersJSON = cm.Data["config.json"]
++	peersJSON, err := compactBGPVIPPeersJSON(cm.Data["config.json"])
++	if err != nil {
++		return err
++	}
++	spec.BGPVIPPeersJSON = peersJSON
+ 	return nil
+ }
+ 
+diff --git a/pkg/operator/sync_test.go b/pkg/operator/sync_test.go
+index 7c5ca8026..73483ef83 100644
+--- a/pkg/operator/sync_test.go
++++ b/pkg/operator/sync_test.go
+@@ -27,6 +27,7 @@ import (
+ 	fakemcopclientset "github.com/openshift/client-go/operator/clientset/versioned/fake"
+ 	mcoplistersv1 "github.com/openshift/client-go/operator/listers/operator/v1"
+ 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
++	"k8s.io/apimachinery/pkg/runtime"
+ 	"k8s.io/apimachinery/pkg/runtime/schema"
+ 	"k8s.io/client-go/dynamic/dynamiclister"
+ )
+@@ -179,6 +180,101 @@ func withCABundle(caBundle string) kubeCloudConfigOption {
+ 	}
+ }
+ 
++func withBareMetalVIPManagement(vipManagement string) infraOption {
++	return func(infra *configv1.Infrastructure) {
++		if infra.Status.PlatformStatus == nil {
++			infra.Status.PlatformStatus = &configv1.PlatformStatus{}
++		}
++		infra.Status.PlatformStatus.BareMetal = &configv1.BareMetalPlatformStatus{
++			VIPManagement: vipManagement,
++		}
++	}
++}
++
++func buildBGPVIPConfigMap(configJSON string) *corev1.ConfigMap {
++	return &corev1.ConfigMap{
++		ObjectMeta: metav1.ObjectMeta{
++			Namespace: "openshift-network-operator",
++			Name:      "bgp-vip-config",
++		},
++		Data: map[string]string{
++			"config.json": configJSON,
++		},
++	}
++}
++
++func TestSyncBGPVIPPeersJSON(t *testing.T) {
++	compactJSON := `{"localASN":64512,"defaultPeers":[{"peerAddress":"192.168.111.1","peerASN":64513}]}`
++	prettyJSON := `{
++  "localASN": 64512,
++  "defaultPeers": [
++    {
++      "peerAddress": "192.168.111.1",
++      "peerASN": 64513
++    }
++  ]
++}`
++	cases := []struct {
++		name                    string
++		infra                   *configv1.Infrastructure
++		configMap               *corev1.ConfigMap
++		expectError             bool
++		expectedBGPVIPPeersJSON string
++	}{
++		{
++			name:  "non-BareMetal platform is a no-op",
++			infra: buildInfra(withPlatformType(configv1.AWSPlatformType)),
++		},
++		{
++			name:  "BareMetal without BGP VIP management is a no-op",
++			infra: buildInfra(withPlatformType(configv1.BareMetalPlatformType), withBareMetalVIPManagement("")),
++		},
++		{
++			name:                    "BGP enabled with ConfigMap present",
++			infra:                   buildInfra(withPlatformType(configv1.BareMetalPlatformType), withBareMetalVIPManagement("BGP")),
++			configMap:               buildBGPVIPConfigMap(compactJSON),
++			expectedBGPVIPPeersJSON: compactJSON,
++		},
++		{
++			name:                    "BGP enabled with pretty-printed ConfigMap payload is compacted",
++			infra:                   buildInfra(withPlatformType(configv1.BareMetalPlatformType), withBareMetalVIPManagement("BGP")),
++			configMap:               buildBGPVIPConfigMap(prettyJSON),
++			expectedBGPVIPPeersJSON: compactJSON,
++		},
++		{
++			name:        "BGP enabled with missing ConfigMap degrades",
++			infra:       buildInfra(withPlatformType(configv1.BareMetalPlatformType), withBareMetalVIPManagement("BGP")),
++			expectError: true,
++		},
++		{
++			name:        "BGP enabled with malformed payload degrades",
++			infra:       buildInfra(withPlatformType(configv1.BareMetalPlatformType), withBareMetalVIPManagement("BGP")),
++			configMap:   buildBGPVIPConfigMap("{not json"),
++			expectError: true,
++		},
++	}
++	for _, tc := range cases {
++		t.Run(tc.name, func(t *testing.T) {
++			objs := []runtime.Object{}
++			if tc.configMap != nil {
++				objs = append(objs, tc.configMap)
++			}
++			optr := &Operator{
++				kubeClient: fake.NewSimpleClientset(objs...),
++			}
++			spec := &mcfgv1.ControllerConfigSpec{}
++			err := optr.syncBGPVIPPeersJSON(spec, tc.infra)
++			if tc.expectError {
++				assert.Error(t, err)
++				assert.Empty(t, spec.BGPVIPPeersJSON)
++				return
++			}
++			assert.NoError(t, err)
++			assert.Equal(t, tc.expectedBGPVIPPeersJSON, spec.BGPVIPPeersJSON)
++		})
++	}
++}
++
+ func TestMachineOSBuilderSecretReconciliation(t *testing.T) {
+ 	masterPool := helpers.NewMachineConfigPool("master", nil, helpers.MasterSelector, "v0")
+ 	workerPool := helpers.NewMachineConfigPool("worker", nil, helpers.MasterSelector, "v0")
+diff --git a/templates/master/00-master/on-prem/files/frr-k8s-peers.yaml b/templates/master/00-master/on-prem/files/frr-k8s-peers.yaml
+index e04e5cf7f..3cbbfc999 100644
+--- a/templates/master/00-master/on-prem/files/frr-k8s-peers.yaml
++++ b/templates/master/00-master/on-prem/files/frr-k8s-peers.yaml
+@@ -1,5 +1,5 @@
+ mode: 0644
+ path: "/etc/kubernetes/static-pod-resources/frr-k8s/frr-peers.json"
+ contents:
+-  inline: |
++  inline: |-
+     {{.BGPVIPPeersJSON}}
+diff --git a/templates/worker/00-worker/on-prem/files/frr-k8s-peers.yaml b/templates/worker/00-worker/on-prem/files/frr-k8s-peers.yaml
+index e04e5cf7f..3cbbfc999 100644
+--- a/templates/worker/00-worker/on-prem/files/frr-k8s-peers.yaml
++++ b/templates/worker/00-worker/on-prem/files/frr-k8s-peers.yaml
+@@ -1,5 +1,5 @@
+ mode: 0644
+ path: "/etc/kubernetes/static-pod-resources/frr-k8s/frr-peers.json"
+ contents:
+-  inline: |
++  inline: |-
+     {{.BGPVIPPeersJSON}}

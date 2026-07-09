@@ -1,0 +1,374 @@
+From c0e4d556244915b4ef6a0ab4f4dc06a39cda6ac3 Mon Sep 17 00:00:00 2001
+From: Mat Kowalski <mko@redhat.com>
+Date: Wed, 8 Jul 2026 13:10:18 +0200
+Subject: [PATCH 15/26] MCO: source frr-peers.json from installer
+ bgp-vip-config ConfigMap
+
+Bootstrap: RenderBootstrap reads the bgp-vip-config ConfigMap manifest
+from the asset dir (new optional --bgp-vip-config-file flag) and exposes
+config.json via ControllerConfigSpec.BGPVIPPeersJSON.
+Day-2: the operator reads the same ConfigMap from
+openshift-network-operator (new Role/RoleBinding) on each sync.
+The frr-peers.json bootstrap tmpl and day-2 MachineConfig templates now
+render the real JSON instead of referencing a nonexistent field.
+Also guards the operator-side singular VIP helpers against empty VIP
+lists, mirroring the template-controller fix.
+---
+ cmd/machine-config-operator/bootstrap.go      |  1 +
+ install/0000_80_machine-config_00_rbac.yaml   | 32 +++++++++++++++++++
+ manifests/on-prem/0000-frr-k8s.yaml           |  4 +--
+ manifests/on-prem/0010-kube-vip-api.yaml      |  2 +-
+ manifests/on-prem/frr-peers.json.tmpl         |  2 +-
+ pkg/operator/bootstrap.go                     |  1 +
+ pkg/operator/bootstrap_dependencies.go        | 23 +++++++++++++
+ pkg/operator/bootstrap_test.go                | 26 +++++++++++++++
+ pkg/operator/render.go                        | 24 ++++++++++++++
+ pkg/operator/render_test.go                   |  1 +
+ pkg/operator/sync.go                          | 25 +++++++++++++++
+ .../on-prem/files/frr-k8s-peers.yaml          |  2 +-
+ .../on-prem/files/frr-k8s-peers.yaml          |  2 +-
+ 13 files changed, 139 insertions(+), 6 deletions(-)
+
+diff --git a/cmd/machine-config-operator/bootstrap.go b/cmd/machine-config-operator/bootstrap.go
+index 5a37c1883..29120787b 100644
+--- a/cmd/machine-config-operator/bootstrap.go
++++ b/cmd/machine-config-operator/bootstrap.go
+@@ -78,6 +78,7 @@ func init() {
+ 	bootstrapCmd.PersistentFlags().StringVar(&bootstrapOpts.dockerRegistryImage, "docker-registry-image", "", "Image for docker-registry.")
+ 	bootstrapCmd.PersistentFlags().StringVar(&bootstrapOpts.imageReferences, "image-references", "", "File containing imagestreams (from cluster-version-operator)")
+ 	bootstrapCmd.PersistentFlags().StringVar(&bootstrapOpts.dependencyFiles.CloudProviderCA, "cloud-provider-ca-file", "", "path to cloud provider CA certificate")
++	bootstrapCmd.PersistentFlags().StringVar(&bootstrapOpts.dependencyFiles.BGPVIPConfig, "bgp-vip-config-file", "/assets/manifests/bgp-vip-config.yaml", "File containing the bgp-vip-config ConfigMap manifest (optional).")
+ 
+ }
+ 
+diff --git a/install/0000_80_machine-config_00_rbac.yaml b/install/0000_80_machine-config_00_rbac.yaml
+index 50f2fbaff..8c9275903 100644
+--- a/install/0000_80_machine-config_00_rbac.yaml
++++ b/install/0000_80_machine-config_00_rbac.yaml
+@@ -224,3 +224,35 @@ subjects:
+ roleRef:
+   kind: Role
+   name: host-networking-services
++---
++apiVersion: rbac.authorization.k8s.io/v1
++kind: Role
++metadata:
++  name: machine-config-operator-bgp-vip
++  namespace: openshift-network-operator
++  annotations:
++    include.release.openshift.io/ibm-cloud-managed: "true"
++    include.release.openshift.io/self-managed-high-availability: "true"
++    include.release.openshift.io/single-node-developer: "true"
++rules:
++  - apiGroups: [""]
++    resources: ["configmaps"]
++    verbs: ["get", "list", "watch"]
++---
++apiVersion: rbac.authorization.k8s.io/v1
++kind: RoleBinding
++metadata:
++  name: machine-config-operator-bgp-vip
++  namespace: openshift-network-operator
++  annotations:
++    include.release.openshift.io/ibm-cloud-managed: "true"
++    include.release.openshift.io/self-managed-high-availability: "true"
++    include.release.openshift.io/single-node-developer: "true"
++roleRef:
++  apiGroup: rbac.authorization.k8s.io
++  kind: Role
++  name: machine-config-operator-bgp-vip
++subjects:
++  - kind: ServiceAccount
++    name: machine-config-operator
++    namespace: openshift-machine-config-operator
+diff --git a/manifests/on-prem/0000-frr-k8s.yaml b/manifests/on-prem/0000-frr-k8s.yaml
+index e952064a6..cae033e70 100644
+--- a/manifests/on-prem/0000-frr-k8s.yaml
++++ b/manifests/on-prem/0000-frr-k8s.yaml
+@@ -21,9 +21,9 @@ spec:
+     - render
+     - /etc/kubernetes/kubeconfig
+     - --api-vips
+-    - {{ onPremPlatformAPIServerInternalIP . }}
++    - {{ onPremPlatformAPIServerInternalIP .ControllerConfig }}
+     - --ingress-vips
+-    - {{ onPremPlatformIngressIP . }}
++    - {{ onPremPlatformIngressIP .ControllerConfig }}
+     - /config/frr.conf.tmpl
+     - --out-dir
+     - /etc/frr
+diff --git a/manifests/on-prem/0010-kube-vip-api.yaml b/manifests/on-prem/0010-kube-vip-api.yaml
+index a8571f791..42a1b365b 100644
+--- a/manifests/on-prem/0010-kube-vip-api.yaml
++++ b/manifests/on-prem/0010-kube-vip-api.yaml
+@@ -17,7 +17,7 @@ spec:
+     image: quay.io/mkowalski/kube-vip:latest
+     env:
+     - name: address
+-      value: "{{ onPremPlatformAPIServerInternalIP . }}"
++      value: "{{ onPremPlatformAPIServerInternalIP .ControllerConfig }}"
+     - name: port
+       value: "6443"
+     - name: cp_enable
+diff --git a/manifests/on-prem/frr-peers.json.tmpl b/manifests/on-prem/frr-peers.json.tmpl
+index 5cac498e5..b91e5f25b 100644
+--- a/manifests/on-prem/frr-peers.json.tmpl
++++ b/manifests/on-prem/frr-peers.json.tmpl
+@@ -1 +1 @@
+-{{- .BGPPeersJSON -}}
++{{- .ControllerConfig.BGPVIPPeersJSON -}}
+diff --git a/pkg/operator/bootstrap.go b/pkg/operator/bootstrap.go
+index b5987370b..ac28ce215 100644
+--- a/pkg/operator/bootstrap.go
++++ b/pkg/operator/bootstrap.go
+@@ -130,6 +130,7 @@ func buildSpec(dependencies *BootstrapDependencies, imgs *ctrlcommon.Images, rel
+ 	}
+ 
+ 	spec.RootCAData = []byte(dependencies.MCSCA)
++	spec.BGPVIPPeersJSON = dependencies.BGPVIPPeersJSON
+ 	spec.PullSecret = nil
+ 	spec.BaseOSContainerImage = imgs.BaseOSContainerImage
+ 	spec.BaseOSExtensionsContainerImage = imgs.BaseOSExtensionsContainerImage
+diff --git a/pkg/operator/bootstrap_dependencies.go b/pkg/operator/bootstrap_dependencies.go
+index a9ae87621..d51044e4d 100644
+--- a/pkg/operator/bootstrap_dependencies.go
++++ b/pkg/operator/bootstrap_dependencies.go
+@@ -25,6 +25,7 @@ type BootstrapDependenciesFiles struct {
+ 	MCSCAFile              string
+ 	KubeAPIServerServingCA string
+ 	PullSecret             string
++	BGPVIPConfig           string
+ }
+ 
+ // Validate ensures all required files are set and all provided file paths exist.
+@@ -45,6 +46,7 @@ func (b BootstrapDependenciesFiles) Validate() error {
+ 		{"CloudProviderCA", b.CloudProviderCA, false},
+ 		{"AdditionalTrustBundle", b.AdditionalTrustBundle, false},
+ 		{"CloudConfig", b.CloudConfig, false},
++		{"BGPVIPConfig", b.BGPVIPConfig, false},
+ 	}
+ 	for _, file := range files {
+ 		if err := b.validateFile(file.name, file.path, file.required); err != nil {
+@@ -87,6 +89,7 @@ type BootstrapDependencies struct {
+ 	KubeAPIServerServingCA string
+ 	MCSCA                  string
+ 	AdditionalTrustBundle  string
++	BGPVIPPeersJSON        string
+ }
+ 
+ // NewBootstrapDependencies creates a new BootstrapDependencies instance by validating and loading
+@@ -131,6 +134,9 @@ func (b *BootstrapDependencies) fillDependencies() error {
+ 	if err := b.fillClusterConfig(); err != nil {
+ 		return err
+ 	}
++	if err := b.fillBGPVIPConfig(b.Files.BGPVIPConfig); err != nil {
++		return err
++	}
+ 	if err := b.fillCloudConfigData(); err != nil {
+ 		return err
+ 	}
+@@ -276,3 +282,20 @@ func (b *BootstrapDependencies) fillClusterConfig() error {
+ 	}
+ 	return nil
+ }
++
++// fillBGPVIPConfig loads the optional bgp-vip-config ConfigMap manifest and
++// extracts its config.json payload for frr-peers.json rendering.
++func (b *BootstrapDependencies) fillBGPVIPConfig(path string) error {
++	if path == "" {
++		return nil
++	}
++	if _, err := os.Stat(path); os.IsNotExist(err) {
++		return nil // optional: only present when BGP VIP management is enabled
++	}
++	cm, err := readCoreCR[*corev1.ConfigMap](path)
++	if err != nil {
++		return fmt.Errorf("failed to read bgp-vip-config ConfigMap: %w", err)
++	}
++	b.BGPVIPPeersJSON = cm.Data["config.json"]
++	return nil
++}
+diff --git a/pkg/operator/bootstrap_test.go b/pkg/operator/bootstrap_test.go
+index e85854c71..b9e71420e 100644
+--- a/pkg/operator/bootstrap_test.go
++++ b/pkg/operator/bootstrap_test.go
+@@ -1,10 +1,13 @@
+ package operator
+ 
+ import (
++	"os"
++	"path/filepath"
+ 	"testing"
+ 
+ 	configv1 "github.com/openshift/api/config/v1"
+ 	"github.com/stretchr/testify/assert"
++	"github.com/stretchr/testify/require"
+ )
+ 
+ func TestGetPlatformManifests(t *testing.T) {
+@@ -130,3 +133,26 @@ func TestGetPlatformManifests(t *testing.T) {
+ 		})
+ 	}
+ }
++
++func TestFillBGPVIPConfig(t *testing.T) {
++	dir := t.TempDir()
++	cmYAML := `apiVersion: v1
++kind: ConfigMap
++metadata:
++  name: bgp-vip-config
++  namespace: openshift-network-operator
++data:
++  config.json: '{"localASN":64512,"defaultPeers":[{"peerAddress":"192.168.111.1","peerASN":64513}],"apiVIPs":["192.168.111.5"],"ingressVIPs":["192.168.111.4"]}'
++`
++	path := filepath.Join(dir, "bgp-vip-config.yaml")
++	require.NoError(t, os.WriteFile(path, []byte(cmYAML), 0o644))
++
++	deps := &BootstrapDependencies{}
++	require.NoError(t, deps.fillBGPVIPConfig(path), "fillBGPVIPConfig")
++	assert.Contains(t, deps.BGPVIPPeersJSON, `"defaultPeers"`, "BGPVIPPeersJSON missing defaultPeers")
++
++	// Missing file is tolerated (optional dependency).
++	deps2 := &BootstrapDependencies{}
++	require.NoError(t, deps2.fillBGPVIPConfig(filepath.Join(dir, "nonexistent.yaml")), "missing file must not error")
++	assert.Empty(t, deps2.BGPVIPPeersJSON, "expected empty for missing file")
++}
+diff --git a/pkg/operator/render.go b/pkg/operator/render.go
+index 5fb2c3aa8..43b72ed13 100644
+--- a/pkg/operator/render.go
++++ b/pkg/operator/render.go
+@@ -281,10 +281,19 @@ func onPremPlatformIngressIP(cfg mcfgv1.ControllerConfigSpec) (interface{}, erro
+ 	if cfg.Infra.Status.PlatformStatus != nil {
+ 		switch cfg.Infra.Status.PlatformStatus.Type {
+ 		case configv1.BareMetalPlatformType:
++			if len(cfg.Infra.Status.PlatformStatus.BareMetal.IngressIPs) == 0 {
++				return nil, nil
++			}
+ 			return cfg.Infra.Status.PlatformStatus.BareMetal.IngressIPs[0], nil
+ 		case configv1.OvirtPlatformType:
++			if len(cfg.Infra.Status.PlatformStatus.Ovirt.IngressIPs) == 0 {
++				return nil, nil
++			}
+ 			return cfg.Infra.Status.PlatformStatus.Ovirt.IngressIPs[0], nil
+ 		case configv1.OpenStackPlatformType:
++			if len(cfg.Infra.Status.PlatformStatus.OpenStack.IngressIPs) == 0 {
++				return nil, nil
++			}
+ 			return cfg.Infra.Status.PlatformStatus.OpenStack.IngressIPs[0], nil
+ 		case configv1.VSpherePlatformType:
+ 			if len(cfg.Infra.Status.PlatformStatus.VSphere.IngressIPs) > 0 {
+@@ -292,6 +301,9 @@ func onPremPlatformIngressIP(cfg mcfgv1.ControllerConfigSpec) (interface{}, erro
+ 			}
+ 			return nil, nil
+ 		case configv1.NutanixPlatformType:
++			if len(cfg.Infra.Status.PlatformStatus.Nutanix.IngressIPs) == 0 {
++				return nil, nil
++			}
+ 			return cfg.Infra.Status.PlatformStatus.Nutanix.IngressIPs[0], nil
+ 		default:
+ 			return nil, fmt.Errorf("invalid platform for Ingress IP")
+@@ -332,10 +344,19 @@ func onPremPlatformAPIServerInternalIP(cfg mcfgv1.ControllerConfigSpec) (interfa
+ 	if cfg.Infra.Status.PlatformStatus != nil {
+ 		switch cfg.Infra.Status.PlatformStatus.Type {
+ 		case configv1.BareMetalPlatformType:
++			if len(cfg.Infra.Status.PlatformStatus.BareMetal.APIServerInternalIPs) == 0 {
++				return nil, nil
++			}
+ 			return cfg.Infra.Status.PlatformStatus.BareMetal.APIServerInternalIPs[0], nil
+ 		case configv1.OvirtPlatformType:
++			if len(cfg.Infra.Status.PlatformStatus.Ovirt.APIServerInternalIPs) == 0 {
++				return nil, nil
++			}
+ 			return cfg.Infra.Status.PlatformStatus.Ovirt.APIServerInternalIPs[0], nil
+ 		case configv1.OpenStackPlatformType:
++			if len(cfg.Infra.Status.PlatformStatus.OpenStack.APIServerInternalIPs) == 0 {
++				return nil, nil
++			}
+ 			return cfg.Infra.Status.PlatformStatus.OpenStack.APIServerInternalIPs[0], nil
+ 		case configv1.VSpherePlatformType:
+ 			if len(cfg.Infra.Status.PlatformStatus.VSphere.APIServerInternalIPs) > 0 {
+@@ -343,6 +364,9 @@ func onPremPlatformAPIServerInternalIP(cfg mcfgv1.ControllerConfigSpec) (interfa
+ 			}
+ 			return nil, nil
+ 		case configv1.NutanixPlatformType:
++			if len(cfg.Infra.Status.PlatformStatus.Nutanix.APIServerInternalIPs) == 0 {
++				return nil, nil
++			}
+ 			return cfg.Infra.Status.PlatformStatus.Nutanix.APIServerInternalIPs[0], nil
+ 		default:
+ 			return nil, fmt.Errorf("invalid platform for API Server Internal IP")
+diff --git a/pkg/operator/render_test.go b/pkg/operator/render_test.go
+index 2cbaff6cb..7e6455c25 100644
+--- a/pkg/operator/render_test.go
++++ b/pkg/operator/render_test.go
+@@ -120,6 +120,7 @@ func TestRenderAllManifests(t *testing.T) {
+ 				HTTPSProxy: "https://i.am.a.proxy.server",
+ 				NoProxy:    "*",
+ 			},
++			BGPVIPPeersJSON: `{"localASN":64512,"defaultPeers":[{"peerAddress":"192.168.111.1","peerASN":64513}]}`,
+ 			Infra: &configv1.Infrastructure{
+ 				Status: configv1.InfrastructureStatus{
+ 					PlatformStatus: &configv1.PlatformStatus{
+diff --git a/pkg/operator/sync.go b/pkg/operator/sync.go
+index cff069be9..74f567bf4 100644
+--- a/pkg/operator/sync.go
++++ b/pkg/operator/sync.go
+@@ -370,6 +370,27 @@ func (optr *Operator) syncCloudConfig(spec *mcfgv1.ControllerConfigSpec, infra *
+ 	return nil
+ }
+ 
++// syncBGPVIPPeersJSON populates spec.BGPVIPPeersJSON from the
++// openshift-network-operator/bgp-vip-config ConfigMap when BGP-based VIP
++// management is enabled on a BareMetal platform.
++func (optr *Operator) syncBGPVIPPeersJSON(spec *mcfgv1.ControllerConfigSpec, infra *configv1.Infrastructure) error {
++	if infra.Status.PlatformStatus == nil ||
++		infra.Status.PlatformStatus.BareMetal == nil ||
++		infra.Status.PlatformStatus.BareMetal.VIPManagement != "BGP" {
++		return nil
++	}
++	cm, err := optr.kubeClient.CoreV1().ConfigMaps("openshift-network-operator").Get(
++		context.TODO(), "bgp-vip-config", metav1.GetOptions{})
++	if err != nil {
++		if apierrors.IsNotFound(err) {
++			return nil // tolerate absence; bootstrap-rendered peers file remains in place
++		}
++		return fmt.Errorf("failed to read bgp-vip-config ConfigMap: %w", err)
++	}
++	spec.BGPVIPPeersJSON = cm.Data["config.json"]
++	return nil
++}
++
+ //nolint:gocyclo
+ func (optr *Operator) syncRenderConfig(_ *renderConfig, _ *configv1.ClusterOperator) error {
+ 	if optr.inClusterBringup {
+@@ -594,6 +615,10 @@ func (optr *Operator) syncRenderConfig(_ *renderConfig, _ *configv1.ClusterOpera
+ 		return err
+ 	}
+ 
++	if err := optr.syncBGPVIPPeersJSON(spec, infra); err != nil {
++		return err
++	}
++
+ 	oscontainer, osextensionscontainer, err := optr.getOsImageURLs(optr.namespace, "")
+ 	if err != nil {
+ 		return fmt.Errorf("could not get OS images: %w", err)
+diff --git a/templates/master/00-master/on-prem/files/frr-k8s-peers.yaml b/templates/master/00-master/on-prem/files/frr-k8s-peers.yaml
+index 67e1984ea..e04e5cf7f 100644
+--- a/templates/master/00-master/on-prem/files/frr-k8s-peers.yaml
++++ b/templates/master/00-master/on-prem/files/frr-k8s-peers.yaml
+@@ -2,4 +2,4 @@ mode: 0644
+ path: "/etc/kubernetes/static-pod-resources/frr-k8s/frr-peers.json"
+ contents:
+   inline: |
+-    {{`{{.BGPPeersJSON}}`}}
++    {{.BGPVIPPeersJSON}}
+diff --git a/templates/worker/00-worker/on-prem/files/frr-k8s-peers.yaml b/templates/worker/00-worker/on-prem/files/frr-k8s-peers.yaml
+index 67e1984ea..e04e5cf7f 100644
+--- a/templates/worker/00-worker/on-prem/files/frr-k8s-peers.yaml
++++ b/templates/worker/00-worker/on-prem/files/frr-k8s-peers.yaml
+@@ -2,4 +2,4 @@ mode: 0644
+ path: "/etc/kubernetes/static-pod-resources/frr-k8s/frr-peers.json"
+ contents:
+   inline: |
+-    {{`{{.BGPPeersJSON}}`}}
++    {{.BGPVIPPeersJSON}}

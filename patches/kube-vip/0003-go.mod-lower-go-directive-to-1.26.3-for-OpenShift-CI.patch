@@ -1,0 +1,32 @@
+From 7a6c161d713a40197368f6172d6aa82fcb320e57 Mon Sep 17 00:00:00 2001
+From: Mat Kowalski <mko@redhat.com>
+Date: Wed, 24 Jun 2026 14:48:23 +0200
+Subject: [PATCH 3/6] go.mod: lower go directive to 1.26.3 for OpenShift CI
+ builder
+
+The OpenShift CI Go builder image (rhel-9-release-golang-1.26-openshift-5.0)
+ships Go 1.26.3 and, as a Red Hat Go build, hardcodes GOTOOLCHAIN=local so
+it cannot download a newer toolchain. With go.mod requiring go >= 1.26.4,
+'go test' fails with:
+
+  go: go.mod requires go >= 1.26.4 (running go 1.26.3; GOTOOLCHAIN=local)
+
+1.26.4 is a patch release over 1.26.3 with no language or API changes, so
+lowering the go directive to 1.26.3 is safe and unblocks CI. It can be
+raised again once a 1.26.4 builder image is available.
+---
+ go.mod | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/go.mod b/go.mod
+index 6197b2c..e70cd63 100644
+--- a/go.mod
++++ b/go.mod
+@@ -1,6 +1,6 @@
+ module github.com/kube-vip/kube-vip
+ 
+-go 1.26.4
++go 1.26.3
+ 
+ require (
+ 	github.com/cloudflare/ipvs v0.12.0

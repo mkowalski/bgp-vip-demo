@@ -1,0 +1,32 @@
+From 9dea799e4868d15db558f6d29a1ef89aa350945e Mon Sep 17 00:00:00 2001
+From: Mat Kowalski <mko@redhat.com>
+Date: Wed, 8 Jul 2026 11:08:18 +0200
+Subject: [PATCH 8/8] baremetal: add negative test for CNO config without
+ bgpVIPConfig
+
+---
+ pkg/asset/manifests/network_test.go | 14 ++++++++++++++
+ 1 file changed, 14 insertions(+)
+
+diff --git a/pkg/asset/manifests/network_test.go b/pkg/asset/manifests/network_test.go
+index 34aaca7190..ebbe514a09 100644
+--- a/pkg/asset/manifests/network_test.go
++++ b/pkg/asset/manifests/network_test.go
+@@ -203,3 +203,17 @@ func TestCNOConfigEnablesFRRForBGPVIP(t *testing.T) {
+ 	assert.Contains(t, cfg.Spec.AdditionalRoutingCapabilities.Providers,
+ 		operatorv1.RoutingCapabilitiesProviderFRR)
+ }
++
++func TestCNOConfigNilForBareMetalWithoutBGPVIP(t *testing.T) {
++	ic := validInstallConfigWithMTU(&types.InstallConfig{
++		Networking: &types.Networking{NetworkType: "OVNKubernetes"},
++		Platform: types.Platform{
++			BareMetal: &baremetal.Platform{},
++		},
++	})
++	cfg, err := clusterNetworkOperatorConfig(ic, nil, nil)
++	if !assert.NoError(t, err) {
++		return
++	}
++	assert.Nil(t, cfg)
++}

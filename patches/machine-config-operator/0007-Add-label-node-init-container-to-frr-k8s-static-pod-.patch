@@ -1,0 +1,81 @@
+From fbe4101783d25217db3a1c9dda53454d86e2fe8e Mon Sep 17 00:00:00 2001
+From: Mat Kowalski <mko@redhat.com>
+Date: Mon, 15 Jun 2026 15:00:32 +0200
+Subject: [PATCH 07/26] Add label-node init container to frr-k8s static pod
+ manifests
+
+Add an init container that labels the node with
+network.openshift.io/frr-k8s-static-pod to prevent the frr-k8s
+DaemonSet from scheduling on the same node as the static pod.
+
+The label-node init container runs after render-config-frr and before
+cp-frr-files, using runtimecfg to apply the label via the kubeconfig.
+---
+ manifests/on-prem/frr-k8s.yaml              | 21 +++++++++++++++++++++
+ templates/common/on-prem/files/frr-k8s.yaml | 21 +++++++++++++++++++++
+ 2 files changed, 42 insertions(+)
+
+diff --git a/manifests/on-prem/frr-k8s.yaml b/manifests/on-prem/frr-k8s.yaml
+index 184acf6b5..e952064a6 100644
+--- a/manifests/on-prem/frr-k8s.yaml
++++ b/manifests/on-prem/frr-k8s.yaml
+@@ -44,6 +44,27 @@ spec:
+       mountPath: /etc/frr
+     - name: kubeconfig
+       mountPath: /etc/kubernetes
++  - name: label-node
++    image: {{ .Images.BaremetalRuntimeCfgBootstrap }}
++    command:
++    - /usr/bin/runtimecfg
++    - label-node
++    - /etc/kubernetes/kubeconfig
++    - --label
++    - network.openshift.io/frr-k8s-static-pod
++    env:
++    - name: NODE_NAME
++      valueFrom:
++        fieldRef:
++          fieldPath: spec.nodeName
++    resources:
++      requests:
++        cpu: 10m
++        memory: 20Mi
++    terminationMessagePolicy: FallbackToLogsOnError
++    volumeMounts:
++    - name: kubeconfig
++      mountPath: /etc/kubernetes
+   - name: cp-frr-files
+     image: {{ .Images.FRRK8sBootstrap }}
+     command:
+diff --git a/templates/common/on-prem/files/frr-k8s.yaml b/templates/common/on-prem/files/frr-k8s.yaml
+index 96b683714..5cdaa2085 100644
+--- a/templates/common/on-prem/files/frr-k8s.yaml
++++ b/templates/common/on-prem/files/frr-k8s.yaml
+@@ -48,6 +48,27 @@ contents:
+           mountPath: /etc/frr
+         - name: kubeconfig
+           mountPath: /etc/kubernetes
++      - name: label-node
++        image: {{.Images.baremetalRuntimeCfgImage}}
++        command:
++        - /usr/bin/runtimecfg
++        - label-node
++        - /etc/kubernetes/kubeconfig
++        - --label
++        - network.openshift.io/frr-k8s-static-pod
++        env:
++        - name: NODE_NAME
++          valueFrom:
++            fieldRef:
++              fieldPath: spec.nodeName
++        resources:
++          requests:
++            cpu: 10m
++            memory: 20Mi
++        terminationMessagePolicy: FallbackToLogsOnError
++        volumeMounts:
++        - name: kubeconfig
++          mountPath: /etc/kubernetes
+       - name: cp-frr-files
+         image: {{.Images.frrK8sImage}}
+         command:

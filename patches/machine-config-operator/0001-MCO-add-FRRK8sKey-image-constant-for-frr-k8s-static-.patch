@@ -1,0 +1,26 @@
+From 50743bba0f7123b7099a011c3c6ed07b684af85c Mon Sep 17 00:00:00 2001
+From: Mat Kowalski <mko@redhat.com>
+Date: Mon, 15 Jun 2026 11:09:12 +0200
+Subject: [PATCH 01/26] MCO: add FRRK8sKey image constant for frr-k8s static
+ pod
+
+---
+ pkg/controller/template/constants.go | 5 +++++
+ 1 file changed, 5 insertions(+)
+
+diff --git a/pkg/controller/template/constants.go b/pkg/controller/template/constants.go
+index 91baec288..3711ed07e 100644
+--- a/pkg/controller/template/constants.go
++++ b/pkg/controller/template/constants.go
+@@ -22,6 +22,11 @@ const (
+ 	// BaremetalRuntimeCfgKey is the key that references the baremetal-runtimecfg image in the controller
+ 	BaremetalRuntimeCfgKey string = "baremetalRuntimeCfgImage"
+ 
++	// FRRK8sKey is the key for the frr-k8s image used by the frr-k8s static pod.
++	// A single image is used for all frr-k8s containers (controller, FRR daemon,
++	// reloader, metrics, status) in OpenShift.
++	FRRK8sKey string = "frrK8sImage"
++
+ 	// KubeRbacProxyKey the key that references the kubeRbacProxy image
+ 	KubeRbacProxyKey string = "kubeRbacProxyImage"
+ 

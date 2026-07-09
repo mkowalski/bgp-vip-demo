@@ -17,7 +17,7 @@ Last updated: 2026-07-09 (session 2 complete, runs 1–14) — ALL DEMO CRITERIA
 
 Root cause was upstream FRR bug (zebra import-table clears SELECTED on source
 routes; table-direct walk skips unselected — FRRouting/frr b2c17ad52, fixed
-in 10.7, backported here onto 10.4.3; see frr-zebra-import-table-selected.patch
+in 10.7, backported here onto 10.4.3; see patches/frr/
 and the 4-case container lab in the session log). Plus two frr-k8s semantic
 layers: mode:all egress is bound to declared router prefixes (deny-any
 otherwise) — solved with high-seq raw route-map permits; and ip import-table
@@ -45,7 +45,7 @@ must be present for zebra to track table 198.
 8. FRR < 10.7: routes pre-existing in a table at config time are never
    redistributed via table-direct (zebra import clears SELECTED on source
    routes; even de-selects). Upstream fix FRRouting/frr b2c17ad52 backported
-   (see frr-zebra-import-table-selected.patch + lab/).
+   (see patches/frr/ + lab/).
 9. Ingress VIP health source is the router `:1936/healthz` (keepalived's
    chk_ingress) — the EP's `:29445` is the API haproxy monitor.
 10. frr-k8s `toAdvertise.allowed.mode: all` egress covers only DECLARED router

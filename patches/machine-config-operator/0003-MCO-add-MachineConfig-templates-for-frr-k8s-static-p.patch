@@ -1,0 +1,539 @@
+From 8fc57a9bffd099f2fb80e2cb1362c400984bf8dc Mon Sep 17 00:00:00 2001
+From: Mat Kowalski <mko@redhat.com>
+Date: Mon, 15 Jun 2026 11:14:46 +0200
+Subject: [PATCH 03/26] MCO: add MachineConfig templates for frr-k8s static pod
+
+Add template files for rendering frr-k8s MachineConfig resources:
+- common/on-prem: static pod manifest with conditional path
+  (active in /etc/kubernetes/manifests/ when BGP VIP management is
+  enabled, otherwise in disabled-manifests/)
+- common/on-prem: FRR startup files (daemons, vtysh.conf)
+- master/on-prem: frr.conf.tmpl and frr-peers.json for master nodes
+- worker/on-prem: frr.conf.tmpl and frr-peers.json for worker nodes
+- arbiter/on-prem: empty override to suppress frr-k8s on arbiter nodes
+---
+ .../00-arbiter/on-prem/files/frr-k8s.yaml     |   0
+ .../files/frr-k8s-startup-daemons.yaml        |  27 ++
+ .../on-prem/files/frr-k8s-startup-vtysh.yaml  |   5 +
+ templates/common/on-prem/files/frr-k8s.yaml   | 308 ++++++++++++++++++
+ .../00-master/on-prem/files/frr-k8s-conf.yaml |  56 ++++
+ .../on-prem/files/frr-k8s-peers.yaml          |   5 +
+ .../00-worker/on-prem/files/frr-k8s-conf.yaml |  56 ++++
+ .../on-prem/files/frr-k8s-peers.yaml          |   5 +
+ 8 files changed, 462 insertions(+)
+ create mode 100644 templates/arbiter/00-arbiter/on-prem/files/frr-k8s.yaml
+ create mode 100644 templates/common/on-prem/files/frr-k8s-startup-daemons.yaml
+ create mode 100644 templates/common/on-prem/files/frr-k8s-startup-vtysh.yaml
+ create mode 100644 templates/common/on-prem/files/frr-k8s.yaml
+ create mode 100644 templates/master/00-master/on-prem/files/frr-k8s-conf.yaml
+ create mode 100644 templates/master/00-master/on-prem/files/frr-k8s-peers.yaml
+ create mode 100644 templates/worker/00-worker/on-prem/files/frr-k8s-conf.yaml
+ create mode 100644 templates/worker/00-worker/on-prem/files/frr-k8s-peers.yaml
+
+diff --git a/templates/arbiter/00-arbiter/on-prem/files/frr-k8s.yaml b/templates/arbiter/00-arbiter/on-prem/files/frr-k8s.yaml
+new file mode 100644
+index 000000000..e69de29bb
+diff --git a/templates/common/on-prem/files/frr-k8s-startup-daemons.yaml b/templates/common/on-prem/files/frr-k8s-startup-daemons.yaml
+new file mode 100644
+index 000000000..633516007
+--- /dev/null
++++ b/templates/common/on-prem/files/frr-k8s-startup-daemons.yaml
+@@ -0,0 +1,27 @@
++mode: 0644
++path: "/etc/kubernetes/static-pod-resources/frr-k8s/startup/daemons"
++contents:
++  inline: |
++    zebra=yes
++    bgpd=yes
++    ospfd=no
++    ospf6d=no
++    ripd=no
++    ripngd=no
++    isisd=no
++    pimd=no
++    ldpd=no
++    nhrpd=no
++    eigrpd=no
++    babeld=no
++    sharpd=no
++    pbrd=no
++    bfdd=yes
++    fabricd=no
++    vrrpd=no
++    pathd=no
++
++    vtysh_enable=yes
++    zebra_options="  -A 127.0.0.1 -s 90000000"
++    bgpd_options="   -A 127.0.0.1"
++    bfdd_options="   -A 127.0.0.1"
+diff --git a/templates/common/on-prem/files/frr-k8s-startup-vtysh.yaml b/templates/common/on-prem/files/frr-k8s-startup-vtysh.yaml
+new file mode 100644
+index 000000000..7cc769bd2
+--- /dev/null
++++ b/templates/common/on-prem/files/frr-k8s-startup-vtysh.yaml
+@@ -0,0 +1,5 @@
++mode: 0644
++path: "/etc/kubernetes/static-pod-resources/frr-k8s/startup/vtysh.conf"
++contents:
++  inline: |
++    service integrated-vtysh-config
+diff --git a/templates/common/on-prem/files/frr-k8s.yaml b/templates/common/on-prem/files/frr-k8s.yaml
+new file mode 100644
+index 000000000..96b683714
+--- /dev/null
++++ b/templates/common/on-prem/files/frr-k8s.yaml
+@@ -0,0 +1,308 @@
++mode: 0644
++path: {{ if isBGPVIPManagement . }}"/etc/kubernetes/manifests/frr-k8s.yaml"{{ else }}"/etc/kubernetes/disabled-manifests/frr-k8s.yaml"{{ end }}
++contents:
++  inline: |
++    ---
++    kind: Pod
++    apiVersion: v1
++    metadata:
++      name: frr-k8s
++      namespace: openshift-frr-k8s
++      labels:
++        app: frr-k8s
++    spec:
++      hostNetwork: true
++      shareProcessNamespace: true
++      priorityClassName: system-node-critical
++      terminationGracePeriodSeconds: 0
++      tolerations:
++      - operator: Exists
++      initContainers:
++      - name: render-config-frr
++        image: {{.Images.baremetalRuntimeCfgImage}}
++        command:
++        - /usr/bin/runtimecfg
++        - render
++        - /etc/kubernetes/kubeconfig
++        - --api-vips
++        - {{ onPremPlatformAPIServerInternalIP . }}
++        - --ingress-vips
++        - {{ onPremPlatformIngressIP . }}
++        - /config/frr.conf.tmpl
++        - --out-dir
++        - /etc/frr
++        - --peer-file
++        - /config/frr-peers.json
++        env:
++        - name: IS_BOOTSTRAP
++          value: "no"
++        resources:
++          requests:
++            cpu: 10m
++            memory: 50Mi
++        terminationMessagePolicy: FallbackToLogsOnError
++        volumeMounts:
++        - name: resource-dir
++          mountPath: /config
++        - name: frr-conf
++          mountPath: /etc/frr
++        - name: kubeconfig
++          mountPath: /etc/kubernetes
++      - name: cp-frr-files
++        image: {{.Images.frrK8sImage}}
++        command:
++        - /bin/sh
++        - -c
++        - |
++          cp -f /tmp/frr/daemons /etc/frr/daemons
++          cp -f /tmp/frr/vtysh.conf /etc/frr/vtysh.conf
++        securityContext:
++          runAsUser: 100
++          runAsGroup: 101
++        resources:
++          requests:
++            cpu: 10m
++            memory: 20Mi
++        terminationMessagePolicy: FallbackToLogsOnError
++        volumeMounts:
++        - name: frr-startup
++          mountPath: /tmp/frr
++        - name: frr-conf
++          mountPath: /etc/frr
++      - name: cp-reloader
++        image: {{.Images.frrK8sImage}}
++        command:
++        - /bin/sh
++        - -c
++        - cp -f /frr-reloader.sh /etc/frr_reloader/
++        resources:
++          requests:
++            cpu: 10m
++            memory: 20Mi
++        terminationMessagePolicy: FallbackToLogsOnError
++        volumeMounts:
++        - name: reloader
++          mountPath: /etc/frr_reloader
++      - name: cp-metrics
++        image: {{.Images.frrK8sImage}}
++        command:
++        - /bin/sh
++        - -c
++        - cp -f /frr-metrics /etc/frr_metrics/
++        resources:
++          requests:
++            cpu: 10m
++            memory: 20Mi
++        terminationMessagePolicy: FallbackToLogsOnError
++        volumeMounts:
++        - name: metrics
++          mountPath: /etc/frr_metrics
++      - name: cp-frr-status
++        image: {{.Images.frrK8sImage}}
++        command:
++        - /bin/sh
++        - -c
++        - cp -f /frr-status /etc/frr_status/
++        resources:
++          requests:
++            cpu: 10m
++            memory: 20Mi
++        terminationMessagePolicy: FallbackToLogsOnError
++        volumeMounts:
++        - name: frr-status
++          mountPath: /etc/frr_status
++      containers:
++      - name: controller
++        image: {{.Images.frrK8sImage}}
++        command:
++        - /frr-k8s
++        args:
++        - --node-name=$(NODE_NAME)
++        - --namespace=openshift-frr-k8s
++        - --metrics-bind-address=0.0.0.0:9140
++        - --metrics-cert-dir=/etc/metrics
++        env:
++        - name: FRR_CONFIG_FILE
++          value: /etc/frr_reloader/frr.conf
++        - name: FRR_RELOADER_PID_FILE
++          value: /etc/frr_reloader/reloader.pid
++        - name: NODE_NAME
++          valueFrom:
++            fieldRef:
++              fieldPath: spec.nodeName
++        ports:
++        - name: metricshttps
++          containerPort: 9140
++        resources:
++          requests:
++            cpu: 100m
++            memory: 200Mi
++        securityContext:
++          allowPrivilegeEscalation: false
++          readOnlyRootFilesystem: true
++          capabilities:
++            drop:
++            - ALL
++            add:
++            - NET_RAW
++        livenessProbe:
++          httpGet:
++            path: /healthz
++            port: 7572
++            host: 127.0.0.1
++          initialDelaySeconds: 10
++          periodSeconds: 10
++        readinessProbe:
++          httpGet:
++            path: /readyz
++            port: 7572
++            host: 127.0.0.1
++          initialDelaySeconds: 10
++          periodSeconds: 10
++        terminationMessagePolicy: FallbackToLogsOnError
++        volumeMounts:
++        - name: reloader
++          mountPath: /etc/frr_reloader
++        - name: metrics-certs
++          mountPath: /etc/metrics
++          readOnly: true
++      - name: frr
++        image: {{.Images.frrK8sImage}}
++        command:
++        - /bin/sh
++        - -c
++        - /sbin/tini -- /usr/lib/frr/docker-start
++        env:
++        - name: TINI_SUBREAPER
++          value: "true"
++        resources:
++          requests:
++            cpu: 100m
++            memory: 200Mi
++        securityContext:
++          allowPrivilegeEscalation: false
++          readOnlyRootFilesystem: true
++          capabilities:
++            add:
++            - NET_ADMIN
++            - NET_RAW
++            - SYS_ADMIN
++            - NET_BIND_SERVICE
++        livenessProbe:
++          httpGet:
++            path: /livez
++            port: 9141
++            scheme: HTTPS
++          periodSeconds: 10
++          failureThreshold: 3
++        startupProbe:
++          httpGet:
++            path: /livez
++            port: 9141
++            scheme: HTTPS
++          failureThreshold: 30
++          periodSeconds: 5
++        terminationMessagePolicy: FallbackToLogsOnError
++        volumeMounts:
++        - name: frr-sockets
++          mountPath: /var/run/frr
++        - name: frr-conf
++          mountPath: /etc/frr
++        - name: frr-lib
++          mountPath: /var/lib/frr
++        - name: frr-tmp
++          mountPath: /var/tmp/frr
++      - name: reloader
++        image: {{.Images.frrK8sImage}}
++        command:
++        - /etc/frr_reloader/frr-reloader.sh
++        resources:
++          requests:
++            cpu: 10m
++            memory: 20Mi
++        terminationMessagePolicy: FallbackToLogsOnError
++        volumeMounts:
++        - name: frr-sockets
++          mountPath: /var/run/frr
++        - name: frr-conf
++          mountPath: /etc/frr
++        - name: reloader
++          mountPath: /etc/frr_reloader
++      - name: frr-metrics
++        image: {{.Images.frrK8sImage}}
++        command:
++        - /etc/frr_metrics/frr-metrics
++        args:
++        - --metrics-port=9141
++        - --metrics-bind-address=0.0.0.0
++        - --tls-cert-file=/etc/metrics/tls.crt
++        - --tls-private-key-file=/etc/metrics/tls.key
++        ports:
++        - name: frrmetricshttps
++          containerPort: 9141
++        resources:
++          requests:
++            cpu: 10m
++            memory: 20Mi
++        terminationMessagePolicy: FallbackToLogsOnError
++        volumeMounts:
++        - name: frr-sockets
++          mountPath: /var/run/frr
++        - name: frr-conf
++          mountPath: /etc/frr
++        - name: metrics
++          mountPath: /etc/frr_metrics
++        - name: metrics-certs
++          mountPath: /etc/metrics
++          readOnly: true
++      - name: frr-status
++        image: {{.Images.frrK8sImage}}
++        command:
++        - /etc/frr_status/frr-status
++        args:
++        - --node-name=$(NODE_NAME)
++        - --namespace=openshift-frr-k8s
++        env:
++        - name: NODE_NAME
++          valueFrom:
++            fieldRef:
++              fieldPath: spec.nodeName
++        resources:
++          requests:
++            cpu: 10m
++            memory: 20Mi
++        terminationMessagePolicy: FallbackToLogsOnError
++        volumeMounts:
++        - name: frr-sockets
++          mountPath: /var/run/frr
++        - name: frr-conf
++          mountPath: /etc/frr
++        - name: frr-status
++          mountPath: /etc/frr_status
++      volumes:
++      - name: resource-dir
++        hostPath:
++          path: /etc/kubernetes/static-pod-resources/frr-k8s
++      - name: frr-conf
++        emptyDir: {}
++      - name: frr-sockets
++        emptyDir: {}
++      - name: reloader
++        emptyDir: {}
++      - name: metrics
++        emptyDir: {}
++      - name: frr-status
++        emptyDir: {}
++      - name: frr-lib
++        emptyDir: {}
++      - name: frr-tmp
++        emptyDir: {}
++      - name: frr-startup
++        hostPath:
++          path: /etc/kubernetes/static-pod-resources/frr-k8s/startup
++      - name: metrics-certs
++        hostPath:
++          path: /etc/kubernetes/static-pod-resources/frr-k8s/certs
++      - name: kubeconfig
++        hostPath:
++          path: /etc/kubernetes
+diff --git a/templates/master/00-master/on-prem/files/frr-k8s-conf.yaml b/templates/master/00-master/on-prem/files/frr-k8s-conf.yaml
+new file mode 100644
+index 000000000..d3ecf0253
+--- /dev/null
++++ b/templates/master/00-master/on-prem/files/frr-k8s-conf.yaml
+@@ -0,0 +1,56 @@
++mode: 0644
++path: "/etc/kubernetes/static-pod-resources/frr-k8s/frr.conf.tmpl"
++contents:
++  inline: |
++    frr version 9.1
++    frr defaults traditional
++    hostname {{`{{.Hostname}}`}}
++    !
++    router bgp {{`{{.LocalASN}}`}}
++     bgp router-id {{`{{.RouterID}}`}}
++     no bgp ebgp-requires-policy
++     no bgp default ipv4-unicast
++     !
++    {{`{{- range .Peers}}`}}
++     neighbor {{`{{.PeerAddress}}`}} remote-as {{`{{.PeerASN}}`}}
++    {{`{{- if .Password}}`}}
++     neighbor {{`{{.PeerAddress}}`}} password {{`{{.Password}}`}}
++    {{`{{- end}}`}}
++    {{`{{- if eq .BFDEnabled "true"}}`}}
++     neighbor {{`{{.PeerAddress}}`}} bfd
++    {{`{{- end}}`}}
++    {{`{{- if eq .EBGPMultiHop "true"}}`}}
++     neighbor {{`{{.PeerAddress}}`}} ebgp-multihop
++    {{`{{- end}}`}}
++    {{`{{- if .HoldTime}}`}}
++     neighbor {{`{{.PeerAddress}}`}} timers {{`{{.KeepaliveTime}}`}} {{`{{.HoldTime}}`}}
++    {{`{{- end}}`}}
++    {{`{{- end}}`}}
++     !
++     address-family ipv4 unicast
++      redistribute table-direct 198
++    {{`{{- range .Peers}}`}}
++    {{`{{- if isIPv4 .PeerAddress}}`}}
++      neighbor {{`{{.PeerAddress}}`}} activate
++    {{`{{- end}}`}}
++    {{`{{- end}}`}}
++     exit-address-family
++     !
++     address-family ipv6 unicast
++      redistribute table-direct 198
++    {{`{{- range .Peers}}`}}
++    {{`{{- if isIPv6 .PeerAddress}}`}}
++      neighbor {{`{{.PeerAddress}}`}} activate
++    {{`{{- end}}`}}
++    {{`{{- end}}`}}
++     exit-address-family
++    !
++    {{`{{- if .Communities}}`}}
++    route-map VIP-COMMUNITY permit 10
++    {{`{{- range .Communities}}`}}
++     set community {{`{{.}}`}} additive
++    {{`{{- end}}`}}
++    !
++    {{`{{- end}}`}}
++    line vty
++    !
+diff --git a/templates/master/00-master/on-prem/files/frr-k8s-peers.yaml b/templates/master/00-master/on-prem/files/frr-k8s-peers.yaml
+new file mode 100644
+index 000000000..67e1984ea
+--- /dev/null
++++ b/templates/master/00-master/on-prem/files/frr-k8s-peers.yaml
+@@ -0,0 +1,5 @@
++mode: 0644
++path: "/etc/kubernetes/static-pod-resources/frr-k8s/frr-peers.json"
++contents:
++  inline: |
++    {{`{{.BGPPeersJSON}}`}}
+diff --git a/templates/worker/00-worker/on-prem/files/frr-k8s-conf.yaml b/templates/worker/00-worker/on-prem/files/frr-k8s-conf.yaml
+new file mode 100644
+index 000000000..d3ecf0253
+--- /dev/null
++++ b/templates/worker/00-worker/on-prem/files/frr-k8s-conf.yaml
+@@ -0,0 +1,56 @@
++mode: 0644
++path: "/etc/kubernetes/static-pod-resources/frr-k8s/frr.conf.tmpl"
++contents:
++  inline: |
++    frr version 9.1
++    frr defaults traditional
++    hostname {{`{{.Hostname}}`}}
++    !
++    router bgp {{`{{.LocalASN}}`}}
++     bgp router-id {{`{{.RouterID}}`}}
++     no bgp ebgp-requires-policy
++     no bgp default ipv4-unicast
++     !
++    {{`{{- range .Peers}}`}}
++     neighbor {{`{{.PeerAddress}}`}} remote-as {{`{{.PeerASN}}`}}
++    {{`{{- if .Password}}`}}
++     neighbor {{`{{.PeerAddress}}`}} password {{`{{.Password}}`}}
++    {{`{{- end}}`}}
++    {{`{{- if eq .BFDEnabled "true"}}`}}
++     neighbor {{`{{.PeerAddress}}`}} bfd
++    {{`{{- end}}`}}
++    {{`{{- if eq .EBGPMultiHop "true"}}`}}
++     neighbor {{`{{.PeerAddress}}`}} ebgp-multihop
++    {{`{{- end}}`}}
++    {{`{{- if .HoldTime}}`}}
++     neighbor {{`{{.PeerAddress}}`}} timers {{`{{.KeepaliveTime}}`}} {{`{{.HoldTime}}`}}
++    {{`{{- end}}`}}
++    {{`{{- end}}`}}
++     !
++     address-family ipv4 unicast
++      redistribute table-direct 198
++    {{`{{- range .Peers}}`}}
++    {{`{{- if isIPv4 .PeerAddress}}`}}
++      neighbor {{`{{.PeerAddress}}`}} activate
++    {{`{{- end}}`}}
++    {{`{{- end}}`}}
++     exit-address-family
++     !
++     address-family ipv6 unicast
++      redistribute table-direct 198
++    {{`{{- range .Peers}}`}}
++    {{`{{- if isIPv6 .PeerAddress}}`}}
++      neighbor {{`{{.PeerAddress}}`}} activate
++    {{`{{- end}}`}}
++    {{`{{- end}}`}}
++     exit-address-family
++    !
++    {{`{{- if .Communities}}`}}
++    route-map VIP-COMMUNITY permit 10
++    {{`{{- range .Communities}}`}}
++     set community {{`{{.}}`}} additive
++    {{`{{- end}}`}}
++    !
++    {{`{{- end}}`}}
++    line vty
++    !
+diff --git a/templates/worker/00-worker/on-prem/files/frr-k8s-peers.yaml b/templates/worker/00-worker/on-prem/files/frr-k8s-peers.yaml
+new file mode 100644
+index 000000000..67e1984ea
+--- /dev/null
++++ b/templates/worker/00-worker/on-prem/files/frr-k8s-peers.yaml
+@@ -0,0 +1,5 @@
++mode: 0644
++path: "/etc/kubernetes/static-pod-resources/frr-k8s/frr-peers.json"
++contents:
++  inline: |
++    {{`{{.BGPPeersJSON}}`}}

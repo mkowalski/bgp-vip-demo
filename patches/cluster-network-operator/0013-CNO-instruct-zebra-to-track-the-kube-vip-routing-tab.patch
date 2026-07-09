@@ -1,0 +1,60 @@
+From 93e48830ecfd8ca08a0265e13f06b94e8dd14b10 Mon Sep 17 00:00:00 2001
+From: Mat Kowalski <mko@redhat.com>
+Date: Thu, 9 Jul 2026 03:15:08 +0200
+Subject: [PATCH 13/14] CNO: instruct zebra to track the kube-vip routing table
+
+Without ip import-table zebra ignores table 198, so table-direct
+redistribution exports nothing. The bootstrap frr.conf always carried
+the directive; the CR-based configuration now does too.
+---
+ pkg/network/bgp_vip.go      | 6 ++++++
+ pkg/network/bgp_vip_test.go | 5 +++++
+ 2 files changed, 11 insertions(+)
+
+diff --git a/pkg/network/bgp_vip.go b/pkg/network/bgp_vip.go
+index 7f21456b9..0eb95a5c4 100644
+--- a/pkg/network/bgp_vip.go
++++ b/pkg/network/bgp_vip.go
+@@ -208,6 +208,12 @@ func buildBGPVIPRawConfig(cfg bgpVIPConfigData) string {
+ 	}
+ 
+ 	var b strings.Builder
++	// Zebra only tracks kernel routing tables other than main when
++	// explicitly instructed. Without import-table zebra never sees the
++	// kube-vip routes in table 198 and the table-direct redistribution
++	// below exports nothing. The bootstrap config (MCO's
++	// manifests/on-prem/frr.conf.tmpl) carries the same directive.
++	b.WriteString("ip import-table 198\n")
+ 	fmt.Fprintf(&b, "router bgp %d\n", cfg.LocalASN)
+ 	if len(v4Prefixes) > 0 {
+ 		b.WriteString(" address-family ipv4 unicast\n")
+diff --git a/pkg/network/bgp_vip_test.go b/pkg/network/bgp_vip_test.go
+index f184aca2c..2af85cb62 100644
+--- a/pkg/network/bgp_vip_test.go
++++ b/pkg/network/bgp_vip_test.go
+@@ -55,6 +55,9 @@ func TestBuildFRRConfigurationObjects(t *testing.T) {
+ 	rawConfig, found, err := uns.NestedString(objs[0].Object, "spec", "raw", "rawConfig")
+ 	g.Expect(err).NotTo(HaveOccurred())
+ 	g.Expect(found).To(BeTrue())
++	// Zebra only tracks non-main kernel tables when told to: without
++	// import-table the table-direct redistribution exports nothing.
++	g.Expect(rawConfig).To(HavePrefix("ip import-table 198\n"))
+ 	g.Expect(rawConfig).To(ContainSubstring("router bgp 64512"))
+ 	g.Expect(rawConfig).To(ContainSubstring("redistribute table-direct 198 route-map BGP-VIP-ROUTES-V4"))
+ 	g.Expect(rawConfig).To(ContainSubstring("route-map BGP-VIP-ROUTES-V4 permit 10"))
+@@ -119,6 +122,7 @@ func TestBuildFRRConfigurationObjectsAllOptionalFields(t *testing.T) {
+ 	rawConfig, found, err := uns.NestedString(objs[0].Object, "spec", "raw", "rawConfig")
+ 	g.Expect(err).NotTo(HaveOccurred())
+ 	g.Expect(found).To(BeTrue())
++	g.Expect(rawConfig).To(HavePrefix("ip import-table 198\n"))
+ 	g.Expect(rawConfig).To(ContainSubstring("redistribute table-direct 198 route-map BGP-VIP-ROUTES-V4"))
+ 	g.Expect(rawConfig).To(ContainSubstring("route-map BGP-VIP-ROUTES-V4 permit 10"))
+ 	g.Expect(rawConfig).To(ContainSubstring("route-map BGP-VIP-ROUTES-V4 deny 20"))
+@@ -147,6 +151,7 @@ func TestBuildFRRConfigurationObjectsDualStack(t *testing.T) {
+ 	rawConfig, found, err := uns.NestedString(objs[0].Object, "spec", "raw", "rawConfig")
+ 	g.Expect(err).NotTo(HaveOccurred())
+ 	g.Expect(found).To(BeTrue())
++	g.Expect(rawConfig).To(HavePrefix("ip import-table 198\n"))
+ 	g.Expect(rawConfig).To(ContainSubstring("redistribute table-direct 198 route-map BGP-VIP-ROUTES-V4"))
+ 	g.Expect(rawConfig).To(ContainSubstring("redistribute table-direct 198 route-map BGP-VIP-ROUTES-V6"))
+ 	g.Expect(rawConfig).To(ContainSubstring("route-map BGP-VIP-ROUTES-V6 permit 10"))

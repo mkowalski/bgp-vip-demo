@@ -1,0 +1,45 @@
+From ec43198cf6d1052214b8bd70ba4f1dea099c0ff8 Mon Sep 17 00:00:00 2001
+From: Mat Kowalski <mko@redhat.com>
+Date: Wed, 8 Jul 2026 13:51:15 +0200
+Subject: [PATCH 17/26] MCO: reject empty bgp-vip-config payload on BGP
+ clusters
+
+---
+ pkg/operator/sync.go      | 6 +++++-
+ pkg/operator/sync_test.go | 6 ++++++
+ 2 files changed, 11 insertions(+), 1 deletion(-)
+
+diff --git a/pkg/operator/sync.go b/pkg/operator/sync.go
+index b7e4c3739..6837083c0 100644
+--- a/pkg/operator/sync.go
++++ b/pkg/operator/sync.go
+@@ -403,7 +403,11 @@ func (optr *Operator) syncBGPVIPPeersJSON(spec *mcfgv1.ControllerConfigSpec, inf
+ 		}
+ 		return fmt.Errorf("failed to read bgp-vip-config ConfigMap: %w", err)
+ 	}
+-	peersJSON, err := compactBGPVIPPeersJSON(cm.Data["config.json"])
++	raw := cm.Data["config.json"]
++	if raw == "" {
++		return fmt.Errorf("BGP VIP management is enabled but the bgp-vip-config ConfigMap has no config.json payload")
++	}
++	peersJSON, err := compactBGPVIPPeersJSON(raw)
+ 	if err != nil {
+ 		return err
+ 	}
+diff --git a/pkg/operator/sync_test.go b/pkg/operator/sync_test.go
+index 73483ef83..c4afb07a7 100644
+--- a/pkg/operator/sync_test.go
++++ b/pkg/operator/sync_test.go
+@@ -252,6 +252,12 @@ func TestSyncBGPVIPPeersJSON(t *testing.T) {
+ 			configMap:   buildBGPVIPConfigMap("{not json"),
+ 			expectError: true,
+ 		},
++		{
++			name:        "BGP enabled with empty config.json payload degrades",
++			infra:       buildInfra(withPlatformType(configv1.BareMetalPlatformType), withBareMetalVIPManagement("BGP")),
++			configMap:   buildBGPVIPConfigMap(""),
++			expectError: true,
++		},
+ 	}
+ 	for _, tc := range cases {
+ 		t.Run(tc.name, func(t *testing.T) {

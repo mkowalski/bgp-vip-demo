@@ -1,0 +1,53 @@
+From 5b311c8eef27d4a4c90d65835fed313f963e1f84 Mon Sep 17 00:00:00 2001
+From: Mat Kowalski <mko@redhat.com>
+Date: Wed, 8 Jul 2026 20:54:32 +0200
+Subject: [PATCH 23/26] MCO: kube-vip talks to the local API server
+
+Point kube-vip at localhost:6443 so leader election does not depend on
+the very VIP it manages - the node kubeconfig targets api-int, which
+deadlocks at bootstrap teardown.
+---
+ manifests/on-prem/0010-kube-vip-api.yaml                        | 2 ++
+ templates/master/00-master/on-prem/files/0010-kube-vip-api.yaml | 2 ++
+ .../master/00-master/on-prem/files/0020-kube-vip-ingress.yaml   | 2 ++
+ 3 files changed, 6 insertions(+)
+
+diff --git a/manifests/on-prem/0010-kube-vip-api.yaml b/manifests/on-prem/0010-kube-vip-api.yaml
+index bc7510008..147f8afe9 100644
+--- a/manifests/on-prem/0010-kube-vip-api.yaml
++++ b/manifests/on-prem/0010-kube-vip-api.yaml
+@@ -22,6 +22,8 @@ spec:
+       value: "{{ onPremPlatformAPIServerInternalIP .ControllerConfig }}"
+     - name: k8s_config_file
+       value: "/etc/kubernetes/kubeconfig"
++    - name: kubernetes_addr
++      value: "https://localhost:6443"
+     - name: port
+       value: "6443"
+     - name: cp_enable
+diff --git a/templates/master/00-master/on-prem/files/0010-kube-vip-api.yaml b/templates/master/00-master/on-prem/files/0010-kube-vip-api.yaml
+index 5ec9bcb07..0099e3cc7 100644
+--- a/templates/master/00-master/on-prem/files/0010-kube-vip-api.yaml
++++ b/templates/master/00-master/on-prem/files/0010-kube-vip-api.yaml
+@@ -26,6 +26,8 @@ contents:
+           value: "{{ onPremPlatformAPIServerInternalIP . }}"
+         - name: k8s_config_file
+           value: "/etc/kubernetes/kubeconfig"
++        - name: kubernetes_addr
++          value: "https://localhost:6443"
+         - name: port
+           value: "6443"
+         - name: cp_enable
+diff --git a/templates/master/00-master/on-prem/files/0020-kube-vip-ingress.yaml b/templates/master/00-master/on-prem/files/0020-kube-vip-ingress.yaml
+index dec6ff5c5..30158e9bf 100644
+--- a/templates/master/00-master/on-prem/files/0020-kube-vip-ingress.yaml
++++ b/templates/master/00-master/on-prem/files/0020-kube-vip-ingress.yaml
+@@ -26,6 +26,8 @@ contents:
+           value: "{{ onPremPlatformIngressIP . }}"
+         - name: k8s_config_file
+           value: "/etc/kubernetes/kubeconfig"
++        - name: kubernetes_addr
++          value: "https://localhost:6443"
+         - name: port
+           value: "443"
+         - name: cp_enable

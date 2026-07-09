@@ -49,7 +49,7 @@ Remote build fallback: metal-u15 (80 cores, 1.5T NVMe).
 | runtimecfg | `podman build -f Dockerfile .` in baremetal-runtimecfg (builders still valid) |
 | kube-vip | worktree the branch first (main checkout is elsewhere): `git worktree add /tmp/kv OPNET-595-bgp-vip-management && podman build -f Dockerfile.openshift /tmp/kv` |
 | cluster-config-api | `podman build -f Dockerfile.ocp ~/git/github.com/openshift-api` |
-| metallb-frr (FRR fix overlay) | 1) build patched zebra: clone FRRouting/frr @ frr-10.4.3, `git am frr-zebra-import-table-selected.patch`, run `build/frr-build.sh` in a `quay.io/centos/centos:stream9` container (mount src + out; el9-compatible glibc 2.34). 2) `podman build build/ -f build/Dockerfile.frr-overlay` (copies zebra over /usr/lib/frr and /usr/libexec/frr). Long-term this belongs in the frr10 RPM — see NEXT-STEPS |
+| metallb-frr (FRR fix overlay) | 1) build patched zebra: clone FRRouting/frr @ frr-10.4.3, `git am patches/frr/*.patch`, run `build/frr-build.sh` in a `quay.io/centos/centos:stream9` container (mount src + out; el9-compatible glibc 2.34). 2) `podman build build/ -f build/Dockerfile.frr-overlay` (copies zebra over /usr/lib/frr and /usr/libexec/frr). Long-term this belongs in the frr10 RPM — see NEXT-STEPS |
 
 Tag everything `quay.io/mkowalski/<name>:bgp-demo` and push. MCO note:
 `go build ./...` locally fails on 5 gpgme-dependent packages (missing system

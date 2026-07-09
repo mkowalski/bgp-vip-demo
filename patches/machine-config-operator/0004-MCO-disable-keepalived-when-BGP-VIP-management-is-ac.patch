@@ -1,0 +1,25 @@
+From 4a175810d806ca329d687aaea6f7ccae4ddb5b1c Mon Sep 17 00:00:00 2001
+From: Mat Kowalski <mko@redhat.com>
+Date: Mon, 15 Jun 2026 11:14:53 +0200
+Subject: [PATCH 04/26] MCO: disable keepalived when BGP VIP management is
+ active
+
+Add isBGPVIPManagement guard to the keepalived.yaml template path
+conditional. When BGP VIP management is active, keepalived is placed
+in /etc/kubernetes/disabled-manifests/ instead of manifests/,
+preventing it from running alongside frr-k8s.
+---
+ templates/common/on-prem/files/keepalived.yaml | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/templates/common/on-prem/files/keepalived.yaml b/templates/common/on-prem/files/keepalived.yaml
+index 8e898de54..a337eee88 100644
+--- a/templates/common/on-prem/files/keepalived.yaml
++++ b/templates/common/on-prem/files/keepalived.yaml
+@@ -1,5 +1,5 @@
+ mode: 0644
+-path: {{ if isOpenShiftManagedDefaultLB . }} "/etc/kubernetes/manifests/keepalived.yaml" {{ else }} "/etc/kubernetes/disabled-manifests/keepalived.yaml" {{ end }}
++path: {{ if and (isOpenShiftManagedDefaultLB .) (not (isBGPVIPManagement .)) }} "/etc/kubernetes/manifests/keepalived.yaml" {{ else }} "/etc/kubernetes/disabled-manifests/keepalived.yaml" {{ end }}
+ contents:
+   inline: |
+     kind: Pod

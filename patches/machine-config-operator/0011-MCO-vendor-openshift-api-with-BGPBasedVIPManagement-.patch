@@ -1,0 +1,2550 @@
+From c9d4eababf110a9e1bdd49bc5f7ca1713a3a7914 Mon Sep 17 00:00:00 2001
+From: Mat Kowalski <mko@redhat.com>
+Date: Tue, 16 Jun 2026 09:17:14 +0200
+Subject: [PATCH 11/26] MCO: vendor openshift/api with BGPBasedVIPManagement
+ types
+
+---
+ go.mod                                        |   2 +
+ go.sum                                        |   2 -
+ .../openshift/api/.ci-operator.yaml           |   2 +-
+ .../github.com/openshift/api/Dockerfile.ocp   |   4 +-
+ vendor/github.com/openshift/api/Makefile      |  21 +
+ .../api/config/v1/types_infrastructure.go     |  10 +
+ .../v1alpha1/types_cluster_monitoring.go      | 210 +++++-
+ ...ig-operator_01_clustermonitorings.crd.yaml | 498 ++++++++++++-
+ .../config/v1alpha1/zz_generated.deepcopy.go  |  73 ++
+ .../zz_generated.swagger_doc_generated.go     |  32 +-
+ vendor/github.com/openshift/api/features.md   |   7 +-
+ .../openshift/api/features/features.go        |  71 +-
+ .../api/machineconfiguration/v1/types.go      |   7 +
+ ...pools-Hypershift-CustomNoUpgrade.crd.yaml} |   1 -
+ ...neconfigpools-Hypershift-Default.crd.yaml} |   1 -
+ ...s-Hypershift-DevPreviewNoUpgrade.crd.yaml} |   1 -
+ ...achineconfigpools-Hypershift-OKD.crd.yaml} |   1 -
+ ...-Hypershift-TechPreviewNoUpgrade.crd.yaml} |   1 -
+ ..._machineconfigpools-SelfManagedHA.crd.yaml | 668 ++++++++++++++++++
+ ...fig_01_osimagestreams-Hypershift.crd.yaml} |   1 -
+ ...g_01_osimagestreams-SelfManagedHA.crd.yaml | 206 ++++++
+ ...fig_01_osimagestreams-Hypershift.crd.yaml} |   1 -
+ ...g_01_osimagestreams-SelfManagedHA.crd.yaml | 206 ++++++
+ .../openshift/api/operator/v1/types_etcd.go   |   4 +-
+ ..._12_etcd_01_etcds-CustomNoUpgrade.crd.yaml |   4 +-
+ ...etcd_01_etcds-DevPreviewNoUpgrade.crd.yaml |   4 +-
+ ...tcd_01_etcds-TechPreviewNoUpgrade.crd.yaml |   4 +-
+ .../v1/zz_generated.swagger_doc_generated.go  |   2 +-
+ vendor/modules.txt                            |   3 +-
+ 29 files changed, 1980 insertions(+), 67 deletions(-)
+ rename vendor/github.com/openshift/api/machineconfiguration/v1/zz_generated.crd-manifests/{0000_80_machine-config_01_machineconfigpools-CustomNoUpgrade.crd.yaml => 0000_80_machine-config_01_machineconfigpools-Hypershift-CustomNoUpgrade.crd.yaml} (99%)
+ rename vendor/github.com/openshift/api/machineconfiguration/v1/zz_generated.crd-manifests/{0000_80_machine-config_01_machineconfigpools-Default.crd.yaml => 0000_80_machine-config_01_machineconfigpools-Hypershift-Default.crd.yaml} (99%)
+ rename vendor/github.com/openshift/api/machineconfiguration/v1/zz_generated.crd-manifests/{0000_80_machine-config_01_machineconfigpools-DevPreviewNoUpgrade.crd.yaml => 0000_80_machine-config_01_machineconfigpools-Hypershift-DevPreviewNoUpgrade.crd.yaml} (99%)
+ rename vendor/github.com/openshift/api/machineconfiguration/v1/zz_generated.crd-manifests/{0000_80_machine-config_01_machineconfigpools-OKD.crd.yaml => 0000_80_machine-config_01_machineconfigpools-Hypershift-OKD.crd.yaml} (99%)
+ rename vendor/github.com/openshift/api/machineconfiguration/v1/zz_generated.crd-manifests/{0000_80_machine-config_01_machineconfigpools-TechPreviewNoUpgrade.crd.yaml => 0000_80_machine-config_01_machineconfigpools-Hypershift-TechPreviewNoUpgrade.crd.yaml} (99%)
+ create mode 100644 vendor/github.com/openshift/api/machineconfiguration/v1/zz_generated.crd-manifests/0000_80_machine-config_01_machineconfigpools-SelfManagedHA.crd.yaml
+ rename vendor/github.com/openshift/api/machineconfiguration/v1/zz_generated.crd-manifests/{0000_80_machine-config_01_osimagestreams.crd.yaml => 0000_80_machine-config_01_osimagestreams-Hypershift.crd.yaml} (99%)
+ create mode 100644 vendor/github.com/openshift/api/machineconfiguration/v1/zz_generated.crd-manifests/0000_80_machine-config_01_osimagestreams-SelfManagedHA.crd.yaml
+ rename vendor/github.com/openshift/api/machineconfiguration/v1alpha1/zz_generated.crd-manifests/{0000_80_machine-config_01_osimagestreams.crd.yaml => 0000_80_machine-config_01_osimagestreams-Hypershift.crd.yaml} (99%)
+ create mode 100644 vendor/github.com/openshift/api/machineconfiguration/v1alpha1/zz_generated.crd-manifests/0000_80_machine-config_01_osimagestreams-SelfManagedHA.crd.yaml
+
+diff --git a/go.mod b/go.mod
+index 1a98e574c..013fc1702 100644
+--- a/go.mod
++++ b/go.mod
+@@ -454,3 +454,5 @@ replace (
+ 	k8s.io/sample-cli-plugin => github.com/openshift/kubernetes/staging/src/k8s.io/sample-cli-plugin v0.0.0-20260305123649-d18f3f005eaa
+ 	k8s.io/sample-controller => github.com/openshift/kubernetes/staging/src/k8s.io/sample-controller v0.0.0-20260305123649-d18f3f005eaa
+ )
++
++replace github.com/openshift/api => /home/kmateusz/git/github.com/openshift-api
+diff --git a/go.sum b/go.sum
+index 3ad86611c..d91be806f 100644
+--- a/go.sum
++++ b/go.sum
+@@ -623,8 +623,6 @@ github.com/opencontainers/selinux v1.13.0 h1:Zza88GWezyT7RLql12URvoxsbLfjFx988+L
+ github.com/opencontainers/selinux v1.13.0/go.mod h1:XxWTed+A/s5NNq4GmYScVy+9jzXhGBVEOAyucdRUY8s=
+ github.com/openshift-eng/openshift-tests-extension v0.0.0-20260127124016-0fed2b824818 h1:jJLE/aCAqDf8U4wc3bE1IEKgIxbb0ICjCNVFA49x/8s=
+ github.com/openshift-eng/openshift-tests-extension v0.0.0-20260127124016-0fed2b824818/go.mod h1:6gkP5f2HL0meusT0Aim8icAspcD1cG055xxBZ9yC68M=
+-github.com/openshift/api v0.0.0-20260603130340-1ad2ac3eb53d h1:V5l//7MwowilGuUojdEf0VWvqd7iBe4J1U6W9Q7McD4=
+-github.com/openshift/api v0.0.0-20260603130340-1ad2ac3eb53d/go.mod h1:pyVjK0nZ4sRs4fuQVQ4rubsJdahI1PB94LnQ8sGdvxo=
+ github.com/openshift/client-go v0.0.0-20260603140539-6892dc3e1ffc h1:yCLc/pmoZ4YZbMWlAnvYZ2YWkLZoPCilO4Fk/oAu2/E=
+ github.com/openshift/client-go v0.0.0-20260603140539-6892dc3e1ffc/go.mod h1:eqfaEX/V7xHMZ8Mpf72J03RnnY/kEqoZVLpkpjy5p6s=
+ github.com/openshift/kubernetes v1.30.1-0.20260305123649-d18f3f005eaa h1:/gPMWR7fdCC3S4wHALD6Em+vztl1q9/cOpdMkFZwDus=
+diff --git a/vendor/github.com/openshift/api/.ci-operator.yaml b/vendor/github.com/openshift/api/.ci-operator.yaml
+index a3628cf24..1d88a59fd 100644
+--- a/vendor/github.com/openshift/api/.ci-operator.yaml
++++ b/vendor/github.com/openshift/api/.ci-operator.yaml
+@@ -1,4 +1,4 @@
+ build_root_image:
+   name: release
+   namespace: openshift
+-  tag: rhel-9-release-golang-1.25-openshift-4.22
++  tag: rhel-9-release-golang-1.26-openshift-5.0
+diff --git a/vendor/github.com/openshift/api/Dockerfile.ocp b/vendor/github.com/openshift/api/Dockerfile.ocp
+index e04ec9fbc..98870518c 100644
+--- a/vendor/github.com/openshift/api/Dockerfile.ocp
++++ b/vendor/github.com/openshift/api/Dockerfile.ocp
+@@ -1,10 +1,10 @@
+-FROM registry.ci.openshift.org/ocp/builder:rhel-9-golang-1.25-openshift-4.22 AS builder
++FROM registry.ci.openshift.org/ocp/builder:rhel-9-golang-1.26-openshift-5.0 AS builder
+ WORKDIR /go/src/github.com/openshift/api
+ COPY . .
+ ENV GO_PACKAGE github.com/openshift/api
+ RUN make build --warn-undefined-variables
+ 
+-FROM registry.ci.openshift.org/ocp/4.22:base-rhel9
++FROM registry.ci.openshift.org/ocp/5.0:base-rhel9
+ 
+ # copy the built binaries to /usr/bin
+ COPY --from=builder /go/src/github.com/openshift/api/render /usr/bin/
+diff --git a/vendor/github.com/openshift/api/Makefile b/vendor/github.com/openshift/api/Makefile
+index ac20137fa..8b85144ea 100644
+--- a/vendor/github.com/openshift/api/Makefile
++++ b/vendor/github.com/openshift/api/Makefile
+@@ -179,6 +179,27 @@ generate-with-container:
+ integration:
+ 	make -C tests integration
+ 
++# Run API review evals. Requires claude CLI.
++#   EVAL_RUNS=5              Number of runs per test case (default: 1)
++#   EVAL_THRESHOLD=0.8       Minimum pass rate (default: 0.8)
++#   EVAL_GOLDEN_MODEL=...    Model for golden tests (default: sonnet)
++#   EVAL_INTEGRATION_MODEL=... Model for integration tests (default: opus)
++#   EVAL_JUDGE_MODEL=...     Model for judging results (default: haiku)
++#   EVAL_GOLDEN_PROCS=4      Max parallel golden tests (default: 4)
++#   EVAL_INTEGRATION_PROCS=2 Max parallel integration tests (default: 2)
++#   EVAL_GINKGO_ARGS=...     Extra ginkgo args
++.PHONY: eval
++eval:
++	$(MAKE) -C tests eval
++
++.PHONY: eval-golden
++eval-golden:
++	$(MAKE) -C tests eval-golden
++
++.PHONY: eval-integration
++eval-integration:
++	$(MAKE) -C tests eval-integration
++
+ tests-vendor:
+ 	make -C tests vendor
+ 
+diff --git a/vendor/github.com/openshift/api/config/v1/types_infrastructure.go b/vendor/github.com/openshift/api/config/v1/types_infrastructure.go
+index e7680899d..33929ef4d 100644
+--- a/vendor/github.com/openshift/api/config/v1/types_infrastructure.go
++++ b/vendor/github.com/openshift/api/config/v1/types_infrastructure.go
+@@ -1059,6 +1059,16 @@ type BareMetalPlatformStatus struct {
+ 	// +optional
+ 	LoadBalancer *BareMetalPlatformLoadBalancer `json:"loadBalancer,omitempty"`
+ 
++	// vipManagement indicates which VIP management mechanism is active
++	// on this cluster. When set to "BGP", kube-vip (Routing Table Mode)
++	// and frr-k8s are deployed as static pods to advertise VIPs via BGP,
++	// replacing the default keepalived/VRRP mechanism. When empty or
++	// "Keepalived", the default keepalived-based VIP management is used.
++	// +openshift:enable:FeatureGate=BGPBasedVIPManagement
++	// +kubebuilder:validation:Enum="";"Keepalived";"BGP"
++	// +optional
++	VIPManagement string `json:"vipManagement,omitempty"`
++
+ 	// dnsRecordsType determines whether records for api, api-int, and ingress
+ 	// are provided by the internal DNS service or externally.
+ 	// Allowed values are `Internal`, `External`, and omitted.
+diff --git a/vendor/github.com/openshift/api/config/v1alpha1/types_cluster_monitoring.go b/vendor/github.com/openshift/api/config/v1alpha1/types_cluster_monitoring.go
+index 4c0d23b9e..ca2f0216a 100644
+--- a/vendor/github.com/openshift/api/config/v1alpha1/types_cluster_monitoring.go
++++ b/vendor/github.com/openshift/api/config/v1alpha1/types_cluster_monitoring.go
+@@ -158,6 +158,12 @@ type ClusterMonitoringSpec struct {
+ 	// When set, at least one field must be specified within monitoringPluginConfig.
+ 	// +optional
+ 	MonitoringPluginConfig MonitoringPluginConfig `json:"monitoringPluginConfig,omitempty,omitzero"`
++	// kubeStateMetricsConfig is an optional field that can be used to configure the kube-state-metrics
++	// agent that runs in the openshift-monitoring namespace. kube-state-metrics generates metrics about
++	// the state of Kubernetes objects such as Deployments, Nodes, and Pods.
++	// When omitted, this means no opinion and the platform is left to choose a reasonable default, which is subject to change over time.
++	// +optional
++	KubeStateMetricsConfig KubeStateMetricsConfig `json:"kubeStateMetricsConfig,omitempty,omitzero"`
+ }
+ 
+ // OpenShiftStateMetricsConfig provides configuration options for the openshift-state-metrics agent
+@@ -1371,7 +1377,7 @@ type PrometheusConfig struct {
+ 	// +kubebuilder:validation:MinItems=1
+ 	Resources []ContainerResource `json:"resources,omitempty"`
+ 	// retention configures how long Prometheus retains metrics data and how much storage it can use.
+-	// When omitted, the platform chooses reasonable defaults (currently 15 days retention, no size limit).
++	// When omitted, the platform chooses reasonable defaults (currently 15d retention, no size limit).
+ 	// +optional
+ 	Retention Retention `json:"retention,omitempty,omitzero"`
+ 	// tolerations defines tolerations for the pods.
+@@ -2266,26 +2272,63 @@ type SecretKeySelector struct {
+ // Retention configures how long Prometheus retains metrics data and how much storage it can use.
+ // +kubebuilder:validation:MinProperties=1
+ type Retention struct {
++	// TOMBSTONE: This field has been tombstoned in favor of the `duration` field. This tombstone will be dropped when promoting this API to v1.
++	// ---
+ 	// durationInDays specifies how many days Prometheus will retain metrics data.
+ 	// Prometheus automatically deletes data older than this duration.
+ 	// When omitted, this means no opinion and the platform is left to choose a reasonable default, which is subject to change over time.
+ 	// The default value is 15.
+ 	// Minimum value is 1 day.
+ 	// Maximum value is 365 days (1 year).
+-	// +kubebuilder:validation:Minimum=1
+-	// +kubebuilder:validation:Maximum=365
+-	// +optional
+-	DurationInDays int32 `json:"durationInDays,omitempty"`
++	// Former marker: kubebuilder:validation:Minimum=1
++	// Former marker: kubebuilder:validation:Maximum=365
++	// Former marker: optional
++	// DurationInDays int32 `json:"durationInDays,omitempty"`
++
++	// TOMBSTONE: This field has been tombstoned in favor of the `size` field. This tombstone will be dropped when promoting this API to v1.
++	// ---
+ 	// sizeInGiB specifies the maximum storage size in gibibytes (GiB) that Prometheus
+ 	// can use for data blocks and the write-ahead log (WAL).
+ 	// When the limit is reached, Prometheus will delete oldest data first.
+ 	// When omitted, no size limit is enforced and Prometheus uses available PersistentVolume capacity.
+ 	// Minimum value is 1 GiB.
+ 	// Maximum value is 16384 GiB (16 TiB).
+-	// +kubebuilder:validation:Minimum=1
+-	// +kubebuilder:validation:Maximum=16384
++	// Former marker: kubebuilder:validation:Minimum=1
++	// Former marker: kubebuilder:validation:Maximum=16384
++	// Former marker: optional
++	// SizeInGiB int32 `json:"sizeInGiB,omitempty"`
++
++	// duration is an optional field that specifies how long Prometheus retains metrics data.
++	// Valid values are Prometheus-style duration strings with unit suffixes y, w, d, h, m, s, or ms
++	// (for example, "15d", "24h", or "5d1h30m"). Each unit value must be a positive integer.
++	// Composite durations must follow the fixed unit order y, w, d, h, m, s, ms.
++	// Must be at least 1 character and at most 64 characters.
++	// When set to "0", time-based retention is disabled. This is the only supported form for disabling
++	// time-based retention; other zero-duration representations such as "0d", "0h", or "0y" are rejected.
++	// Prometheus automatically deletes data older than this duration.
++	// When omitted, this means no opinion and the platform is left to choose a reasonable default, which is subject to change over time.
++	// The current default value is `15d`.
++	// +kubebuilder:validation:MinLength=1
++	// +kubebuilder:validation:MaxLength=64
++	// +kubebuilder:validation:XValidation:rule=`self == "0" || self.matches('^([1-9][0-9]*y)?([1-9][0-9]*w)?([1-9][0-9]*d)?([1-9][0-9]*h)?([1-9][0-9]*m)?([1-9][0-9]*s)?([1-9][0-9]*ms)?$')`,message=`must be "0" to disable time-based retention, or a duration string with only positive unit values`
++	// +optional
++	Duration string `json:"duration,omitempty"`
++
++	// size is an optional field that specifies the maximum storage size that Prometheus
++	// can use for data blocks and the write-ahead log (WAL).
++	// Valid values are byte-size strings with an optional decimal prefix and a unit suffix B, KB, MB, GB,
++	// TB, EB, PB, or their binary equivalents KiB, MiB, GiB, TiB, EiB, PiB (for example, "500MiB", "10GiB").
++	// The numeric value must be greater than zero.
++	// Must be at least 1 character and at most 32 characters.
++	// When set to "0", no size limit is enforced. This is the only supported form for disabling size-based
++	// retention; other zero-size representations such as "0B" or "0MiB" are rejected.
++	// When the limit is reached, Prometheus deletes oldest data first.
++	// When omitted, no size limit is enforced and Prometheus uses available PersistentVolume capacity.
++	// +kubebuilder:validation:MinLength=1
++	// +kubebuilder:validation:MaxLength=32
++	// +kubebuilder:validation:XValidation:rule=`self == "0" || self.matches('^([1-9][0-9]*([.][0-9]+)?|[0-9]*[.][1-9][0-9]*)((K|M|G|T|E|P)i?)?B$')`,message=`must be "0" to disable size-based retention, or a positive byte-size string`
+ 	// +optional
+-	SizeInGiB int32 `json:"sizeInGiB,omitempty"`
++	Size string `json:"size,omitempty"`
+ }
+ 
+ // RelabelAction defines the action to perform in a relabeling rule.
+@@ -2605,3 +2648,154 @@ type Audit struct {
+ 	// +required
+ 	Profile AuditProfile `json:"profile,omitempty"`
+ }
++
++// KubeStateMetricsConfig provides configuration options for the kube-state-metrics agent
++// that runs in the `openshift-monitoring` namespace. kube-state-metrics generates metrics
++// about the state of Kubernetes objects such as Deployments, Nodes, and Pods.
++// +kubebuilder:validation:MinProperties=1
++type KubeStateMetricsConfig struct {
++	// nodeSelector defines the nodes on which the Pods are scheduled.
++	// nodeSelector is optional.
++	//
++	// When omitted, this means the user has no opinion and the platform is left
++	// to choose reasonable defaults. These defaults are subject to change over time.
++	// The current default value is `kubernetes.io/os: linux`.
++	// When specified, nodeSelector must contain at least 1 entry and must not contain more than 10 entries.
++	// +optional
++	// +kubebuilder:validation:MinProperties=1
++	// +kubebuilder:validation:MaxProperties=10
++	NodeSelector map[string]string `json:"nodeSelector,omitempty"`
++	// resources defines the compute resource requests and limits for the kube-state-metrics container.
++	// This includes CPU, memory and HugePages constraints to help control scheduling and resource usage.
++	// When not specified, defaults are used by the platform. Requests cannot exceed limits.
++	// This field is optional.
++	// More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
++	// This is a simplified API that maps to Kubernetes ResourceRequirements.
++	// The current default values are:
++	//   resources:
++	//    - name: cpu
++	//      request: 4m
++	//      limit: null
++	//    - name: memory
++	//      request: 40Mi
++	//      limit: null
++	// Maximum length for this list is 5.
++	// Minimum length for this list is 1.
++	// Each resource name must be unique within this list.
++	// +optional
++	// +listType=map
++	// +listMapKey=name
++	// +kubebuilder:validation:MaxItems=5
++	// +kubebuilder:validation:MinItems=1
++	Resources []ContainerResource `json:"resources,omitempty"`
++	// tolerations defines tolerations for the pods.
++	// tolerations is optional.
++	//
++	// When omitted, no tolerations are applied. This default is subject to change over time.
++	// When specified, tolerations must contain at least 1 entry and must not contain more than 10 entries.
++	// Each toleration's operator, when specified, must be either "Exists" or "Equal".
++	// Each toleration's effect, when specified, must be one of "NoSchedule", "PreferNoSchedule", or "NoExecute".
++	// An empty or unset effect means match all effects.
++	// +kubebuilder:validation:MaxItems=10
++	// +kubebuilder:validation:MinItems=1
++	// +listType=atomic
++	// +kubebuilder:validation:XValidation:rule="self.all(t, !has(t.operator) || t.operator == 'Exists' || t.operator == 'Equal')",message="operator must be either Exists or Equal"
++	// +kubebuilder:validation:XValidation:rule="self.all(t, !has(t.effect) || t.effect == 'NoSchedule' || t.effect == 'PreferNoSchedule' || t.effect == 'NoExecute' || t.effect == '')",message="effect must be NoSchedule, PreferNoSchedule, NoExecute, or empty"
++	// +optional
++	Tolerations []v1.Toleration `json:"tolerations,omitempty"`
++	// topologySpreadConstraints defines rules for how kube-state-metrics Pods should be distributed
++	// across topology domains such as zones, nodes, or other user-defined labels.
++	// topologySpreadConstraints is optional.
++	// This helps improve high availability and resource efficiency by avoiding placing
++	// too many replicas in the same failure domain.
++	//
++	// This field maps directly to the `topologySpreadConstraints` field in the Pod spec.
++	// When omitted, no topology spread constraints are applied. This default is subject to change over time.
++	// When specified, topologySpreadConstraints must contain at least 1 entry and must not contain more than 10 entries.
++	// Entries must have unique topologyKey and whenUnsatisfiable pairs.
++	// Each entry's whenUnsatisfiable must be either "DoNotSchedule" or "ScheduleAnyway".
++	// Each entry's maxSkew must be at least 1.
++	// When minDomains is specified, it must be at least 1 and whenUnsatisfiable must be "DoNotSchedule".
++	// +kubebuilder:validation:MaxItems=10
++	// +kubebuilder:validation:MinItems=1
++	// +listType=map
++	// +listMapKey=topologyKey
++	// +listMapKey=whenUnsatisfiable
++	// +kubebuilder:validation:XValidation:rule="self.all(c, c.whenUnsatisfiable == 'DoNotSchedule' || c.whenUnsatisfiable == 'ScheduleAnyway')",message="whenUnsatisfiable must be either DoNotSchedule or ScheduleAnyway"
++	// +kubebuilder:validation:XValidation:rule="self.all(c, c.maxSkew >= 1)",message="maxSkew must be at least 1"
++	// +kubebuilder:validation:XValidation:rule="self.all(c, !has(c.minDomains) || c.minDomains >= 1)",message="minDomains must be at least 1"
++	// +kubebuilder:validation:XValidation:rule="self.all(c, !has(c.minDomains) || c.whenUnsatisfiable == 'DoNotSchedule')",message="minDomains can only be used when whenUnsatisfiable is DoNotSchedule"
++	// +optional
++	TopologySpreadConstraints []v1.TopologySpreadConstraint `json:"topologySpreadConstraints,omitempty"`
++	// additionalResourceLabels defines additional Kubernetes resource labels to expose as metrics
++	// in kube-state-metrics.
++	// Currently, only "Job" and "CronJob" resources are supported due to cardinality concerns.
++	// Each entry specifies a resource name and a list of Kubernetes label names to expose.
++	// Use "*" in the labels list to expose all labels for a given resource.
++	// additionalResourceLabels is optional.
++	// When omitted, no additional Kubernetes object labels are exposed as metrics
++	// by kube-state-metrics beyond its built-in metric labels (e.g. namespace, job_name).
++	// Use this field to opt in to exposing specific Kubernetes labels as metric labels
++	// for the supported resource types.
++	// Minimum length for this list is 1.
++	// Maximum length for this list is 2.
++	// Each resource name must be unique within this list.
++	// +optional
++	// +kubebuilder:validation:MaxItems=2
++	// +kubebuilder:validation:MinItems=1
++	// +listType=map
++	// +listMapKey=resource
++	AdditionalResourceLabels []KubeStateMetricsResourceLabels `json:"additionalResourceLabels,omitempty"`
++}
++
++// KubeStateMetricsResourceName is the name of a Kubernetes resource whose labels can be exposed
++// as metrics by kube-state-metrics. Currently, only "Job" and "CronJob" are supported
++// due to cardinality concerns.
++// Valid values are "Job" and "CronJob".
++// +kubebuilder:validation:Enum=Job;CronJob
++type KubeStateMetricsResourceName string
++
++const (
++	// KubeStateMetricsResourceJob indicates the Kubernetes Job resource.
++	KubeStateMetricsResourceJob KubeStateMetricsResourceName = "Job"
++	// KubeStateMetricsResourceCronJob indicates the Kubernetes CronJob resource.
++	KubeStateMetricsResourceCronJob KubeStateMetricsResourceName = "CronJob"
++)
++
++// KubeStateMetricsLabelName is the name of a Kubernetes label to expose as a metric
++// via kube-state-metrics. Use "*" to expose all labels for a resource.
++// Must be either the wildcard "*" or a valid Kubernetes label key.
++// A valid label key has an optional DNS subdomain prefix followed by a "/" and a name segment,
++// or just a name segment without a prefix. The name segment must be 63 characters or fewer,
++// beginning and ending with an alphanumeric character, with dashes, underscores, dots, and
++// alphanumerics in between.
++// Must be at least 1 character and at most 253 characters in length.
++// +kubebuilder:validation:MinLength=1
++// +kubebuilder:validation:MaxLength=253
++// +kubebuilder:validation:XValidation:rule="self == '*' || !format.qualifiedName().validate(self).hasValue()",message="must be a valid Kubernetes label key or the wildcard '*'"
++type KubeStateMetricsLabelName string
++
++// KubeStateMetricsResourceLabels defines which Kubernetes labels to expose as metrics
++// for a given resource type in kube-state-metrics.
++type KubeStateMetricsResourceLabels struct {
++	// resource is the Kubernetes resource name whose labels should be exposed as metrics.
++	// Currently, only "Job" and "CronJob" are supported due to cardinality concerns.
++	// Valid values are "Job" and "CronJob".
++	// This field is required.
++	// +required
++	Resource KubeStateMetricsResourceName `json:"resource,omitempty"`
++	// labels is the list of Kubernetes label names to expose as metrics for this resource.
++	// Use "*" to expose all labels for the specified resource.
++	// When "*" is specified, it must be the only entry in the list; mixing "*" with
++	// specific label names is not allowed.
++	// This field is required.
++	// Each label name must be unique within this list.
++	// Minimum length for this list is 1.
++	// Maximum length for this list is 50.
++	// +required
++	// +kubebuilder:validation:MinItems=1
++	// +kubebuilder:validation:MaxItems=50
++	// +listType=set
++	// +kubebuilder:validation:XValidation:rule="!self.exists(l, l == '*') || self.size() == 1",message="when '*' is specified, no other labels may be listed"
++	Labels []KubeStateMetricsLabelName `json:"labels,omitempty"`
++}
+diff --git a/vendor/github.com/openshift/api/config/v1alpha1/zz_generated.crd-manifests/0000_10_config-operator_01_clustermonitorings.crd.yaml b/vendor/github.com/openshift/api/config/v1alpha1/zz_generated.crd-manifests/0000_10_config-operator_01_clustermonitorings.crd.yaml
+index 61a7ba6e3..1d541afc7 100644
+--- a/vendor/github.com/openshift/api/config/v1alpha1/zz_generated.crd-manifests/0000_10_config-operator_01_clustermonitorings.crd.yaml
++++ b/vendor/github.com/openshift/api/config/v1alpha1/zz_generated.crd-manifests/0000_10_config-operator_01_clustermonitorings.crd.yaml
+@@ -915,6 +915,452 @@ spec:
+                     and forbidden otherwise
+                   rule: 'self.deploymentMode == ''CustomConfig'' ? has(self.customConfig)
+                     : !has(self.customConfig)'
++              kubeStateMetricsConfig:
++                description: |-
++                  kubeStateMetricsConfig is an optional field that can be used to configure the kube-state-metrics
++                  agent that runs in the openshift-monitoring namespace. kube-state-metrics generates metrics about
++                  the state of Kubernetes objects such as Deployments, Nodes, and Pods.
++                  When omitted, this means no opinion and the platform is left to choose a reasonable default, which is subject to change over time.
++                minProperties: 1
++                properties:
++                  additionalResourceLabels:
++                    description: |-
++                      additionalResourceLabels defines additional Kubernetes resource labels to expose as metrics
++                      in kube-state-metrics.
++                      Currently, only "Job" and "CronJob" resources are supported due to cardinality concerns.
++                      Each entry specifies a resource name and a list of Kubernetes label names to expose.
++                      Use "*" in the labels list to expose all labels for a given resource.
++                      additionalResourceLabels is optional.
++                      When omitted, no additional Kubernetes object labels are exposed as metrics
++                      by kube-state-metrics beyond its built-in metric labels (e.g. namespace, job_name).
++                      Use this field to opt in to exposing specific Kubernetes labels as metric labels
++                      for the supported resource types.
++                      Minimum length for this list is 1.
++                      Maximum length for this list is 2.
++                      Each resource name must be unique within this list.
++                    items:
++                      description: |-
++                        KubeStateMetricsResourceLabels defines which Kubernetes labels to expose as metrics
++                        for a given resource type in kube-state-metrics.
++                      properties:
++                        labels:
++                          description: |-
++                            labels is the list of Kubernetes label names to expose as metrics for this resource.
++                            Use "*" to expose all labels for the specified resource.
++                            When "*" is specified, it must be the only entry in the list; mixing "*" with
++                            specific label names is not allowed.
++                            This field is required.
++                            Each label name must be unique within this list.
++                            Minimum length for this list is 1.
++                            Maximum length for this list is 50.
++                          items:
++                            description: |-
++                              KubeStateMetricsLabelName is the name of a Kubernetes label to expose as a metric
++                              via kube-state-metrics. Use "*" to expose all labels for a resource.
++                              Must be either the wildcard "*" or a valid Kubernetes label key.
++                              A valid label key has an optional DNS subdomain prefix followed by a "/" and a name segment,
++                              or just a name segment without a prefix. The name segment must be 63 characters or fewer,
++                              beginning and ending with an alphanumeric character, with dashes, underscores, dots, and
++                              alphanumerics in between.
++                              Must be at least 1 character and at most 253 characters in length.
++                            maxLength: 253
++                            minLength: 1
++                            type: string
++                            x-kubernetes-validations:
++                            - message: must be a valid Kubernetes label key or the
++                                wildcard '*'
++                              rule: self == '*' || !format.qualifiedName().validate(self).hasValue()
++                          maxItems: 50
++                          minItems: 1
++                          type: array
++                          x-kubernetes-list-type: set
++                          x-kubernetes-validations:
++                          - message: when '*' is specified, no other labels may be
++                              listed
++                            rule: '!self.exists(l, l == ''*'') || self.size() == 1'
++                        resource:
++                          description: |-
++                            resource is the Kubernetes resource name whose labels should be exposed as metrics.
++                            Currently, only "Job" and "CronJob" are supported due to cardinality concerns.
++                            Valid values are "Job" and "CronJob".
++                            This field is required.
++                          enum:
++                          - Job
++                          - CronJob
++                          type: string
++                      required:
++                      - labels
++                      - resource
++                      type: object
++                    maxItems: 2
++                    minItems: 1
++                    type: array
++                    x-kubernetes-list-map-keys:
++                    - resource
++                    x-kubernetes-list-type: map
++                  nodeSelector:
++                    additionalProperties:
++                      type: string
++                    description: |-
++                      nodeSelector defines the nodes on which the Pods are scheduled.
++                      nodeSelector is optional.
++
++                      When omitted, this means the user has no opinion and the platform is left
++                      to choose reasonable defaults. These defaults are subject to change over time.
++                      The current default value is `kubernetes.io/os: linux`.
++                      When specified, nodeSelector must contain at least 1 entry and must not contain more than 10 entries.
++                    maxProperties: 10
++                    minProperties: 1
++                    type: object
++                  resources:
++                    description: |-
++                      resources defines the compute resource requests and limits for the kube-state-metrics container.
++                      This includes CPU, memory and HugePages constraints to help control scheduling and resource usage.
++                      When not specified, defaults are used by the platform. Requests cannot exceed limits.
++                      This field is optional.
++                      More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
++                      This is a simplified API that maps to Kubernetes ResourceRequirements.
++                      The current default values are:
++                        resources:
++                         - name: cpu
++                           request: 4m
++                           limit: null
++                         - name: memory
++                           request: 40Mi
++                           limit: null
++                      Maximum length for this list is 5.
++                      Minimum length for this list is 1.
++                      Each resource name must be unique within this list.
++                    items:
++                      description: ContainerResource defines a single resource requirement
++                        for a container.
++                      properties:
++                        limit:
++                          anyOf:
++                          - type: integer
++                          - type: string
++                          description: |-
++                            limit is the maximum amount of the resource allowed (e.g. "2Mi", "1Gi").
++                            This field is optional.
++                            When request is specified, limit cannot be less than request.
++                            The value must be greater than 0 when specified.
++                          maxLength: 20
++                          minLength: 1
++                          pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
++                          x-kubernetes-int-or-string: true
++                          x-kubernetes-validations:
++                          - message: limit must be a positive, non-zero quantity
++                            rule: quantity(self).isGreaterThan(quantity('0'))
++                        name:
++                          description: |-
++                            name of the resource (e.g. "cpu", "memory", "hugepages-2Mi").
++                            This field is required.
++                            name must consist only of alphanumeric characters, `-`, `_` and `.` and must start and end with an alphanumeric character.
++                          maxLength: 253
++                          minLength: 1
++                          type: string
++                          x-kubernetes-validations:
++                          - message: name must consist only of alphanumeric characters,
++                              `-`, `_` and `.` and must start and end with an alphanumeric
++                              character
++                            rule: '!format.qualifiedName().validate(self).hasValue()'
++                        request:
++                          anyOf:
++                          - type: integer
++                          - type: string
++                          description: |-
++                            request is the minimum amount of the resource required (e.g. "2Mi", "1Gi").
++                            This field is optional.
++                            When limit is specified, request cannot be greater than limit.
++                            The value must be greater than 0 when specified.
++                          maxLength: 20
++                          minLength: 1
++                          pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
++                          x-kubernetes-int-or-string: true
++                          x-kubernetes-validations:
++                          - message: request must be a positive, non-zero quantity
++                            rule: quantity(self).isGreaterThan(quantity('0'))
++                      required:
++                      - name
++                      type: object
++                      x-kubernetes-validations:
++                      - message: at least one of request or limit must be set
++                        rule: has(self.request) || has(self.limit)
++                      - message: limit must be greater than or equal to request
++                        rule: '!(has(self.request) && has(self.limit)) || quantity(self.limit).compareTo(quantity(self.request))
++                          >= 0'
++                    maxItems: 5
++                    minItems: 1
++                    type: array
++                    x-kubernetes-list-map-keys:
++                    - name
++                    x-kubernetes-list-type: map
++                  tolerations:
++                    description: |-
++                      tolerations defines tolerations for the pods.
++                      tolerations is optional.
++
++                      When omitted, no tolerations are applied. This default is subject to change over time.
++                      When specified, tolerations must contain at least 1 entry and must not contain more than 10 entries.
++                      Each toleration's operator, when specified, must be either "Exists" or "Equal".
++                      Each toleration's effect, when specified, must be one of "NoSchedule", "PreferNoSchedule", or "NoExecute".
++                      An empty or unset effect means match all effects.
++                    items:
++                      description: |-
++                        The pod this Toleration is attached to tolerates any taint that matches
++                        the triple <key,value,effect> using the matching operator <operator>.
++                      properties:
++                        effect:
++                          description: |-
++                            Effect indicates the taint effect to match. Empty means match all taint effects.
++                            When specified, allowed values are NoSchedule, PreferNoSchedule and NoExecute.
++                          type: string
++                        key:
++                          description: |-
++                            Key is the taint key that the toleration applies to. Empty means match all taint keys.
++                            If the key is empty, operator must be Exists; this combination means to match all values and all keys.
++                          type: string
++                        operator:
++                          description: |-
++                            Operator represents a key's relationship to the value.
++                            Valid operators are Exists, Equal, Lt, and Gt. Defaults to Equal.
++                            Exists is equivalent to wildcard for value, so that a pod can
++                            tolerate all taints of a particular category.
++                            Lt and Gt perform numeric comparisons (requires feature gate TaintTolerationComparisonOperators).
++                          type: string
++                        tolerationSeconds:
++                          description: |-
++                            TolerationSeconds represents the period of time the toleration (which must be
++                            of effect NoExecute, otherwise this field is ignored) tolerates the taint. By default,
++                            it is not set, which means tolerate the taint forever (do not evict). Zero and
++                            negative values will be treated as 0 (evict immediately) by the system.
++                          format: int64
++                          type: integer
++                        value:
++                          description: |-
++                            Value is the taint value the toleration matches to.
++                            If the operator is Exists, the value should be empty, otherwise just a regular string.
++                          type: string
++                      type: object
++                    maxItems: 10
++                    minItems: 1
++                    type: array
++                    x-kubernetes-list-type: atomic
++                    x-kubernetes-validations:
++                    - message: operator must be either Exists or Equal
++                      rule: self.all(t, !has(t.operator) || t.operator == 'Exists'
++                        || t.operator == 'Equal')
++                    - message: effect must be NoSchedule, PreferNoSchedule, NoExecute,
++                        or empty
++                      rule: self.all(t, !has(t.effect) || t.effect == 'NoSchedule'
++                        || t.effect == 'PreferNoSchedule' || t.effect == 'NoExecute'
++                        || t.effect == '')
++                  topologySpreadConstraints:
++                    description: |-
++                      topologySpreadConstraints defines rules for how kube-state-metrics Pods should be distributed
++                      across topology domains such as zones, nodes, or other user-defined labels.
++                      topologySpreadConstraints is optional.
++                      This helps improve high availability and resource efficiency by avoiding placing
++                      too many replicas in the same failure domain.
++
++                      This field maps directly to the `topologySpreadConstraints` field in the Pod spec.
++                      When omitted, no topology spread constraints are applied. This default is subject to change over time.
++                      When specified, topologySpreadConstraints must contain at least 1 entry and must not contain more than 10 entries.
++                      Entries must have unique topologyKey and whenUnsatisfiable pairs.
++                      Each entry's whenUnsatisfiable must be either "DoNotSchedule" or "ScheduleAnyway".
++                      Each entry's maxSkew must be at least 1.
++                      When minDomains is specified, it must be at least 1 and whenUnsatisfiable must be "DoNotSchedule".
++                    items:
++                      description: TopologySpreadConstraint specifies how to spread
++                        matching pods among the given topology.
++                      properties:
++                        labelSelector:
++                          description: |-
++                            LabelSelector is used to find matching pods.
++                            Pods that match this label selector are counted to determine the number of pods
++                            in their corresponding topology domain.
++                          properties:
++                            matchExpressions:
++                              description: matchExpressions is a list of label selector
++                                requirements. The requirements are ANDed.
++                              items:
++                                description: |-
++                                  A label selector requirement is a selector that contains values, a key, and an operator that
++                                  relates the key and values.
++                                properties:
++                                  key:
++                                    description: key is the label key that the selector
++                                      applies to.
++                                    type: string
++                                  operator:
++                                    description: |-
++                                      operator represents a key's relationship to a set of values.
++                                      Valid operators are In, NotIn, Exists and DoesNotExist.
++                                    type: string
++                                  values:
++                                    description: |-
++                                      values is an array of string values. If the operator is In or NotIn,
++                                      the values array must be non-empty. If the operator is Exists or DoesNotExist,
++                                      the values array must be empty. This array is replaced during a strategic
++                                      merge patch.
++                                    items:
++                                      type: string
++                                    type: array
++                                    x-kubernetes-list-type: atomic
++                                required:
++                                - key
++                                - operator
++                                type: object
++                              type: array
++                              x-kubernetes-list-type: atomic
++                            matchLabels:
++                              additionalProperties:
++                                type: string
++                              description: |-
++                                matchLabels is a map of {key,value} pairs. A single {key,value} in the matchLabels
++                                map is equivalent to an element of matchExpressions, whose key field is "key", the
++                                operator is "In", and the values array contains only "value". The requirements are ANDed.
++                              type: object
++                          type: object
++                          x-kubernetes-map-type: atomic
++                        matchLabelKeys:
++                          description: |-
++                            MatchLabelKeys is a set of pod label keys to select the pods over which
++                            spreading will be calculated. The keys are used to lookup values from the
++                            incoming pod labels, those key-value labels are ANDed with labelSelector
++                            to select the group of existing pods over which spreading will be calculated
++                            for the incoming pod. The same key is forbidden to exist in both MatchLabelKeys and LabelSelector.
++                            MatchLabelKeys cannot be set when LabelSelector isn't set.
++                            Keys that don't exist in the incoming pod labels will
++                            be ignored. A null or empty list means only match against labelSelector.
++
++                            This is a beta field and requires the MatchLabelKeysInPodTopologySpread feature gate to be enabled (enabled by default).
++                          items:
++                            type: string
++                          type: array
++                          x-kubernetes-list-type: atomic
++                        maxSkew:
++                          description: |-
++                            MaxSkew describes the degree to which pods may be unevenly distributed.
++                            When `whenUnsatisfiable=DoNotSchedule`, it is the maximum permitted difference
++                            between the number of matching pods in the target topology and the global minimum.
++                            The global minimum is the minimum number of matching pods in an eligible domain
++                            or zero if the number of eligible domains is less than MinDomains.
++                            For example, in a 3-zone cluster, MaxSkew is set to 1, and pods with the same
++                            labelSelector spread as 2/2/1:
++                            In this case, the global minimum is 1.
++                            | zone1 | zone2 | zone3 |
++                            |  P P  |  P P  |   P   |
++                            - if MaxSkew is 1, incoming pod can only be scheduled to zone3 to become 2/2/2;
++                            scheduling it onto zone1(zone2) would make the ActualSkew(3-1) on zone1(zone2)
++                            violate MaxSkew(1).
++                            - if MaxSkew is 2, incoming pod can be scheduled onto any zone.
++                            When `whenUnsatisfiable=ScheduleAnyway`, it is used to give higher precedence
++                            to topologies that satisfy it.
++                            It's a required field. Default value is 1 and 0 is not allowed.
++                          format: int32
++                          type: integer
++                        minDomains:
++                          description: |-
++                            MinDomains indicates a minimum number of eligible domains.
++                            When the number of eligible domains with matching topology keys is less than minDomains,
++                            Pod Topology Spread treats "global minimum" as 0, and then the calculation of Skew is performed.
++                            And when the number of eligible domains with matching topology keys equals or greater than minDomains,
++                            this value has no effect on scheduling.
++                            As a result, when the number of eligible domains is less than minDomains,
++                            scheduler won't schedule more than maxSkew Pods to those domains.
++                            If value is nil, the constraint behaves as if MinDomains is equal to 1.
++                            Valid values are integers greater than 0.
++                            When value is not nil, WhenUnsatisfiable must be DoNotSchedule.
++
++                            For example, in a 3-zone cluster, MaxSkew is set to 2, MinDomains is set to 5 and pods with the same
++                            labelSelector spread as 2/2/2:
++                            | zone1 | zone2 | zone3 |
++                            |  P P  |  P P  |  P P  |
++                            The number of domains is less than 5(MinDomains), so "global minimum" is treated as 0.
++                            In this situation, new pod with the same labelSelector cannot be scheduled,
++                            because computed skew will be 3(3 - 0) if new Pod is scheduled to any of the three zones,
++                            it will violate MaxSkew.
++                          format: int32
++                          type: integer
++                        nodeAffinityPolicy:
++                          description: |-
++                            NodeAffinityPolicy indicates how we will treat Pod's nodeAffinity/nodeSelector
++                            when calculating pod topology spread skew. Options are:
++                            - Honor: only nodes matching nodeAffinity/nodeSelector are included in the calculations.
++                            - Ignore: nodeAffinity/nodeSelector are ignored. All nodes are included in the calculations.
++
++                            If this value is nil, the behavior is equivalent to the Honor policy.
++                          type: string
++                        nodeTaintsPolicy:
++                          description: |-
++                            NodeTaintsPolicy indicates how we will treat node taints when calculating
++                            pod topology spread skew. Options are:
++                            - Honor: nodes without taints, along with tainted nodes for which the incoming pod
++                            has a toleration, are included.
++                            - Ignore: node taints are ignored. All nodes are included.
++
++                            If this value is nil, the behavior is equivalent to the Ignore policy.
++                          type: string
++                        topologyKey:
++                          description: |-
++                            TopologyKey is the key of node labels. Nodes that have a label with this key
++                            and identical values are considered to be in the same topology.
++                            We consider each <key, value> as a "bucket", and try to put balanced number
++                            of pods into each bucket.
++                            We define a domain as a particular instance of a topology.
++                            Also, we define an eligible domain as a domain whose nodes meet the requirements of
++                            nodeAffinityPolicy and nodeTaintsPolicy.
++                            e.g. If TopologyKey is "kubernetes.io/hostname", each Node is a domain of that topology.
++                            And, if TopologyKey is "topology.kubernetes.io/zone", each zone is a domain of that topology.
++                            It's a required field.
++                          type: string
++                        whenUnsatisfiable:
++                          description: |-
++                            WhenUnsatisfiable indicates how to deal with a pod if it doesn't satisfy
++                            the spread constraint.
++                            - DoNotSchedule (default) tells the scheduler not to schedule it.
++                            - ScheduleAnyway tells the scheduler to schedule the pod in any location,
++                              but giving higher precedence to topologies that would help reduce the
++                              skew.
++                            A constraint is considered "Unsatisfiable" for an incoming pod
++                            if and only if every possible node assignment for that pod would violate
++                            "MaxSkew" on some topology.
++                            For example, in a 3-zone cluster, MaxSkew is set to 1, and pods with the same
++                            labelSelector spread as 3/1/1:
++                            | zone1 | zone2 | zone3 |
++                            | P P P |   P   |   P   |
++                            If WhenUnsatisfiable is set to DoNotSchedule, incoming pod can only be scheduled
++                            to zone2(zone3) to become 3/2/1(3/1/2) as ActualSkew(2-1) on zone2(zone3) satisfies
++                            MaxSkew(1). In other words, the cluster can still be imbalanced, but scheduler
++                            won't make it *more* imbalanced.
++                            It's a required field.
++                          type: string
++                      required:
++                      - maxSkew
++                      - topologyKey
++                      - whenUnsatisfiable
++                      type: object
++                    maxItems: 10
++                    minItems: 1
++                    type: array
++                    x-kubernetes-list-map-keys:
++                    - topologyKey
++                    - whenUnsatisfiable
++                    x-kubernetes-list-type: map
++                    x-kubernetes-validations:
++                    - message: whenUnsatisfiable must be either DoNotSchedule or ScheduleAnyway
++                      rule: self.all(c, c.whenUnsatisfiable == 'DoNotSchedule' ||
++                        c.whenUnsatisfiable == 'ScheduleAnyway')
++                    - message: maxSkew must be at least 1
++                      rule: self.all(c, c.maxSkew >= 1)
++                    - message: minDomains must be at least 1
++                      rule: self.all(c, !has(c.minDomains) || c.minDomains >= 1)
++                    - message: minDomains can only be used when whenUnsatisfiable
++                        is DoNotSchedule
++                      rule: self.all(c, !has(c.minDomains) || c.whenUnsatisfiable
++                        == 'DoNotSchedule')
++                type: object
+               metricsServerConfig:
+                 description: |-
+                   metricsServerConfig is an optional field that can be used to configure the Kubernetes Metrics Server that runs in the openshift-monitoring namespace.
+@@ -4149,33 +4595,47 @@ spec:
+                   retention:
+                     description: |-
+                       retention configures how long Prometheus retains metrics data and how much storage it can use.
+-                      When omitted, the platform chooses reasonable defaults (currently 15 days retention, no size limit).
++                      When omitted, the platform chooses reasonable defaults (currently 15d retention, no size limit).
+                     minProperties: 1
+                     properties:
+-                      durationInDays:
++                      duration:
+                         description: |-
+-                          durationInDays specifies how many days Prometheus will retain metrics data.
++                          duration is an optional field that specifies how long Prometheus retains metrics data.
++                          Valid values are Prometheus-style duration strings with unit suffixes y, w, d, h, m, s, or ms
++                          (for example, "15d", "24h", or "5d1h30m"). Each unit value must be a positive integer.
++                          Composite durations must follow the fixed unit order y, w, d, h, m, s, ms.
++                          Must be at least 1 character and at most 64 characters.
++                          When set to "0", time-based retention is disabled. This is the only supported form for disabling
++                          time-based retention; other zero-duration representations such as "0d", "0h", or "0y" are rejected.
+                           Prometheus automatically deletes data older than this duration.
+                           When omitted, this means no opinion and the platform is left to choose a reasonable default, which is subject to change over time.
+-                          The default value is 15.
+-                          Minimum value is 1 day.
+-                          Maximum value is 365 days (1 year).
+-                        format: int32
+-                        maximum: 365
+-                        minimum: 1
+-                        type: integer
+-                      sizeInGiB:
++                          The current default value is `15d`.
++                        maxLength: 64
++                        minLength: 1
++                        type: string
++                        x-kubernetes-validations:
++                        - message: must be "0" to disable time-based retention, or
++                            a duration string with only positive unit values
++                          rule: self == "0" || self.matches('^([1-9][0-9]*y)?([1-9][0-9]*w)?([1-9][0-9]*d)?([1-9][0-9]*h)?([1-9][0-9]*m)?([1-9][0-9]*s)?([1-9][0-9]*ms)?$')
++                      size:
+                         description: |-
+-                          sizeInGiB specifies the maximum storage size in gibibytes (GiB) that Prometheus
++                          size is an optional field that specifies the maximum storage size that Prometheus
+                           can use for data blocks and the write-ahead log (WAL).
+-                          When the limit is reached, Prometheus will delete oldest data first.
++                          Valid values are byte-size strings with an optional decimal prefix and a unit suffix B, KB, MB, GB,
++                          TB, EB, PB, or their binary equivalents KiB, MiB, GiB, TiB, EiB, PiB (for example, "500MiB", "10GiB").
++                          The numeric value must be greater than zero.
++                          Must be at least 1 character and at most 32 characters.
++                          When set to "0", no size limit is enforced. This is the only supported form for disabling size-based
++                          retention; other zero-size representations such as "0B" or "0MiB" are rejected.
++                          When the limit is reached, Prometheus deletes oldest data first.
+                           When omitted, no size limit is enforced and Prometheus uses available PersistentVolume capacity.
+-                          Minimum value is 1 GiB.
+-                          Maximum value is 16384 GiB (16 TiB).
+-                        format: int32
+-                        maximum: 16384
+-                        minimum: 1
+-                        type: integer
++                        maxLength: 32
++                        minLength: 1
++                        type: string
++                        x-kubernetes-validations:
++                        - message: must be "0" to disable size-based retention, or
++                            a positive byte-size string
++                          rule: self == "0" || self.matches('^([1-9][0-9]*([.][0-9]+)?|[0-9]*[.][1-9][0-9]*)((K|M|G|T|E|P)i?)?B$')
+                     type: object
+                   tolerations:
+                     description: |-
+diff --git a/vendor/github.com/openshift/api/config/v1alpha1/zz_generated.deepcopy.go b/vendor/github.com/openshift/api/config/v1alpha1/zz_generated.deepcopy.go
+index a481b6b4c..7313338a3 100644
+--- a/vendor/github.com/openshift/api/config/v1alpha1/zz_generated.deepcopy.go
++++ b/vendor/github.com/openshift/api/config/v1alpha1/zz_generated.deepcopy.go
+@@ -451,6 +451,7 @@ func (in *ClusterMonitoringSpec) DeepCopyInto(out *ClusterMonitoringSpec) {
+ 	in.ThanosQuerierConfig.DeepCopyInto(&out.ThanosQuerierConfig)
+ 	in.NodeExporterConfig.DeepCopyInto(&out.NodeExporterConfig)
+ 	in.MonitoringPluginConfig.DeepCopyInto(&out.MonitoringPluginConfig)
++	in.KubeStateMetricsConfig.DeepCopyInto(&out.KubeStateMetricsConfig)
+ 	return
+ }
+ 
+@@ -751,6 +752,78 @@ func (in *KeyConfig) DeepCopy() *KeyConfig {
+ 	return out
+ }
+ 
++// DeepCopyInto is an autogenerated deepcopy function, copying the receiver, writing into out. in must be non-nil.
++func (in *KubeStateMetricsConfig) DeepCopyInto(out *KubeStateMetricsConfig) {
++	*out = *in
++	if in.NodeSelector != nil {
++		in, out := &in.NodeSelector, &out.NodeSelector
++		*out = make(map[string]string, len(*in))
++		for key, val := range *in {
++			(*out)[key] = val
++		}
++	}
++	if in.Resources != nil {
++		in, out := &in.Resources, &out.Resources
++		*out = make([]ContainerResource, len(*in))
++		for i := range *in {
++			(*in)[i].DeepCopyInto(&(*out)[i])
++		}
++	}
++	if in.Tolerations != nil {
++		in, out := &in.Tolerations, &out.Tolerations
++		*out = make([]v1.Toleration, len(*in))
++		for i := range *in {
++			(*in)[i].DeepCopyInto(&(*out)[i])
++		}
++	}
++	if in.TopologySpreadConstraints != nil {
++		in, out := &in.TopologySpreadConstraints, &out.TopologySpreadConstraints
++		*out = make([]v1.TopologySpreadConstraint, len(*in))
++		for i := range *in {
++			(*in)[i].DeepCopyInto(&(*out)[i])
++		}
++	}
++	if in.AdditionalResourceLabels != nil {
++		in, out := &in.AdditionalResourceLabels, &out.AdditionalResourceLabels
++		*out = make([]KubeStateMetricsResourceLabels, len(*in))
++		for i := range *in {
++			(*in)[i].DeepCopyInto(&(*out)[i])
++		}
++	}
++	return
++}
++
++// DeepCopy is an autogenerated deepcopy function, copying the receiver, creating a new KubeStateMetricsConfig.
++func (in *KubeStateMetricsConfig) DeepCopy() *KubeStateMetricsConfig {
++	if in == nil {
++		return nil
++	}
++	out := new(KubeStateMetricsConfig)
++	in.DeepCopyInto(out)
++	return out
++}
++
++// DeepCopyInto is an autogenerated deepcopy function, copying the receiver, writing into out. in must be non-nil.
++func (in *KubeStateMetricsResourceLabels) DeepCopyInto(out *KubeStateMetricsResourceLabels) {
++	*out = *in
++	if in.Labels != nil {
++		in, out := &in.Labels, &out.Labels
++		*out = make([]KubeStateMetricsLabelName, len(*in))
++		copy(*out, *in)
++	}
++	return
++}
++
++// DeepCopy is an autogenerated deepcopy function, copying the receiver, creating a new KubeStateMetricsResourceLabels.
++func (in *KubeStateMetricsResourceLabels) DeepCopy() *KubeStateMetricsResourceLabels {
++	if in == nil {
++		return nil
++	}
++	out := new(KubeStateMetricsResourceLabels)
++	in.DeepCopyInto(out)
++	return out
++}
++
+ // DeepCopyInto is an autogenerated deepcopy function, copying the receiver, writing into out. in must be non-nil.
+ func (in *Label) DeepCopyInto(out *Label) {
+ 	*out = *in
+diff --git a/vendor/github.com/openshift/api/config/v1alpha1/zz_generated.swagger_doc_generated.go b/vendor/github.com/openshift/api/config/v1alpha1/zz_generated.swagger_doc_generated.go
+index 63f833a0f..2194d79de 100644
+--- a/vendor/github.com/openshift/api/config/v1alpha1/zz_generated.swagger_doc_generated.go
++++ b/vendor/github.com/openshift/api/config/v1alpha1/zz_generated.swagger_doc_generated.go
+@@ -184,6 +184,7 @@ var map_ClusterMonitoringSpec = map[string]string{
+ 	"thanosQuerierConfig":                      "thanosQuerierConfig is an optional field that can be used to configure the Thanos Querier component that runs in the openshift-monitoring namespace. The Thanos Querier provides a global query view by aggregating and deduplicating metrics from multiple Prometheus instances. When omitted, this means no opinion and the platform is left to choose a reasonable default, which is subject to change over time. The current default deploys the Thanos Querier on linux nodes with 5m CPU and 12Mi memory requests, and no custom tolerations or topology spread constraints. When set, at least one field must be specified within thanosQuerierConfig.",
+ 	"nodeExporterConfig":                       "nodeExporterConfig is an optional field that can be used to configure the node-exporter agent that runs as a DaemonSet in the openshift-monitoring namespace. The node-exporter agent collects hardware and OS-level metrics from every node in the cluster. When omitted, this means no opinion and the platform is left to choose a reasonable default, which is subject to change over time.",
+ 	"monitoringPluginConfig":                   "monitoringPluginConfig is an optional field that can be used to configure the monitoring plugin that runs as a dynamic plugin of the OpenShift web console. The monitoring plugin provides the monitoring UI in the OpenShift web console for visualizing metrics, alerts, and dashboards. When omitted, this means no opinion and the platform is left to choose a reasonable default, which is subject to change over time. The current default deploys the monitoring-plugin as a single-replica Deployment on linux nodes with 10m CPU and 50Mi memory requests, and no custom tolerations or topology spread constraints. When set, at least one field must be specified within monitoringPluginConfig.",
++	"kubeStateMetricsConfig":                   "kubeStateMetricsConfig is an optional field that can be used to configure the kube-state-metrics agent that runs in the openshift-monitoring namespace. kube-state-metrics generates metrics about the state of Kubernetes objects such as Deployments, Nodes, and Pods. When omitted, this means no opinion and the platform is left to choose a reasonable default, which is subject to change over time.",
+ }
+ 
+ func (ClusterMonitoringSpec) SwaggerDoc() map[string]string {
+@@ -237,6 +238,29 @@ func (KeepEqualActionConfig) SwaggerDoc() map[string]string {
+ 	return map_KeepEqualActionConfig
+ }
+ 
++var map_KubeStateMetricsConfig = map[string]string{
++	"":                          "KubeStateMetricsConfig provides configuration options for the kube-state-metrics agent that runs in the `openshift-monitoring` namespace. kube-state-metrics generates metrics about the state of Kubernetes objects such as Deployments, Nodes, and Pods.",
++	"nodeSelector":              "nodeSelector defines the nodes on which the Pods are scheduled. nodeSelector is optional.\n\nWhen omitted, this means the user has no opinion and the platform is left to choose reasonable defaults. These defaults are subject to change over time. The current default value is `kubernetes.io/os: linux`. When specified, nodeSelector must contain at least 1 entry and must not contain more than 10 entries.",
++	"resources":                 "resources defines the compute resource requests and limits for the kube-state-metrics container. This includes CPU, memory and HugePages constraints to help control scheduling and resource usage. When not specified, defaults are used by the platform. Requests cannot exceed limits. This field is optional. More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/ This is a simplified API that maps to Kubernetes ResourceRequirements. The current default values are:\n  resources:\n   - name: cpu\n     request: 4m\n     limit: null\n   - name: memory\n     request: 40Mi\n     limit: null\nMaximum length for this list is 5. Minimum length for this list is 1. Each resource name must be unique within this list.",
++	"tolerations":               "tolerations defines tolerations for the pods. tolerations is optional.\n\nWhen omitted, no tolerations are applied. This default is subject to change over time. When specified, tolerations must contain at least 1 entry and must not contain more than 10 entries. Each toleration's operator, when specified, must be either \"Exists\" or \"Equal\". Each toleration's effect, when specified, must be one of \"NoSchedule\", \"PreferNoSchedule\", or \"NoExecute\". An empty or unset effect means match all effects.",
++	"topologySpreadConstraints": "topologySpreadConstraints defines rules for how kube-state-metrics Pods should be distributed across topology domains such as zones, nodes, or other user-defined labels. topologySpreadConstraints is optional. This helps improve high availability and resource efficiency by avoiding placing too many replicas in the same failure domain.\n\nThis field maps directly to the `topologySpreadConstraints` field in the Pod spec. When omitted, no topology spread constraints are applied. This default is subject to change over time. When specified, topologySpreadConstraints must contain at least 1 entry and must not contain more than 10 entries. Entries must have unique topologyKey and whenUnsatisfiable pairs. Each entry's whenUnsatisfiable must be either \"DoNotSchedule\" or \"ScheduleAnyway\". Each entry's maxSkew must be at least 1. When minDomains is specified, it must be at least 1 and whenUnsatisfiable must be \"DoNotSchedule\".",
++	"additionalResourceLabels":  "additionalResourceLabels defines additional Kubernetes resource labels to expose as metrics in kube-state-metrics. Currently, only \"Job\" and \"CronJob\" resources are supported due to cardinality concerns. Each entry specifies a resource name and a list of Kubernetes label names to expose. Use \"*\" in the labels list to expose all labels for a given resource. additionalResourceLabels is optional. When omitted, no additional Kubernetes object labels are exposed as metrics by kube-state-metrics beyond its built-in metric labels (e.g. namespace, job_name). Use this field to opt in to exposing specific Kubernetes labels as metric labels for the supported resource types. Minimum length for this list is 1. Maximum length for this list is 2. Each resource name must be unique within this list.",
++}
++
++func (KubeStateMetricsConfig) SwaggerDoc() map[string]string {
++	return map_KubeStateMetricsConfig
++}
++
++var map_KubeStateMetricsResourceLabels = map[string]string{
++	"":         "KubeStateMetricsResourceLabels defines which Kubernetes labels to expose as metrics for a given resource type in kube-state-metrics.",
++	"resource": "resource is the Kubernetes resource name whose labels should be exposed as metrics. Currently, only \"Job\" and \"CronJob\" are supported due to cardinality concerns. Valid values are \"Job\" and \"CronJob\". This field is required.",
++	"labels":   "labels is the list of Kubernetes label names to expose as metrics for this resource. Use \"*\" to expose all labels for the specified resource. When \"*\" is specified, it must be the only entry in the list; mixing \"*\" with specific label names is not allowed. This field is required. Each label name must be unique within this list. Minimum length for this list is 1. Maximum length for this list is 50.",
++}
++
++func (KubeStateMetricsResourceLabels) SwaggerDoc() map[string]string {
++	return map_KubeStateMetricsResourceLabels
++}
++
+ var map_Label = map[string]string{
+ 	"":      "Label represents a key/value pair for external labels.",
+ 	"key":   "key is the name of the label. Prometheus supports UTF-8 label names, so any valid UTF-8 string is allowed. Must be between 1 and 128 characters in length.",
+@@ -505,7 +529,7 @@ var map_PrometheusConfig = map[string]string{
+ 	"queryLogFile":                  "queryLogFile specifies the file to which PromQL queries are logged. This setting can be either a filename, in which case the queries are saved to an `emptyDir` volume at `/var/log/prometheus`, or a full path to a location where an `emptyDir` volume will be mounted and the queries saved. Writing to `/dev/stderr`, `/dev/stdout` or `/dev/null` is supported, but writing to any other `/dev/` path is not supported. Relative paths are also not supported. By default, PromQL queries are not logged. Must be an absolute path starting with `/` or a simple filename without path separators. Must not contain consecutive slashes, end with a slash, or include '..' path traversal. Must contain only alphanumeric characters, '.', '_', '-', or '/'. Must be between 1 and 255 characters in length.",
+ 	"remoteWrite":                   "remoteWrite defines the remote write configuration, including URL, authentication, and relabeling settings. Remote write allows Prometheus to send metrics it collects to external long-term storage systems. When omitted, no remote write endpoints are configured. When provided, at least one configuration must be specified (minimum 1, maximum 10 items). Entries must have unique names (name is the list key).",
+ 	"resources":                     "resources defines the compute resource requests and limits for the Prometheus container. This includes CPU, memory and HugePages constraints to help control scheduling and resource usage. When not specified, defaults are used by the platform. Requests cannot exceed limits. This field is optional. More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/ This is a simplified API that maps to Kubernetes ResourceRequirements. The current default values are:\n  resources:\n   - name: cpu\n     request: 4m\n     limit: null\n   - name: memory\n     request: 40Mi\n     limit: null\nMaximum length for this list is 5. Minimum length for this list is 1. Each resource name must be unique within this list.",
+-	"retention":                     "retention configures how long Prometheus retains metrics data and how much storage it can use. When omitted, the platform chooses reasonable defaults (currently 15 days retention, no size limit).",
++	"retention":                     "retention configures how long Prometheus retains metrics data and how much storage it can use. When omitted, the platform chooses reasonable defaults (currently 15d retention, no size limit).",
+ 	"tolerations":                   "tolerations defines tolerations for the pods. tolerations is optional.\n\nWhen omitted, this means the user has no opinion and the platform is left to choose reasonable defaults. These defaults are subject to change over time. Defaults are empty/unset. Maximum length for this list is 10 Minimum length for this list is 1",
+ 	"topologySpreadConstraints":     "topologySpreadConstraints defines rules for how Prometheus Pods should be distributed across topology domains such as zones, nodes, or other user-defined labels. topologySpreadConstraints is optional. This helps improve high availability and resource efficiency by avoiding placing too many replicas in the same failure domain.\n\nWhen omitted, this means no opinion and the platform is left to choose a default, which is subject to change over time. This field maps directly to the `topologySpreadConstraints` field in the Pod spec. Default is empty list. Maximum length for this list is 10. Minimum length for this list is 1 Entries must have unique topologyKey and whenUnsatisfiable pairs.",
+ 	"collectionProfile":             "collectionProfile defines the metrics collection profile that Prometheus uses to collect metrics from the platform components. Supported values are `Full` or `Minimal`. In the `Full` profile (default), Prometheus collects all metrics that are exposed by the platform components. In the `Minimal` profile, Prometheus only collects metrics necessary for the default platform alerts, recording rules, telemetry and console dashboards. When omitted, this means no opinion and the platform is left to choose a reasonable default, which is subject to change over time. The default value is `Full`.",
+@@ -638,9 +662,9 @@ func (ReplaceActionConfig) SwaggerDoc() map[string]string {
+ }
+ 
+ var map_Retention = map[string]string{
+-	"":               "Retention configures how long Prometheus retains metrics data and how much storage it can use.",
+-	"durationInDays": "durationInDays specifies how many days Prometheus will retain metrics data. Prometheus automatically deletes data older than this duration. When omitted, this means no opinion and the platform is left to choose a reasonable default, which is subject to change over time. The default value is 15. Minimum value is 1 day. Maximum value is 365 days (1 year).",
+-	"sizeInGiB":      "sizeInGiB specifies the maximum storage size in gibibytes (GiB) that Prometheus can use for data blocks and the write-ahead log (WAL). When the limit is reached, Prometheus will delete oldest data first. When omitted, no size limit is enforced and Prometheus uses available PersistentVolume capacity. Minimum value is 1 GiB. Maximum value is 16384 GiB (16 TiB).",
++	"":         "Retention configures how long Prometheus retains metrics data and how much storage it can use.",
++	"duration": "duration is an optional field that specifies how long Prometheus retains metrics data. Valid values are Prometheus-style duration strings with unit suffixes y, w, d, h, m, s, or ms (for example, \"15d\", \"24h\", or \"5d1h30m\"). Each unit value must be a positive integer. Composite durations must follow the fixed unit order y, w, d, h, m, s, ms. Must be at least 1 character and at most 64 characters. When set to \"0\", time-based retention is disabled. This is the only supported form for disabling time-based retention; other zero-duration representations such as \"0d\", \"0h\", or \"0y\" are rejected. Prometheus automatically deletes data older than this duration. When omitted, this means no opinion and the platform is left to choose a reasonable default, which is subject to change over time. The current default value is `15d`.",
++	"size":     "size is an optional field that specifies the maximum storage size that Prometheus can use for data blocks and the write-ahead log (WAL). Valid values are byte-size strings with an optional decimal prefix and a unit suffix B, KB, MB, GB, TB, EB, PB, or their binary equivalents KiB, MiB, GiB, TiB, EiB, PiB (for example, \"500MiB\", \"10GiB\"). The numeric value must be greater than zero. Must be at least 1 character and at most 32 characters. When set to \"0\", no size limit is enforced. This is the only supported form for disabling size-based retention; other zero-size representations such as \"0B\" or \"0MiB\" are rejected. When the limit is reached, Prometheus deletes oldest data first. When omitted, no size limit is enforced and Prometheus uses available PersistentVolume capacity.",
+ }
+ 
+ func (Retention) SwaggerDoc() map[string]string {
+diff --git a/vendor/github.com/openshift/api/features.md b/vendor/github.com/openshift/api/features.md
+index b8816c2b1..b7ee33cfc 100644
+--- a/vendor/github.com/openshift/api/features.md
++++ b/vendor/github.com/openshift/api/features.md
+@@ -3,9 +3,14 @@
+ | ClientsAllowCBOR| | | | | | | |  |
+ | ClusterAPIInstall| | | | | | | |  |
+ | EventedPLEG| | | | | | | |  |
++| MachineAPIMigrationAzure| | | | | | | |  |
++| MachineAPIMigrationBareMetal| | | | | | | |  |
++| MachineAPIMigrationGCP| | | | | | | |  |
++| MachineAPIMigrationPowerVS| | | | | | | |  |
+ | MachineAPIOperatorDisableMachineHealthCheckController| | | | | | | |  |
+ | MultiArchInstallAzure| | | | | | | |  |
+ | ShortCertRotation| | | | | | | |  |
++| MutableTopology| | | | <span style="background-color: #519450">Enabled</span> | | | |  |
+ | ClusterAPIComputeInstall| | | <span style="background-color: #519450">Enabled</span> | <span style="background-color: #519450">Enabled</span> | | | |  |
+ | ClusterAPIControlPlaneInstall| | | <span style="background-color: #519450">Enabled</span> | <span style="background-color: #519450">Enabled</span> | | | |  |
+ | ClusterUpdatePreflight| | | <span style="background-color: #519450">Enabled</span> | <span style="background-color: #519450">Enabled</span> | | | |  |
+@@ -77,7 +82,6 @@
+ | NewOLMWebhookProviderOpenshiftServiceCA| | <span style="background-color: #519450">Enabled</span> | | <span style="background-color: #519450">Enabled</span> | | <span style="background-color: #519450">Enabled</span> | | <span style="background-color: #519450">Enabled</span>  |
+ | NoOverlayMode| | | <span style="background-color: #519450">Enabled</span> | <span style="background-color: #519450">Enabled</span> | | | <span style="background-color: #519450">Enabled</span> | <span style="background-color: #519450">Enabled</span>  |
+ | NutanixMultiSubnets| | | <span style="background-color: #519450">Enabled</span> | <span style="background-color: #519450">Enabled</span> | | | <span style="background-color: #519450">Enabled</span> | <span style="background-color: #519450">Enabled</span>  |
+-| OSStreams| | | <span style="background-color: #519450">Enabled</span> | <span style="background-color: #519450">Enabled</span> | | | <span style="background-color: #519450">Enabled</span> | <span style="background-color: #519450">Enabled</span>  |
+ | OVNObservability| | | <span style="background-color: #519450">Enabled</span> | <span style="background-color: #519450">Enabled</span> | | | <span style="background-color: #519450">Enabled</span> | <span style="background-color: #519450">Enabled</span>  |
+ | OnPremDNSRecords| | | <span style="background-color: #519450">Enabled</span> | <span style="background-color: #519450">Enabled</span> | | | <span style="background-color: #519450">Enabled</span> | <span style="background-color: #519450">Enabled</span>  |
+ | SELinuxMount| | | <span style="background-color: #519450">Enabled</span> | <span style="background-color: #519450">Enabled</span> | | | <span style="background-color: #519450">Enabled</span> | <span style="background-color: #519450">Enabled</span>  |
+@@ -88,6 +92,7 @@
+ | VSphereMixedNodeEnv| | | <span style="background-color: #519450">Enabled</span> | <span style="background-color: #519450">Enabled</span> | | | <span style="background-color: #519450">Enabled</span> | <span style="background-color: #519450">Enabled</span>  |
+ | VolumeGroupSnapshot| | | <span style="background-color: #519450">Enabled</span> | <span style="background-color: #519450">Enabled</span> | | | <span style="background-color: #519450">Enabled</span> | <span style="background-color: #519450">Enabled</span>  |
+ | AWSServiceLBNetworkSecurityGroup| | <span style="background-color: #519450">Enabled</span> | <span style="background-color: #519450">Enabled</span> | <span style="background-color: #519450">Enabled</span> | | <span style="background-color: #519450">Enabled</span> | <span style="background-color: #519450">Enabled</span> | <span style="background-color: #519450">Enabled</span>  |
++| OSStreams| | <span style="background-color: #519450">Enabled</span> | <span style="background-color: #519450">Enabled</span> | <span style="background-color: #519450">Enabled</span> | | <span style="background-color: #519450">Enabled</span> | <span style="background-color: #519450">Enabled</span> | <span style="background-color: #519450">Enabled</span>  |
+ | AzureClusterHostedDNSInstall| <span style="background-color: #519450">Enabled</span> | <span style="background-color: #519450">Enabled</span> | <span style="background-color: #519450">Enabled</span> | <span style="background-color: #519450">Enabled</span> | <span style="background-color: #519450">Enabled</span> | <span style="background-color: #519450">Enabled</span> | <span style="background-color: #519450">Enabled</span> | <span style="background-color: #519450">Enabled</span>  |
+ | AzureWorkloadIdentity| <span style="background-color: #519450">Enabled</span> | <span style="background-color: #519450">Enabled</span> | <span style="background-color: #519450">Enabled</span> | <span style="background-color: #519450">Enabled</span> | <span style="background-color: #519450">Enabled</span> | <span style="background-color: #519450">Enabled</span> | <span style="background-color: #519450">Enabled</span> | <span style="background-color: #519450">Enabled</span>  |
+ | BootImageSkewEnforcement| <span style="background-color: #519450">Enabled</span> | <span style="background-color: #519450">Enabled</span> | <span style="background-color: #519450">Enabled</span> | <span style="background-color: #519450">Enabled</span> | <span style="background-color: #519450">Enabled</span> | <span style="background-color: #519450">Enabled</span> | <span style="background-color: #519450">Enabled</span> | <span style="background-color: #519450">Enabled</span>  |
+diff --git a/vendor/github.com/openshift/api/features/features.go b/vendor/github.com/openshift/api/features/features.go
+index 3c7391cc7..744c3f48b 100644
+--- a/vendor/github.com/openshift/api/features/features.go
++++ b/vendor/github.com/openshift/api/features/features.go
+@@ -465,12 +465,12 @@ var (
+ 					mustRegister()
+ 
+ 	FeatureGateOLMLifecycleAndCompatibility = newFeatureGate("OLMLifecycleAndCompatibility").
+-								reportProblemsToJiraComponent("olm").
+-								contactPerson("joelanford").
+-								productScope(ocpSpecific).
+-								enhancementPR("https://github.com/openshift/enhancements/pull/1991").
+-								enable(inClusterProfile(SelfManaged), inTechPreviewNoUpgrade(), inDevPreviewNoUpgrade()).
+-								mustRegister()
++						reportProblemsToJiraComponent("olm").
++						contactPerson("joelanford").
++						productScope(ocpSpecific).
++						enhancementPR("https://github.com/openshift/enhancements/pull/1991").
++						enable(inClusterProfile(SelfManaged), inTechPreviewNoUpgrade(), inDevPreviewNoUpgrade()).
++						mustRegister()
+ 
+ 	FeatureGateInsightsOnDemandDataGather = newFeatureGate("InsightsOnDemandDataGather").
+ 						reportProblemsToJiraComponent("insights").
+@@ -535,6 +535,34 @@ var (
+ 						enable(inDevPreviewNoUpgrade()).
+ 						mustRegister()
+ 
++	FeatureGateMachineAPIMigrationAzure = newFeatureGate("MachineAPIMigrationAzure").
++						reportProblemsToJiraComponent("Cloud Compute / Cluster API Providers").
++						contactPerson("ddonati").
++						productScope(ocpSpecific).
++						enhancementPR("https://github.com/openshift/enhancements/pull/1465").
++						mustRegister()
++
++	FeatureGateMachineAPIMigrationBareMetal = newFeatureGate("MachineAPIMigrationBareMetal").
++						reportProblemsToJiraComponent("Cloud Compute / BareMetal Provider").
++						contactPerson("ddonati").
++						productScope(ocpSpecific).
++						enhancementPR("https://github.com/openshift/enhancements/pull/1465").
++						mustRegister()
++
++	FeatureGateMachineAPIMigrationGCP = newFeatureGate("MachineAPIMigrationGCP").
++						reportProblemsToJiraComponent("Cloud Compute / Cluster API Providers").
++						contactPerson("ddonati").
++						productScope(ocpSpecific).
++						enhancementPR("https://github.com/openshift/enhancements/pull/1465").
++						mustRegister()
++
++	FeatureGateMachineAPIMigrationPowerVS = newFeatureGate("MachineAPIMigrationPowerVS").
++						reportProblemsToJiraComponent("Cloud Compute / IBM Provider").
++						contactPerson("ddonati").
++						productScope(ocpSpecific).
++						enhancementPR("https://github.com/openshift/enhancements/pull/1465").
++						mustRegister()
++
+ 	FeatureGateClusterAPIMachineManagement = newFeatureGate("ClusterAPIMachineManagement").
+ 						reportProblemsToJiraComponent("Cloud Compute / Cluster API Providers").
+ 						contactPerson("ddonati").
+@@ -888,7 +916,8 @@ var (
+ 				contactPerson("pabrodri").
+ 				productScope(ocpSpecific).
+ 				enhancementPR("https://github.com/openshift/enhancements/pull/1874").
+-				enable(inTechPreviewNoUpgrade(), inDevPreviewNoUpgrade()).
++				enable(inClusterProfile(SelfManaged), inDevPreviewNoUpgrade(), inTechPreviewNoUpgrade(), inDefault(), inOKD()).
++				enable(inClusterProfile(Hypershift), inDevPreviewNoUpgrade(), inTechPreviewNoUpgrade()).
+ 				mustRegister()
+ 
+ 	FeatureGateCRDCompatibilityRequirementOperator = newFeatureGate("CRDCompatibilityRequirementOperator").
+@@ -906,6 +935,14 @@ var (
+ 					enable(inTechPreviewNoUpgrade(), inDevPreviewNoUpgrade()).
+ 					mustRegister()
+ 
++	FeatureGateBGPBasedVIPManagement = newFeatureGate("BGPBasedVIPManagement").
++						reportProblemsToJiraComponent("Networking / On-Prem Networking").
++						contactPerson("mkowalski").
++						productScope(ocpSpecific).
++						enhancementPR("https://github.com/openshift/enhancements/pull/1982").
++						enable(inDevPreviewNoUpgrade()).
++						mustRegister()
++
+ 	FeatureGateProvisioningRequestAvailable = newFeatureGate("ProvisioningRequestAvailable").
+ 						reportProblemsToJiraComponent("Cluster Autoscaler").
+ 						contactPerson("elmiko").
+@@ -986,10 +1023,18 @@ var (
+ 						mustRegister()
+ 
+ 	FeatureGateTLSGroupPreferences = newFeatureGate("TLSGroupPreferences").
+-						reportProblemsToJiraComponent("Networking / router").
+-						contactPerson("davidesalerno").
+-						productScope(ocpSpecific).
+-						enhancementPR("https://github.com/openshift/enhancements/pull/1894").
+-						enable(inDevPreviewNoUpgrade(), inTechPreviewNoUpgrade()).
+-						mustRegister()
++					reportProblemsToJiraComponent("Networking / router").
++					contactPerson("davidesalerno").
++					productScope(ocpSpecific).
++					enhancementPR("https://github.com/openshift/enhancements/pull/1894").
++					enable(inDevPreviewNoUpgrade(), inTechPreviewNoUpgrade()).
++					mustRegister()
++
++	FeatureGateMutableTopology = newFeatureGate("MutableTopology").
++					reportProblemsToJiraComponent("Mutable Topology").
++					contactPerson("jaypoulz").
++					productScope(ocpSpecific).
++					enhancementPR("https://github.com/openshift/enhancements/pull/2008").
++					enable(inClusterProfile(SelfManaged), inDevPreviewNoUpgrade()).
++					mustRegister()
+ )
+diff --git a/vendor/github.com/openshift/api/machineconfiguration/v1/types.go b/vendor/github.com/openshift/api/machineconfiguration/v1/types.go
+index 21615ee9a..33c12be92 100644
+--- a/vendor/github.com/openshift/api/machineconfiguration/v1/types.go
++++ b/vendor/github.com/openshift/api/machineconfiguration/v1/types.go
+@@ -811,10 +811,17 @@ type KubeletConfigCondition struct {
+ type KubeletConfigStatusConditionType string
+ 
+ const (
++	// KubeletConfigAccepted designates whether a KubeletConfig CR has been accepted.
++	// When the condition status is True, the KubeletConfig has been accepted successfully.
++	// When the condition status is False, the KubeletConfig has not been accepted.
++	KubeletConfigAccepted KubeletConfigStatusConditionType = "Accepted"
++
+ 	// KubeletConfigSuccess designates a successful application of a KubeletConfig CR.
++	// Deprecated: Use KubeletConfigAccepted instead. KubeletConfigSuccess will be removed in a future release.
+ 	KubeletConfigSuccess KubeletConfigStatusConditionType = "Success"
+ 
+ 	// KubeletConfigFailure designates a failure applying a KubeletConfig CR.
++	// Deprecated: Use KubeletConfigAccepted with status False instead. KubeletConfigFailure will be removed in a future release.
+ 	KubeletConfigFailure KubeletConfigStatusConditionType = "Failure"
+ )
+ 
+diff --git a/vendor/github.com/openshift/api/machineconfiguration/v1/zz_generated.crd-manifests/0000_80_machine-config_01_machineconfigpools-CustomNoUpgrade.crd.yaml b/vendor/github.com/openshift/api/machineconfiguration/v1/zz_generated.crd-manifests/0000_80_machine-config_01_machineconfigpools-Hypershift-CustomNoUpgrade.crd.yaml
+similarity index 99%
+rename from vendor/github.com/openshift/api/machineconfiguration/v1/zz_generated.crd-manifests/0000_80_machine-config_01_machineconfigpools-CustomNoUpgrade.crd.yaml
+rename to vendor/github.com/openshift/api/machineconfiguration/v1/zz_generated.crd-manifests/0000_80_machine-config_01_machineconfigpools-Hypershift-CustomNoUpgrade.crd.yaml
+index 6dc75e209..dc5b42993 100644
+--- a/vendor/github.com/openshift/api/machineconfiguration/v1/zz_generated.crd-manifests/0000_80_machine-config_01_machineconfigpools-CustomNoUpgrade.crd.yaml
++++ b/vendor/github.com/openshift/api/machineconfiguration/v1/zz_generated.crd-manifests/0000_80_machine-config_01_machineconfigpools-Hypershift-CustomNoUpgrade.crd.yaml
+@@ -5,7 +5,6 @@ metadata:
+     api-approved.openshift.io: https://github.com/openshift/api/pull/1453
+     api.openshift.io/merged-by-featuregates: "true"
+     include.release.openshift.io/ibm-cloud-managed: "true"
+-    include.release.openshift.io/self-managed-high-availability: "true"
+     release.openshift.io/feature-set: CustomNoUpgrade
+   labels:
+     openshift.io/operator-managed: ""
+diff --git a/vendor/github.com/openshift/api/machineconfiguration/v1/zz_generated.crd-manifests/0000_80_machine-config_01_machineconfigpools-Default.crd.yaml b/vendor/github.com/openshift/api/machineconfiguration/v1/zz_generated.crd-manifests/0000_80_machine-config_01_machineconfigpools-Hypershift-Default.crd.yaml
+similarity index 99%
+rename from vendor/github.com/openshift/api/machineconfiguration/v1/zz_generated.crd-manifests/0000_80_machine-config_01_machineconfigpools-Default.crd.yaml
+rename to vendor/github.com/openshift/api/machineconfiguration/v1/zz_generated.crd-manifests/0000_80_machine-config_01_machineconfigpools-Hypershift-Default.crd.yaml
+index b551493e4..190ea73d4 100644
+--- a/vendor/github.com/openshift/api/machineconfiguration/v1/zz_generated.crd-manifests/0000_80_machine-config_01_machineconfigpools-Default.crd.yaml
++++ b/vendor/github.com/openshift/api/machineconfiguration/v1/zz_generated.crd-manifests/0000_80_machine-config_01_machineconfigpools-Hypershift-Default.crd.yaml
+@@ -5,7 +5,6 @@ metadata:
+     api-approved.openshift.io: https://github.com/openshift/api/pull/1453
+     api.openshift.io/merged-by-featuregates: "true"
+     include.release.openshift.io/ibm-cloud-managed: "true"
+-    include.release.openshift.io/self-managed-high-availability: "true"
+     release.openshift.io/feature-set: Default
+   labels:
+     openshift.io/operator-managed: ""
+diff --git a/vendor/github.com/openshift/api/machineconfiguration/v1/zz_generated.crd-manifests/0000_80_machine-config_01_machineconfigpools-DevPreviewNoUpgrade.crd.yaml b/vendor/github.com/openshift/api/machineconfiguration/v1/zz_generated.crd-manifests/0000_80_machine-config_01_machineconfigpools-Hypershift-DevPreviewNoUpgrade.crd.yaml
+similarity index 99%
+rename from vendor/github.com/openshift/api/machineconfiguration/v1/zz_generated.crd-manifests/0000_80_machine-config_01_machineconfigpools-DevPreviewNoUpgrade.crd.yaml
+rename to vendor/github.com/openshift/api/machineconfiguration/v1/zz_generated.crd-manifests/0000_80_machine-config_01_machineconfigpools-Hypershift-DevPreviewNoUpgrade.crd.yaml
+index 48688e479..cfe6e2a87 100644
+--- a/vendor/github.com/openshift/api/machineconfiguration/v1/zz_generated.crd-manifests/0000_80_machine-config_01_machineconfigpools-DevPreviewNoUpgrade.crd.yaml
++++ b/vendor/github.com/openshift/api/machineconfiguration/v1/zz_generated.crd-manifests/0000_80_machine-config_01_machineconfigpools-Hypershift-DevPreviewNoUpgrade.crd.yaml
+@@ -5,7 +5,6 @@ metadata:
+     api-approved.openshift.io: https://github.com/openshift/api/pull/1453
+     api.openshift.io/merged-by-featuregates: "true"
+     include.release.openshift.io/ibm-cloud-managed: "true"
+-    include.release.openshift.io/self-managed-high-availability: "true"
+     release.openshift.io/feature-set: DevPreviewNoUpgrade
+   labels:
+     openshift.io/operator-managed: ""
+diff --git a/vendor/github.com/openshift/api/machineconfiguration/v1/zz_generated.crd-manifests/0000_80_machine-config_01_machineconfigpools-OKD.crd.yaml b/vendor/github.com/openshift/api/machineconfiguration/v1/zz_generated.crd-manifests/0000_80_machine-config_01_machineconfigpools-Hypershift-OKD.crd.yaml
+similarity index 99%
+rename from vendor/github.com/openshift/api/machineconfiguration/v1/zz_generated.crd-manifests/0000_80_machine-config_01_machineconfigpools-OKD.crd.yaml
+rename to vendor/github.com/openshift/api/machineconfiguration/v1/zz_generated.crd-manifests/0000_80_machine-config_01_machineconfigpools-Hypershift-OKD.crd.yaml
+index 748c9ffea..9489334b7 100644
+--- a/vendor/github.com/openshift/api/machineconfiguration/v1/zz_generated.crd-manifests/0000_80_machine-config_01_machineconfigpools-OKD.crd.yaml
++++ b/vendor/github.com/openshift/api/machineconfiguration/v1/zz_generated.crd-manifests/0000_80_machine-config_01_machineconfigpools-Hypershift-OKD.crd.yaml
+@@ -5,7 +5,6 @@ metadata:
+     api-approved.openshift.io: https://github.com/openshift/api/pull/1453
+     api.openshift.io/merged-by-featuregates: "true"
+     include.release.openshift.io/ibm-cloud-managed: "true"
+-    include.release.openshift.io/self-managed-high-availability: "true"
+     release.openshift.io/feature-set: OKD
+   labels:
+     openshift.io/operator-managed: ""
+diff --git a/vendor/github.com/openshift/api/machineconfiguration/v1/zz_generated.crd-manifests/0000_80_machine-config_01_machineconfigpools-TechPreviewNoUpgrade.crd.yaml b/vendor/github.com/openshift/api/machineconfiguration/v1/zz_generated.crd-manifests/0000_80_machine-config_01_machineconfigpools-Hypershift-TechPreviewNoUpgrade.crd.yaml
+similarity index 99%
+rename from vendor/github.com/openshift/api/machineconfiguration/v1/zz_generated.crd-manifests/0000_80_machine-config_01_machineconfigpools-TechPreviewNoUpgrade.crd.yaml
+rename to vendor/github.com/openshift/api/machineconfiguration/v1/zz_generated.crd-manifests/0000_80_machine-config_01_machineconfigpools-Hypershift-TechPreviewNoUpgrade.crd.yaml
+index 12bb88dfd..b509440da 100644
+--- a/vendor/github.com/openshift/api/machineconfiguration/v1/zz_generated.crd-manifests/0000_80_machine-config_01_machineconfigpools-TechPreviewNoUpgrade.crd.yaml
++++ b/vendor/github.com/openshift/api/machineconfiguration/v1/zz_generated.crd-manifests/0000_80_machine-config_01_machineconfigpools-Hypershift-TechPreviewNoUpgrade.crd.yaml
+@@ -5,7 +5,6 @@ metadata:
+     api-approved.openshift.io: https://github.com/openshift/api/pull/1453
+     api.openshift.io/merged-by-featuregates: "true"
+     include.release.openshift.io/ibm-cloud-managed: "true"
+-    include.release.openshift.io/self-managed-high-availability: "true"
+     release.openshift.io/feature-set: TechPreviewNoUpgrade
+   labels:
+     openshift.io/operator-managed: ""
+diff --git a/vendor/github.com/openshift/api/machineconfiguration/v1/zz_generated.crd-manifests/0000_80_machine-config_01_machineconfigpools-SelfManagedHA.crd.yaml b/vendor/github.com/openshift/api/machineconfiguration/v1/zz_generated.crd-manifests/0000_80_machine-config_01_machineconfigpools-SelfManagedHA.crd.yaml
+new file mode 100644
+index 000000000..d040014a5
+--- /dev/null
++++ b/vendor/github.com/openshift/api/machineconfiguration/v1/zz_generated.crd-manifests/0000_80_machine-config_01_machineconfigpools-SelfManagedHA.crd.yaml
+@@ -0,0 +1,668 @@
++apiVersion: apiextensions.k8s.io/v1
++kind: CustomResourceDefinition
++metadata:
++  annotations:
++    api-approved.openshift.io: https://github.com/openshift/api/pull/1453
++    api.openshift.io/merged-by-featuregates: "true"
++    include.release.openshift.io/self-managed-high-availability: "true"
++  labels:
++    openshift.io/operator-managed: ""
++  name: machineconfigpools.machineconfiguration.openshift.io
++spec:
++  group: machineconfiguration.openshift.io
++  names:
++    kind: MachineConfigPool
++    listKind: MachineConfigPoolList
++    plural: machineconfigpools
++    shortNames:
++    - mcp
++    singular: machineconfigpool
++  scope: Cluster
++  versions:
++  - additionalPrinterColumns:
++    - jsonPath: .status.configuration.name
++      name: Config
++      type: string
++    - description: When all the machines in the pool are updated to the correct machine
++        config.
++      jsonPath: .status.conditions[?(@.type=="Updated")].status
++      name: Updated
++      type: string
++    - description: When at least one of machine is not either not updated or is in
++        the process of updating to the desired machine config.
++      jsonPath: .status.conditions[?(@.type=="Updating")].status
++      name: Updating
++      type: string
++    - description: When progress is blocked on updating one or more nodes or the pool
++        configuration is failing.
++      jsonPath: .status.conditions[?(@.type=="Degraded")].status
++      name: Degraded
++      type: string
++    - description: Total number of machines in the machine config pool
++      jsonPath: .status.machineCount
++      name: MachineCount
++      type: number
++    - description: Total number of ready machines targeted by the pool
++      jsonPath: .status.readyMachineCount
++      name: ReadyMachineCount
++      type: number
++    - description: Total number of machines targeted by the pool that have the CurrentMachineConfig
++        as their config
++      jsonPath: .status.updatedMachineCount
++      name: UpdatedMachineCount
++      type: number
++    - description: Total number of machines marked degraded (or unreconcilable)
++      jsonPath: .status.degradedMachineCount
++      name: DegradedMachineCount
++      type: number
++    - jsonPath: .metadata.creationTimestamp
++      name: Age
++      type: date
++    name: v1
++    schema:
++      openAPIV3Schema:
++        description: |-
++          MachineConfigPool describes a pool of MachineConfigs.
++
++          Compatibility level 1: Stable within a major release for a minimum of 12 months or 3 minor releases (whichever is longer).
++        properties:
++          apiVersion:
++            description: |-
++              APIVersion defines the versioned schema of this representation of an object.
++              Servers should convert recognized schemas to the latest internal value, and
++              may reject unrecognized values.
++              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
++            type: string
++          kind:
++            description: |-
++              Kind is a string value representing the REST resource this object represents.
++              Servers may infer this from the endpoint the client submits requests to.
++              Cannot be updated.
++              In CamelCase.
++              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
++            type: string
++          metadata:
++            type: object
++          spec:
++            description: spec contains the desired machine config pool configuration.
++            properties:
++              configuration:
++                description: The targeted MachineConfig object for the machine config
++                  pool.
++                properties:
++                  apiVersion:
++                    description: API version of the referent.
++                    type: string
++                  fieldPath:
++                    description: |-
++                      If referring to a piece of an object instead of an entire object, this string
++                      should contain a valid JSON/Go field access statement, such as desiredState.manifest.containers[2].
++                      For example, if the object reference is to a container within a pod, this would take on a value like:
++                      "spec.containers{name}" (where "name" refers to the name of the container that triggered
++                      the event) or if no container name is specified "spec.containers[2]" (container with
++                      index 2 in this pod). This syntax is chosen only to have some well-defined way of
++                      referencing a part of an object.
++                    type: string
++                  kind:
++                    description: |-
++                      Kind of the referent.
++                      More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
++                    type: string
++                  name:
++                    description: |-
++                      Name of the referent.
++                      More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
++                    type: string
++                  namespace:
++                    description: |-
++                      Namespace of the referent.
++                      More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/namespaces/
++                    type: string
++                  resourceVersion:
++                    description: |-
++                      Specific resourceVersion to which this reference is made, if any.
++                      More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#concurrency-control-and-consistency
++                    type: string
++                  source:
++                    description: source is the list of MachineConfig objects that
++                      were used to generate the single MachineConfig object specified
++                      in `content`.
++                    items:
++                      description: ObjectReference contains enough information to
++                        let you inspect or modify the referred object.
++                      properties:
++                        apiVersion:
++                          description: API version of the referent.
++                          type: string
++                        fieldPath:
++                          description: |-
++                            If referring to a piece of an object instead of an entire object, this string
++                            should contain a valid JSON/Go field access statement, such as desiredState.manifest.containers[2].
++                            For example, if the object reference is to a container within a pod, this would take on a value like:
++                            "spec.containers{name}" (where "name" refers to the name of the container that triggered
++                            the event) or if no container name is specified "spec.containers[2]" (container with
++                            index 2 in this pod). This syntax is chosen only to have some well-defined way of
++                            referencing a part of an object.
++                          type: string
++                        kind:
++                          description: |-
++                            Kind of the referent.
++                            More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
++                          type: string
++                        name:
++                          description: |-
++                            Name of the referent.
++                            More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
++                          type: string
++                        namespace:
++                          description: |-
++                            Namespace of the referent.
++                            More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/namespaces/
++                          type: string
++                        resourceVersion:
++                          description: |-
++                            Specific resourceVersion to which this reference is made, if any.
++                            More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#concurrency-control-and-consistency
++                          type: string
++                        uid:
++                          description: |-
++                            UID of the referent.
++                            More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#uids
++                          type: string
++                      type: object
++                      x-kubernetes-map-type: atomic
++                    type: array
++                    x-kubernetes-list-type: atomic
++                  uid:
++                    description: |-
++                      UID of the referent.
++                      More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#uids
++                    type: string
++                type: object
++                x-kubernetes-map-type: atomic
++              machineConfigSelector:
++                description: |-
++                  machineConfigSelector specifies a label selector for MachineConfigs.
++                  Refer https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/ on how label and selectors work.
++                properties:
++                  matchExpressions:
++                    description: matchExpressions is a list of label selector requirements.
++                      The requirements are ANDed.
++                    items:
++                      description: |-
++                        A label selector requirement is a selector that contains values, a key, and an operator that
++                        relates the key and values.
++                      properties:
++                        key:
++                          description: key is the label key that the selector applies
++                            to.
++                          type: string
++                        operator:
++                          description: |-
++                            operator represents a key's relationship to a set of values.
++                            Valid operators are In, NotIn, Exists and DoesNotExist.
++                          type: string
++                        values:
++                          description: |-
++                            values is an array of string values. If the operator is In or NotIn,
++                            the values array must be non-empty. If the operator is Exists or DoesNotExist,
++                            the values array must be empty. This array is replaced during a strategic
++                            merge patch.
++                          items:
++                            type: string
++                          type: array
++                          x-kubernetes-list-type: atomic
++                      required:
++                      - key
++                      - operator
++                      type: object
++                    type: array
++                    x-kubernetes-list-type: atomic
++                  matchLabels:
++                    additionalProperties:
++                      type: string
++                    description: |-
++                      matchLabels is a map of {key,value} pairs. A single {key,value} in the matchLabels
++                      map is equivalent to an element of matchExpressions, whose key field is "key", the
++                      operator is "In", and the values array contains only "value". The requirements are ANDed.
++                    type: object
++                type: object
++                x-kubernetes-map-type: atomic
++              maxUnavailable:
++                anyOf:
++                - type: integer
++                - type: string
++                description: |-
++                  maxUnavailable defines either an integer number or percentage
++                  of nodes in the pool that can go Unavailable during an update.
++                  This includes nodes Unavailable for any reason, including user
++                  initiated cordons, failing nodes, etc. The default value is 1.
++
++                  A value larger than 1 will mean multiple nodes going unavailable during
++                  the update, which may affect your workload stress on the remaining nodes.
++                  You cannot set this value to 0 to stop updates (it will default back to 1);
++                  to stop updates, use the 'paused' property instead. Drain will respect
++                  Pod Disruption Budgets (PDBs) such as etcd quorum guards, even if
++                  maxUnavailable is greater than one.
++                x-kubernetes-int-or-string: true
++              nodeSelector:
++                description: nodeSelector specifies a label selector for Machines
++                properties:
++                  matchExpressions:
++                    description: matchExpressions is a list of label selector requirements.
++                      The requirements are ANDed.
++                    items:
++                      description: |-
++                        A label selector requirement is a selector that contains values, a key, and an operator that
++                        relates the key and values.
++                      properties:
++                        key:
++                          description: key is the label key that the selector applies
++                            to.
++                          type: string
++                        operator:
++                          description: |-
++                            operator represents a key's relationship to a set of values.
++                            Valid operators are In, NotIn, Exists and DoesNotExist.
++                          type: string
++                        values:
++                          description: |-
++                            values is an array of string values. If the operator is In or NotIn,
++                            the values array must be non-empty. If the operator is Exists or DoesNotExist,
++                            the values array must be empty. This array is replaced during a strategic
++                            merge patch.
++                          items:
++                            type: string
++                          type: array
++                          x-kubernetes-list-type: atomic
++                      required:
++                      - key
++                      - operator
++                      type: object
++                    type: array
++                    x-kubernetes-list-type: atomic
++                  matchLabels:
++                    additionalProperties:
++                      type: string
++                    description: |-
++                      matchLabels is a map of {key,value} pairs. A single {key,value} in the matchLabels
++                      map is equivalent to an element of matchExpressions, whose key field is "key", the
++                      operator is "In", and the values array contains only "value". The requirements are ANDed.
++                    type: object
++                type: object
++                x-kubernetes-map-type: atomic
++              osImageStream:
++                description: |-
++                  osImageStream specifies an OS stream to be used for the pool.
++
++                  This field can be optionally set to a known OSImageStream name to change the
++                  OS and Extension images with a well-known, tested, release-provided set of images.
++                  This enables a streamlined way of switching the pool's node OS to a different version
++                  than the cluster default, such as transitioning to a major RHEL version.
++
++                  When set, the referenced stream overrides the cluster-wide OS
++                  images for the pool with the OS and Extensions associated to stream.
++                  When omitted, the pool uses the cluster-wide default OS images.
++                properties:
++                  name:
++                    description: |-
++                      name is a required reference to an OSImageStream to be used for the pool.
++
++                      It must be a valid RFC 1123 subdomain between 1 and 253 characters in length,
++                      consisting of lowercase alphanumeric characters, hyphens ('-'), and periods ('.').
++                    maxLength: 253
++                    minLength: 1
++                    type: string
++                    x-kubernetes-validations:
++                    - message: a RFC 1123 subdomain must consist of lower case alphanumeric
++                        characters, '-' or '.', and must start and end with an alphanumeric
++                        character.
++                      rule: '!format.dns1123Subdomain().validate(self).hasValue()'
++                required:
++                - name
++                type: object
++              paused:
++                description: |-
++                  paused specifies whether or not changes to this machine config pool should be stopped.
++                  This includes generating new desiredMachineConfig and update of machines.
++                type: boolean
++              pinnedImageSets:
++                description: |-
++                  pinnedImageSets specifies a sequence of PinnedImageSetRef objects for the
++                  pool. Nodes within this pool will preload and pin images defined in the
++                  PinnedImageSet. Before pulling images the MachineConfigDaemon will ensure
++                  the total uncompressed size of all the images does not exceed available
++                  resources. If the total size of the images exceeds the available
++                  resources the controller will report a Degraded status to the
++                  MachineConfigPool and not attempt to pull any images. Also to help ensure
++                  the kubelet can mitigate storage risk, the pinned_image configuration and
++                  subsequent service reload will happen only after all of the images have
++                  been pulled for each set. Images from multiple PinnedImageSets are loaded
++                  and pinned sequentially as listed. Duplicate and existing images will be
++                  skipped.
++
++                  Any failure to prefetch or pin images will result in a Degraded pool.
++                  Resolving these failures is the responsibility of the user. The admin
++                  should be proactive in ensuring adequate storage and proper image
++                  authentication exists in advance.
++                items:
++                  properties:
++                    name:
++                      description: |-
++                        name is a reference to the name of a PinnedImageSet.  Must adhere to
++                        RFC-1123 (https://tools.ietf.org/html/rfc1123).
++                        Made up of one of more period-separated (.) segments, where each segment
++                        consists of alphanumeric characters and hyphens (-), must begin and end
++                        with an alphanumeric character, and is at most 63 characters in length.
++                        The total length of the name must not exceed 253 characters.
++                      maxLength: 253
++                      minLength: 1
++                      pattern: ^([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])(\.([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\-]{0,61}[a-zA-Z0-9]))*$
++                      type: string
++                  required:
++                  - name
++                  type: object
++                maxItems: 100
++                type: array
++                x-kubernetes-list-map-keys:
++                - name
++                x-kubernetes-list-type: map
++            type: object
++          status:
++            description: status contains observed information about the machine config
++              pool.
++            properties:
++              certExpirys:
++                description: certExpirys keeps track of important certificate expiration
++                  data
++                items:
++                  description: ceryExpiry contains the bundle name and the expiry
++                    date
++                  properties:
++                    bundle:
++                      description: bundle is the name of the bundle in which the subject
++                        certificate resides
++                      type: string
++                    expiry:
++                      description: expiry is the date after which the certificate
++                        will no longer be valid
++                      format: date-time
++                      type: string
++                    subject:
++                      description: subject is the subject of the certificate
++                      type: string
++                  required:
++                  - bundle
++                  - subject
++                  type: object
++                type: array
++                x-kubernetes-list-type: atomic
++              conditions:
++                description: conditions represents the latest available observations
++                  of current state.
++                items:
++                  description: MachineConfigPoolCondition contains condition information
++                    for an MachineConfigPool.
++                  properties:
++                    lastTransitionTime:
++                      description: |-
++                        lastTransitionTime is the timestamp corresponding to the last status
++                        change of this condition.
++                      format: date-time
++                      nullable: true
++                      type: string
++                    message:
++                      description: |-
++                        message is a human readable description of the details of the last
++                        transition, complementing reason.
++                      type: string
++                    reason:
++                      description: |-
++                        reason is a brief machine readable explanation for the condition's last
++                        transition.
++                      type: string
++                    status:
++                      description: status of the condition, one of ('True', 'False',
++                        'Unknown').
++                      type: string
++                    type:
++                      description: type of the condition, currently ('Done', 'Updating',
++                        'Failed').
++                      type: string
++                  type: object
++                type: array
++                x-kubernetes-list-type: atomic
++              configuration:
++                description: configuration represents the current MachineConfig object
++                  for the machine config pool.
++                properties:
++                  apiVersion:
++                    description: API version of the referent.
++                    type: string
++                  fieldPath:
++                    description: |-
++                      If referring to a piece of an object instead of an entire object, this string
++                      should contain a valid JSON/Go field access statement, such as desiredState.manifest.containers[2].
++                      For example, if the object reference is to a container within a pod, this would take on a value like:
++                      "spec.containers{name}" (where "name" refers to the name of the container that triggered
++                      the event) or if no container name is specified "spec.containers[2]" (container with
++                      index 2 in this pod). This syntax is chosen only to have some well-defined way of
++                      referencing a part of an object.
++                    type: string
++                  kind:
++                    description: |-
++                      Kind of the referent.
++                      More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
++                    type: string
++                  name:
++                    description: |-
++                      Name of the referent.
++                      More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
++                    type: string
++                  namespace:
++                    description: |-
++                      Namespace of the referent.
++                      More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/namespaces/
++                    type: string
++                  resourceVersion:
++                    description: |-
++                      Specific resourceVersion to which this reference is made, if any.
++                      More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#concurrency-control-and-consistency
++                    type: string
++                  source:
++                    description: source is the list of MachineConfig objects that
++                      were used to generate the single MachineConfig object specified
++                      in `content`.
++                    items:
++                      description: ObjectReference contains enough information to
++                        let you inspect or modify the referred object.
++                      properties:
++                        apiVersion:
++                          description: API version of the referent.
++                          type: string
++                        fieldPath:
++                          description: |-
++                            If referring to a piece of an object instead of an entire object, this string
++                            should contain a valid JSON/Go field access statement, such as desiredState.manifest.containers[2].
++                            For example, if the object reference is to a container within a pod, this would take on a value like:
++                            "spec.containers{name}" (where "name" refers to the name of the container that triggered
++                            the event) or if no container name is specified "spec.containers[2]" (container with
++                            index 2 in this pod). This syntax is chosen only to have some well-defined way of
++                            referencing a part of an object.
++                          type: string
++                        kind:
++                          description: |-
++                            Kind of the referent.
++                            More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
++                          type: string
++                        name:
++                          description: |-
++                            Name of the referent.
++                            More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
++                          type: string
++                        namespace:
++                          description: |-
++                            Namespace of the referent.
++                            More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/namespaces/
++                          type: string
++                        resourceVersion:
++                          description: |-
++                            Specific resourceVersion to which this reference is made, if any.
++                            More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#concurrency-control-and-consistency
++                          type: string
++                        uid:
++                          description: |-
++                            UID of the referent.
++                            More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#uids
++                          type: string
++                      type: object
++                      x-kubernetes-map-type: atomic
++                    type: array
++                    x-kubernetes-list-type: atomic
++                  uid:
++                    description: |-
++                      UID of the referent.
++                      More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#uids
++                    type: string
++                type: object
++                x-kubernetes-map-type: atomic
++              degradedMachineCount:
++                description: |-
++                  degradedMachineCount represents the total number of machines marked degraded (or unreconcilable).
++                  A node is marked degraded if applying a configuration failed..
++                format: int32
++                type: integer
++              machineCount:
++                description: machineCount represents the total number of machines
++                  in the machine config pool.
++                format: int32
++                type: integer
++              observedGeneration:
++                description: observedGeneration represents the generation observed
++                  by the controller.
++                format: int64
++                type: integer
++              osImageStream:
++                description: |-
++                  osImageStream specifies the last updated OSImageStream for the pool.
++
++                  When omitted, the pool is using the cluster-wide default OS images.
++                properties:
++                  name:
++                    description: |-
++                      name is a required reference to an OSImageStream to be used for the pool.
++
++                      It must be a valid RFC 1123 subdomain between 1 and 253 characters in length,
++                      consisting of lowercase alphanumeric characters, hyphens ('-'), and periods ('.').
++                    maxLength: 253
++                    minLength: 1
++                    type: string
++                    x-kubernetes-validations:
++                    - message: a RFC 1123 subdomain must consist of lower case alphanumeric
++                        characters, '-' or '.', and must start and end with an alphanumeric
++                        character.
++                      rule: '!format.dns1123Subdomain().validate(self).hasValue()'
++                required:
++                - name
++                type: object
++              poolSynchronizersStatus:
++                description: poolSynchronizersStatus is the status of the machines
++                  managed by the pool synchronizers.
++                items:
++                  properties:
++                    availableMachineCount:
++                      description: availableMachineCount is the number of machines
++                        managed by the node synchronizer which are available.
++                      format: int64
++                      minimum: 0
++                      type: integer
++                    machineCount:
++                      description: machineCount is the number of machines that are
++                        managed by the node synchronizer.
++                      format: int64
++                      minimum: 0
++                      type: integer
++                    observedGeneration:
++                      description: observedGeneration is the last generation change
++                        that has been applied.
++                      format: int64
++                      minimum: 0
++                      type: integer
++                      x-kubernetes-validations:
++                      - message: observedGeneration must not move backwards except
++                          to zero
++                        rule: self >= oldSelf || (self == 0 && oldSelf > 0)
++                    poolSynchronizerType:
++                      description: poolSynchronizerType describes the type of the
++                        pool synchronizer.
++                      enum:
++                      - PinnedImageSets
++                      maxLength: 256
++                      type: string
++                    readyMachineCount:
++                      description: readyMachineCount is the number of machines managed
++                        by the node synchronizer that are in a ready state.
++                      format: int64
++                      minimum: 0
++                      type: integer
++                    unavailableMachineCount:
++                      description: unavailableMachineCount is the number of machines
++                        managed by the node synchronizer but are unavailable.
++                      format: int64
++                      minimum: 0
++                      type: integer
++                    updatedMachineCount:
++                      description: updatedMachineCount is the number of machines that
++                        have been updated by the node synchronizer.
++                      format: int64
++                      minimum: 0
++                      type: integer
++                  required:
++                  - availableMachineCount
++                  - machineCount
++                  - poolSynchronizerType
++                  - readyMachineCount
++                  - unavailableMachineCount
++                  - updatedMachineCount
++                  type: object
++                  x-kubernetes-validations:
++                  - message: machineCount must be greater than or equal to updatedMachineCount
++                    rule: self.machineCount >= self.updatedMachineCount
++                  - message: machineCount must be greater than or equal to availableMachineCount
++                    rule: self.machineCount >= self.availableMachineCount
++                  - message: machineCount must be greater than or equal to unavailableMachineCount
++                    rule: self.machineCount >= self.unavailableMachineCount
++                  - message: machineCount must be greater than or equal to readyMachineCount
++                    rule: self.machineCount >= self.readyMachineCount
++                  - message: availableMachineCount must be greater than or equal to
++                      readyMachineCount
++                    rule: self.availableMachineCount >= self.readyMachineCount
++                type: array
++                x-kubernetes-list-map-keys:
++                - poolSynchronizerType
++                x-kubernetes-list-type: map
++              readyMachineCount:
++                description: readyMachineCount represents the total number of ready
++                  machines targeted by the pool.
++                format: int32
++                type: integer
++              unavailableMachineCount:
++                description: |-
++                  unavailableMachineCount represents the total number of unavailable (non-ready) machines targeted by the pool.
++                  A node is marked unavailable if it is in updating state or NodeReady condition is false.
++                format: int32
++                type: integer
++              updatedMachineCount:
++                description: updatedMachineCount represents the total number of machines
++                  targeted by the pool that have the CurrentMachineConfig as their
++                  config.
++                format: int32
++                type: integer
++            type: object
++        required:
++        - spec
++        type: object
++    served: true
++    storage: true
++    subresources:
++      status: {}
+diff --git a/vendor/github.com/openshift/api/machineconfiguration/v1/zz_generated.crd-manifests/0000_80_machine-config_01_osimagestreams.crd.yaml b/vendor/github.com/openshift/api/machineconfiguration/v1/zz_generated.crd-manifests/0000_80_machine-config_01_osimagestreams-Hypershift.crd.yaml
+similarity index 99%
+rename from vendor/github.com/openshift/api/machineconfiguration/v1/zz_generated.crd-manifests/0000_80_machine-config_01_osimagestreams.crd.yaml
+rename to vendor/github.com/openshift/api/machineconfiguration/v1/zz_generated.crd-manifests/0000_80_machine-config_01_osimagestreams-Hypershift.crd.yaml
+index ac5a11067..1bc4b6b03 100644
+--- a/vendor/github.com/openshift/api/machineconfiguration/v1/zz_generated.crd-manifests/0000_80_machine-config_01_osimagestreams.crd.yaml
++++ b/vendor/github.com/openshift/api/machineconfiguration/v1/zz_generated.crd-manifests/0000_80_machine-config_01_osimagestreams-Hypershift.crd.yaml
+@@ -5,7 +5,6 @@ metadata:
+     api-approved.openshift.io: https://github.com/openshift/api/pull/2555
+     api.openshift.io/merged-by-featuregates: "true"
+     include.release.openshift.io/ibm-cloud-managed: "true"
+-    include.release.openshift.io/self-managed-high-availability: "true"
+     release.openshift.io/feature-set: CustomNoUpgrade,DevPreviewNoUpgrade,TechPreviewNoUpgrade
+   labels:
+     openshift.io/operator-managed: ""
+diff --git a/vendor/github.com/openshift/api/machineconfiguration/v1/zz_generated.crd-manifests/0000_80_machine-config_01_osimagestreams-SelfManagedHA.crd.yaml b/vendor/github.com/openshift/api/machineconfiguration/v1/zz_generated.crd-manifests/0000_80_machine-config_01_osimagestreams-SelfManagedHA.crd.yaml
+new file mode 100644
+index 000000000..c9e58661e
+--- /dev/null
++++ b/vendor/github.com/openshift/api/machineconfiguration/v1/zz_generated.crd-manifests/0000_80_machine-config_01_osimagestreams-SelfManagedHA.crd.yaml
+@@ -0,0 +1,206 @@
++apiVersion: apiextensions.k8s.io/v1
++kind: CustomResourceDefinition
++metadata:
++  annotations:
++    api-approved.openshift.io: https://github.com/openshift/api/pull/2555
++    api.openshift.io/merged-by-featuregates: "true"
++    include.release.openshift.io/self-managed-high-availability: "true"
++  labels:
++    openshift.io/operator-managed: ""
++  name: osimagestreams.machineconfiguration.openshift.io
++spec:
++  group: machineconfiguration.openshift.io
++  names:
++    kind: OSImageStream
++    listKind: OSImageStreamList
++    plural: osimagestreams
++    singular: osimagestream
++  scope: Cluster
++  versions:
++  - name: v1
++    schema:
++      openAPIV3Schema:
++        description: |-
++          OSImageStream describes a set of streams and associated images available
++          for the MachineConfigPools to be used as base OS images.
++
++          The resource is a singleton named "cluster".
++
++          Compatibility level 1: Stable within a major release for a minimum of 12 months or 3 minor releases (whichever is longer).
++        properties:
++          apiVersion:
++            description: |-
++              APIVersion defines the versioned schema of this representation of an object.
++              Servers should convert recognized schemas to the latest internal value, and
++              may reject unrecognized values.
++              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
++            type: string
++          kind:
++            description: |-
++              Kind is a string value representing the REST resource this object represents.
++              Servers may infer this from the endpoint the client submits requests to.
++              Cannot be updated.
++              In CamelCase.
++              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
++            type: string
++          metadata:
++            type: object
++          spec:
++            description: spec contains the desired OSImageStream config configuration.
++            properties:
++              defaultStream:
++                description: |-
++                  defaultStream is the desired name of the stream that should be used as the
++                  default when no specific stream is requested by a MachineConfigPool.
++
++                  This field is set by the installer during installation. Users may need to
++                  update it if the currently selected stream is no longer available, for
++                  example when the stream has reached its End of Life.
++                  The MachineConfigOperator uses this value to determine which stream from
++                  status.availableStreams to apply as the default for MachineConfigPools
++                  that do not specify a stream override.
++
++                  When status.availableStreams has been populated by the operator, updating
++                  this field requires that the new value references the name of one of the
++                  streams in status.availableStreams. Status-only updates by the operator
++                  are not subject to this constraint, allowing the operator to update
++                  availableStreams independently of this field.
++                  During initial creation, before the operator has populated status, any
++                  valid value is accepted.
++
++                  For upgrade scenarios where the source OCP version doesn't have this CRD
++                  the MCO creates and populates the OSImageStream cluster singleton setting
++                  this field with the proper value based on the source OCP version.
++
++                  It must be a valid RFC 1123 subdomain between 1 and 253 characters in length,
++                  consisting of lowercase alphanumeric characters, hyphens ('-'), and periods ('.').
++                maxLength: 253
++                minLength: 1
++                type: string
++                x-kubernetes-validations:
++                - message: a RFC 1123 subdomain must consist of lower case alphanumeric
++                    characters, '-' or '.', and must start and end with an alphanumeric
++                    character.
++                  rule: '!format.dns1123Subdomain().validate(self).hasValue()'
++            required:
++            - defaultStream
++            type: object
++          status:
++            description: |-
++              status describes the last observed state of this OSImageStream.
++              Populated by the MachineConfigOperator after reading release metadata.
++              When not present, the controller has not yet reconciled this resource.
++            properties:
++              availableStreams:
++                description: |-
++                  availableStreams is a list of the available OS Image Streams that can be
++                  used as the base image for MachineConfigPools.
++                  availableStreams is required, must have at least one item, must not exceed
++                  100 items, and must have unique entries keyed on the name field.
++                items:
++                  properties:
++                    name:
++                      description: |-
++                        name is the required identifier of the stream.
++
++                        name is determined by the operator based on the OCI label of the
++                        discovered OS or Extension Image.
++
++                        Must be a valid RFC 1123 subdomain between 1 and 253 characters in length,
++                        consisting of lowercase alphanumeric characters, hyphens ('-'), and periods ('.').
++                      maxLength: 253
++                      minLength: 1
++                      type: string
++                      x-kubernetes-validations:
++                      - message: a RFC 1123 subdomain must consist of lower case alphanumeric
++                          characters, '-' or '.', and must start and end with an alphanumeric
++                          character.
++                        rule: '!format.dns1123Subdomain().validate(self).hasValue()'
++                    osExtensionsImage:
++                      description: |-
++                        osExtensionsImage is a required OS Extensions Image referenced by digest.
++
++                        osExtensionsImage bundles the extra repositories used to enable extensions, augmenting
++                        the base operating system without modifying the underlying immutable osImage.
++
++                        The format of the image pull spec is: host[:port][/namespace]/name@sha256:<digest>,
++                        where the digest must be 64 characters long, and consist only of lowercase hexadecimal characters, a-f and 0-9.
++                        The length of the whole spec must be between 1 to 447 characters.
++                      maxLength: 447
++                      minLength: 1
++                      type: string
++                      x-kubernetes-validations:
++                      - message: the OCI Image reference must end with a valid '@sha256:<digest>'
++                          suffix, where '<digest>' is 64 characters long
++                        rule: (self.split('@').size() == 2 && self.split('@')[1].matches('^sha256:[a-f0-9]{64}$'))
++                      - message: the OCI Image name should follow the host[:port][/namespace]/name
++                          format, resembling a valid URL without the scheme
++                        rule: (self.split('@')[0].matches('^([a-zA-Z0-9-]+\\.)+[a-zA-Z0-9-]+(:[0-9]{2,5})?/([a-zA-Z0-9-_]{0,61}/)?[a-zA-Z0-9-_.]*?$'))
++                    osImage:
++                      description: |-
++                        osImage is a required OS Image referenced by digest.
++
++                        osImage contains the immutable, fundamental operating system components, including the kernel
++                        and base utilities, that define the core environment for the node's host operating system.
++
++                        The format of the image pull spec is: host[:port][/namespace]/name@sha256:<digest>,
++                        where the digest must be 64 characters long, and consist only of lowercase hexadecimal characters, a-f and 0-9.
++                        The length of the whole spec must be between 1 to 447 characters.
++                      maxLength: 447
++                      minLength: 1
++                      type: string
++                      x-kubernetes-validations:
++                      - message: the OCI Image reference must end with a valid '@sha256:<digest>'
++                          suffix, where '<digest>' is 64 characters long
++                        rule: (self.split('@').size() == 2 && self.split('@')[1].matches('^sha256:[a-f0-9]{64}$'))
++                      - message: the OCI Image name should follow the host[:port][/namespace]/name
++                          format, resembling a valid URL without the scheme
++                        rule: (self.split('@')[0].matches('^([a-zA-Z0-9-]+\\.)+[a-zA-Z0-9-]+(:[0-9]{2,5})?/([a-zA-Z0-9-_]{0,61}/)?[a-zA-Z0-9-_.]*?$'))
++                  required:
++                  - name
++                  - osExtensionsImage
++                  - osImage
++                  type: object
++                maxItems: 100
++                minItems: 1
++                type: array
++                x-kubernetes-list-map-keys:
++                - name
++                x-kubernetes-list-type: map
++              defaultStream:
++                description: |-
++                  defaultStream is the name of the stream that should be used as the default
++                  when no specific stream is requested by a MachineConfigPool.
++
++                  It must be a valid RFC 1123 subdomain between 1 and 253 characters in length,
++                  consisting of lowercase alphanumeric characters, hyphens ('-'), and periods ('.'),
++                  and must reference the name of one of the streams in availableStreams.
++                maxLength: 253
++                minLength: 1
++                type: string
++                x-kubernetes-validations:
++                - message: a RFC 1123 subdomain must consist of lower case alphanumeric
++                    characters, '-' or '.', and must start and end with an alphanumeric
++                    character.
++                  rule: '!format.dns1123Subdomain().validate(self).hasValue()'
++            required:
++            - availableStreams
++            - defaultStream
++            type: object
++            x-kubernetes-validations:
++            - message: defaultStream must reference a stream name from availableStreams
++              rule: self.defaultStream in self.availableStreams.map(s, s.name)
++        required:
++        - spec
++        type: object
++        x-kubernetes-validations:
++        - message: osimagestream is a singleton, .metadata.name must be 'cluster'
++          rule: self.metadata.name == 'cluster'
++        - message: spec.defaultStream must reference an existing stream name from
++            status.availableStreams
++          rule: self.spec == oldSelf.spec || !has(self.status) || self.spec.defaultStream
++            in self.status.availableStreams.map(s, s.name)
++    served: true
++    storage: true
++    subresources:
++      status: {}
+diff --git a/vendor/github.com/openshift/api/machineconfiguration/v1alpha1/zz_generated.crd-manifests/0000_80_machine-config_01_osimagestreams.crd.yaml b/vendor/github.com/openshift/api/machineconfiguration/v1alpha1/zz_generated.crd-manifests/0000_80_machine-config_01_osimagestreams-Hypershift.crd.yaml
+similarity index 99%
+rename from vendor/github.com/openshift/api/machineconfiguration/v1alpha1/zz_generated.crd-manifests/0000_80_machine-config_01_osimagestreams.crd.yaml
+rename to vendor/github.com/openshift/api/machineconfiguration/v1alpha1/zz_generated.crd-manifests/0000_80_machine-config_01_osimagestreams-Hypershift.crd.yaml
+index d18a1ecaa..33c4be7e8 100644
+--- a/vendor/github.com/openshift/api/machineconfiguration/v1alpha1/zz_generated.crd-manifests/0000_80_machine-config_01_osimagestreams.crd.yaml
++++ b/vendor/github.com/openshift/api/machineconfiguration/v1alpha1/zz_generated.crd-manifests/0000_80_machine-config_01_osimagestreams-Hypershift.crd.yaml
+@@ -5,7 +5,6 @@ metadata:
+     api-approved.openshift.io: https://github.com/openshift/api/pull/2555
+     api.openshift.io/merged-by-featuregates: "true"
+     include.release.openshift.io/ibm-cloud-managed: "true"
+-    include.release.openshift.io/self-managed-high-availability: "true"
+     release.openshift.io/feature-set: CustomNoUpgrade,DevPreviewNoUpgrade,TechPreviewNoUpgrade
+   labels:
+     openshift.io/operator-managed: ""
+diff --git a/vendor/github.com/openshift/api/machineconfiguration/v1alpha1/zz_generated.crd-manifests/0000_80_machine-config_01_osimagestreams-SelfManagedHA.crd.yaml b/vendor/github.com/openshift/api/machineconfiguration/v1alpha1/zz_generated.crd-manifests/0000_80_machine-config_01_osimagestreams-SelfManagedHA.crd.yaml
+new file mode 100644
+index 000000000..45af11e49
+--- /dev/null
++++ b/vendor/github.com/openshift/api/machineconfiguration/v1alpha1/zz_generated.crd-manifests/0000_80_machine-config_01_osimagestreams-SelfManagedHA.crd.yaml
+@@ -0,0 +1,206 @@
++apiVersion: apiextensions.k8s.io/v1
++kind: CustomResourceDefinition
++metadata:
++  annotations:
++    api-approved.openshift.io: https://github.com/openshift/api/pull/2555
++    api.openshift.io/merged-by-featuregates: "true"
++    include.release.openshift.io/self-managed-high-availability: "true"
++  labels:
++    openshift.io/operator-managed: ""
++  name: osimagestreams.machineconfiguration.openshift.io
++spec:
++  group: machineconfiguration.openshift.io
++  names:
++    kind: OSImageStream
++    listKind: OSImageStreamList
++    plural: osimagestreams
++    singular: osimagestream
++  scope: Cluster
++  versions:
++  - name: v1alpha1
++    schema:
++      openAPIV3Schema:
++        description: |-
++          OSImageStream describes a set of streams and associated images available
++          for the MachineConfigPools to be used as base OS images.
++
++          The resource is a singleton named "cluster".
++
++          Compatibility level 4: No compatibility is provided, the API can change at any point for any reason. These capabilities should not be used by applications needing long term support.
++        properties:
++          apiVersion:
++            description: |-
++              APIVersion defines the versioned schema of this representation of an object.
++              Servers should convert recognized schemas to the latest internal value, and
++              may reject unrecognized values.
++              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
++            type: string
++          kind:
++            description: |-
++              Kind is a string value representing the REST resource this object represents.
++              Servers may infer this from the endpoint the client submits requests to.
++              Cannot be updated.
++              In CamelCase.
++              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
++            type: string
++          metadata:
++            type: object
++          spec:
++            description: spec contains the desired OSImageStream config configuration.
++            properties:
++              defaultStream:
++                description: |-
++                  defaultStream is the desired name of the stream that should be used as the
++                  default when no specific stream is requested by a MachineConfigPool.
++
++                  This field is set by the installer during installation. Users may need to
++                  update it if the currently selected stream is no longer available, for
++                  example when the stream has reached its End of Life.
++                  The MachineConfigOperator uses this value to determine which stream from
++                  status.availableStreams to apply as the default for MachineConfigPools
++                  that do not specify a stream override.
++
++                  When status.availableStreams has been populated by the operator, updating
++                  this field requires that the new value references the name of one of the
++                  streams in status.availableStreams. Status-only updates by the operator
++                  are not subject to this constraint, allowing the operator to update
++                  availableStreams independently of this field.
++                  During initial creation, before the operator has populated status, any
++                  valid value is accepted.
++
++                  When omitted, the operator determines the default stream automatically.
++                  Once set, this field cannot be removed.
++
++                  It must be a valid RFC 1123 subdomain between 1 and 253 characters in length,
++                  consisting of lowercase alphanumeric characters, hyphens ('-'), and periods ('.').
++                maxLength: 253
++                minLength: 1
++                type: string
++                x-kubernetes-validations:
++                - message: a RFC 1123 subdomain must consist of lower case alphanumeric
++                    characters, '-' or '.', and must start and end with an alphanumeric
++                    character.
++                  rule: '!format.dns1123Subdomain().validate(self).hasValue()'
++            type: object
++            x-kubernetes-validations:
++            - message: spec.defaultStream cannot be removed once set
++              rule: '!has(oldSelf.defaultStream) || has(self.defaultStream)'
++          status:
++            description: |-
++              status describes the last observed state of this OSImageStream.
++              Populated by the MachineConfigOperator after reading release metadata.
++              When not present, the controller has not yet reconciled this resource.
++            properties:
++              availableStreams:
++                description: |-
++                  availableStreams is a list of the available OS Image Streams that can be
++                  used as the base image for MachineConfigPools.
++                  availableStreams is required, must have at least one item, must not exceed
++                  100 items, and must have unique entries keyed on the name field.
++                items:
++                  properties:
++                    name:
++                      description: |-
++                        name is the required identifier of the stream.
++
++                        name is determined by the operator based on the OCI label of the
++                        discovered OS or Extension Image.
++
++                        Must be a valid RFC 1123 subdomain between 1 and 253 characters in length,
++                        consisting of lowercase alphanumeric characters, hyphens ('-'), and periods ('.').
++                      maxLength: 253
++                      minLength: 1
++                      type: string
++                      x-kubernetes-validations:
++                      - message: a RFC 1123 subdomain must consist of lower case alphanumeric
++                          characters, '-' or '.', and must start and end with an alphanumeric
++                          character.
++                        rule: '!format.dns1123Subdomain().validate(self).hasValue()'
++                    osExtensionsImage:
++                      description: |-
++                        osExtensionsImage is a required OS Extensions Image referenced by digest.
++
++                        osExtensionsImage bundles the extra repositories used to enable extensions, augmenting
++                        the base operating system without modifying the underlying immutable osImage.
++
++                        The format of the image pull spec is: host[:port][/namespace]/name@sha256:<digest>,
++                        where the digest must be 64 characters long, and consist only of lowercase hexadecimal characters, a-f and 0-9.
++                        The length of the whole spec must be between 1 to 447 characters.
++                      maxLength: 447
++                      minLength: 1
++                      type: string
++                      x-kubernetes-validations:
++                      - message: the OCI Image reference must end with a valid '@sha256:<digest>'
++                          suffix, where '<digest>' is 64 characters long
++                        rule: (self.split('@').size() == 2 && self.split('@')[1].matches('^sha256:[a-f0-9]{64}$'))
++                      - message: the OCI Image name should follow the host[:port][/namespace]/name
++                          format, resembling a valid URL without the scheme
++                        rule: (self.split('@')[0].matches('^([a-zA-Z0-9-]+\\.)+[a-zA-Z0-9-]+(:[0-9]{2,5})?/([a-zA-Z0-9-_]{0,61}/)?[a-zA-Z0-9-_.]*?$'))
++                    osImage:
++                      description: |-
++                        osImage is a required OS Image referenced by digest.
++
++                        osImage contains the immutable, fundamental operating system components, including the kernel
++                        and base utilities, that define the core environment for the node's host operating system.
++
++                        The format of the image pull spec is: host[:port][/namespace]/name@sha256:<digest>,
++                        where the digest must be 64 characters long, and consist only of lowercase hexadecimal characters, a-f and 0-9.
++                        The length of the whole spec must be between 1 to 447 characters.
++                      maxLength: 447
++                      minLength: 1
++                      type: string
++                      x-kubernetes-validations:
++                      - message: the OCI Image reference must end with a valid '@sha256:<digest>'
++                          suffix, where '<digest>' is 64 characters long
++                        rule: (self.split('@').size() == 2 && self.split('@')[1].matches('^sha256:[a-f0-9]{64}$'))
++                      - message: the OCI Image name should follow the host[:port][/namespace]/name
++                          format, resembling a valid URL without the scheme
++                        rule: (self.split('@')[0].matches('^([a-zA-Z0-9-]+\\.)+[a-zA-Z0-9-]+(:[0-9]{2,5})?/([a-zA-Z0-9-_]{0,61}/)?[a-zA-Z0-9-_.]*?$'))
++                  required:
++                  - name
++                  - osExtensionsImage
++                  - osImage
++                  type: object
++                maxItems: 100
++                minItems: 1
++                type: array
++                x-kubernetes-list-map-keys:
++                - name
++                x-kubernetes-list-type: map
++              defaultStream:
++                description: |-
++                  defaultStream is the name of the stream that should be used as the default
++                  when no specific stream is requested by a MachineConfigPool.
++
++                  It must be a valid RFC 1123 subdomain between 1 and 253 characters in length,
++                  consisting of lowercase alphanumeric characters, hyphens ('-'), and periods ('.'),
++                  and must reference the name of one of the streams in availableStreams.
++                maxLength: 253
++                minLength: 1
++                type: string
++                x-kubernetes-validations:
++                - message: a RFC 1123 subdomain must consist of lower case alphanumeric
++                    characters, '-' or '.', and must start and end with an alphanumeric
++                    character.
++                  rule: '!format.dns1123Subdomain().validate(self).hasValue()'
++            required:
++            - availableStreams
++            - defaultStream
++            type: object
++            x-kubernetes-validations:
++            - message: defaultStream must reference a stream name from availableStreams
++              rule: self.defaultStream in self.availableStreams.map(s, s.name)
++        required:
++        - spec
++        type: object
++        x-kubernetes-validations:
++        - message: osimagestream is a singleton, .metadata.name must be 'cluster'
++          rule: self.metadata.name == 'cluster'
++        - message: spec.defaultStream must reference an existing stream name from
++            status.availableStreams
++          rule: self.spec == oldSelf.spec || !has(self.spec.defaultStream) || !has(self.status)
++            || self.spec.defaultStream in self.status.availableStreams.map(s, s.name)
++    served: true
++    storage: true
++    subresources:
++      status: {}
+diff --git a/vendor/github.com/openshift/api/operator/v1/types_etcd.go b/vendor/github.com/openshift/api/operator/v1/types_etcd.go
+index 252f3b399..f2f113103 100644
+--- a/vendor/github.com/openshift/api/operator/v1/types_etcd.go
++++ b/vendor/github.com/openshift/api/operator/v1/types_etcd.go
+@@ -42,11 +42,11 @@ type EtcdSpec struct {
+ 	HardwareSpeed ControlPlaneHardwareSpeed `json:"controlPlaneHardwareSpeed"`
+ 
+ 	// backendQuotaGiB sets the etcd backend storage size limit in gibibytes.
+-	// The value should be an integer not less than 8 and not more than 32.
++	// The value should be an integer not less than 8 and not more than 16.
+ 	// When not specified, the default value is 8.
+ 	// +kubebuilder:default:=8
+ 	// +kubebuilder:validation:Minimum=8
+-	// +kubebuilder:validation:Maximum=32
++	// +kubebuilder:validation:Maximum=16
+ 	// +kubebuilder:validation:XValidation:rule="self>=oldSelf",message="etcd backendQuotaGiB may not be decreased"
+ 	// +openshift:enable:FeatureGate=EtcdBackendQuota
+ 	// +default=8
+diff --git a/vendor/github.com/openshift/api/operator/v1/zz_generated.crd-manifests/0000_12_etcd_01_etcds-CustomNoUpgrade.crd.yaml b/vendor/github.com/openshift/api/operator/v1/zz_generated.crd-manifests/0000_12_etcd_01_etcds-CustomNoUpgrade.crd.yaml
+index 1f58ced4e..1feb64cbb 100644
+--- a/vendor/github.com/openshift/api/operator/v1/zz_generated.crd-manifests/0000_12_etcd_01_etcds-CustomNoUpgrade.crd.yaml
++++ b/vendor/github.com/openshift/api/operator/v1/zz_generated.crd-manifests/0000_12_etcd_01_etcds-CustomNoUpgrade.crd.yaml
+@@ -50,10 +50,10 @@ spec:
+                 default: 8
+                 description: |-
+                   backendQuotaGiB sets the etcd backend storage size limit in gibibytes.
+-                  The value should be an integer not less than 8 and not more than 32.
++                  The value should be an integer not less than 8 and not more than 16.
+                   When not specified, the default value is 8.
+                 format: int32
+-                maximum: 32
++                maximum: 16
+                 minimum: 8
+                 type: integer
+                 x-kubernetes-validations:
+diff --git a/vendor/github.com/openshift/api/operator/v1/zz_generated.crd-manifests/0000_12_etcd_01_etcds-DevPreviewNoUpgrade.crd.yaml b/vendor/github.com/openshift/api/operator/v1/zz_generated.crd-manifests/0000_12_etcd_01_etcds-DevPreviewNoUpgrade.crd.yaml
+index 76d63711f..2c32b9c96 100644
+--- a/vendor/github.com/openshift/api/operator/v1/zz_generated.crd-manifests/0000_12_etcd_01_etcds-DevPreviewNoUpgrade.crd.yaml
++++ b/vendor/github.com/openshift/api/operator/v1/zz_generated.crd-manifests/0000_12_etcd_01_etcds-DevPreviewNoUpgrade.crd.yaml
+@@ -50,10 +50,10 @@ spec:
+                 default: 8
+                 description: |-
+                   backendQuotaGiB sets the etcd backend storage size limit in gibibytes.
+-                  The value should be an integer not less than 8 and not more than 32.
++                  The value should be an integer not less than 8 and not more than 16.
+                   When not specified, the default value is 8.
+                 format: int32
+-                maximum: 32
++                maximum: 16
+                 minimum: 8
+                 type: integer
+                 x-kubernetes-validations:
+diff --git a/vendor/github.com/openshift/api/operator/v1/zz_generated.crd-manifests/0000_12_etcd_01_etcds-TechPreviewNoUpgrade.crd.yaml b/vendor/github.com/openshift/api/operator/v1/zz_generated.crd-manifests/0000_12_etcd_01_etcds-TechPreviewNoUpgrade.crd.yaml
+index 7433b66d3..b74dfb989 100644
+--- a/vendor/github.com/openshift/api/operator/v1/zz_generated.crd-manifests/0000_12_etcd_01_etcds-TechPreviewNoUpgrade.crd.yaml
++++ b/vendor/github.com/openshift/api/operator/v1/zz_generated.crd-manifests/0000_12_etcd_01_etcds-TechPreviewNoUpgrade.crd.yaml
+@@ -50,10 +50,10 @@ spec:
+                 default: 8
+                 description: |-
+                   backendQuotaGiB sets the etcd backend storage size limit in gibibytes.
+-                  The value should be an integer not less than 8 and not more than 32.
++                  The value should be an integer not less than 8 and not more than 16.
+                   When not specified, the default value is 8.
+                 format: int32
+-                maximum: 32
++                maximum: 16
+                 minimum: 8
+                 type: integer
+                 x-kubernetes-validations:
+diff --git a/vendor/github.com/openshift/api/operator/v1/zz_generated.swagger_doc_generated.go b/vendor/github.com/openshift/api/operator/v1/zz_generated.swagger_doc_generated.go
+index c3ed72602..0b82b1ac6 100644
+--- a/vendor/github.com/openshift/api/operator/v1/zz_generated.swagger_doc_generated.go
++++ b/vendor/github.com/openshift/api/operator/v1/zz_generated.swagger_doc_generated.go
+@@ -798,7 +798,7 @@ func (EtcdList) SwaggerDoc() map[string]string {
+ 
+ var map_EtcdSpec = map[string]string{
+ 	"controlPlaneHardwareSpeed": "HardwareSpeed allows user to change the etcd tuning profile which configures the latency parameters for heartbeat interval and leader election timeouts allowing the cluster to tolerate longer round-trip-times between etcd members. Valid values are \"\", \"Standard\" and \"Slower\".\n\t\"\" means no opinion and the platform is left to choose a reasonable default\n\twhich is subject to change without notice.",
+-	"backendQuotaGiB":           "backendQuotaGiB sets the etcd backend storage size limit in gibibytes. The value should be an integer not less than 8 and not more than 32. When not specified, the default value is 8.",
++	"backendQuotaGiB":           "backendQuotaGiB sets the etcd backend storage size limit in gibibytes. The value should be an integer not less than 8 and not more than 16. When not specified, the default value is 8.",
+ }
+ 
+ func (EtcdSpec) SwaggerDoc() map[string]string {
+diff --git a/vendor/modules.txt b/vendor/modules.txt
+index 405f554b2..ab8bc8900 100644
+--- a/vendor/modules.txt
++++ b/vendor/modules.txt
+@@ -1269,7 +1269,7 @@ github.com/openshift-eng/openshift-tests-extension/pkg/ginkgo
+ github.com/openshift-eng/openshift-tests-extension/pkg/junit
+ github.com/openshift-eng/openshift-tests-extension/pkg/util/sets
+ github.com/openshift-eng/openshift-tests-extension/pkg/version
+-# github.com/openshift/api v0.0.0-20260603130340-1ad2ac3eb53d
++# github.com/openshift/api v0.0.0-20260603130340-1ad2ac3eb53d => /home/kmateusz/git/github.com/openshift-api
+ ## explicit; go 1.25.0
+ github.com/openshift/api
+ github.com/openshift/api/annotations
+@@ -4009,3 +4009,4 @@ sigs.k8s.io/yaml/kyaml
+ # k8s.io/sample-apiserver => github.com/openshift/kubernetes/staging/src/k8s.io/sample-apiserver v0.0.0-20260305123649-d18f3f005eaa
+ # k8s.io/sample-cli-plugin => github.com/openshift/kubernetes/staging/src/k8s.io/sample-cli-plugin v0.0.0-20260305123649-d18f3f005eaa
+ # k8s.io/sample-controller => github.com/openshift/kubernetes/staging/src/k8s.io/sample-controller v0.0.0-20260305123649-d18f3f005eaa
++# github.com/openshift/api => /home/kmateusz/git/github.com/openshift-api
