@@ -83,10 +83,13 @@ the base nightly or the tag set.
   (clone of the installer branch — transferred via git bundle),
   `FEATURE_SET=DevPreviewNoUpgrade`, `NUM_MASTERS=3 NUM_WORKERS=0`,
   `IP_STACK=v4`, `MASTER_MEMORY=32768 MASTER_VCPU=10`.
-- ToR: `/root/bgp-vip-demo/bgp-tor.sh up|down|status` — FRR 9.1 container,
-  host network, AS 64513, `bgp listen range 192.168.111.0/24`,
-  `no bgp ebgp-requires-policy`, firewalld 179/tcp in the libvirt zone.
-  Start it after `make configure` (needs the ostestbm bridge, 192.168.111.1).
+- ToR: config-driven since dev-scripts branch `bgp-tor-speaker` —
+  `ENABLE_BGP_TOR=true` in config_root.sh deploys it during `make configure`
+  (`bgp/configure_bgp_tor.sh`, teardown in host_cleanup); `BGP_TOR_ASN=64513`,
+  `BGP_CLUSTER_ASN=64512`, `BGP_TOR_IMAGE` overridable. metal-u15 already has
+  the bgp/ scripts + config block. Manual fallback:
+  `/root/bgp-vip-demo/bgp-tor.sh up|down|status`. Status/debug:
+  `podman exec bgp-tor vtysh -c "show bgp summary"`.
 
 ### Deploy cycle (NEVER `make redeploy` — it wipes the install-config patch)
 

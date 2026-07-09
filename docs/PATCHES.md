@@ -91,6 +91,12 @@ Demo delivery: overlay image `quay.io/mkowalski/metallb-frr:bgp-demo`
 (payload-image + patched zebra binary). Production path: backport into the
 `frr10` RPM (RHEL 9) or the ART ose-frr build.
 
+## 8. dev-scripts (fork mkowalski/dev-scripts) — branch `bgp-tor-speaker`
+
+| Commit | What | Why |
+|--------|------|-----|
+| f6b686c | `ENABLE_BGP_TOR` config option: `bgp/configure_bgp_tor.sh` + `bgp/cleanup_bgp_tor.sh`, hooks in 02_configure_host.sh / host_cleanup.sh, defaults in common.sh, config_example.sh docs. ASNs + FRR image configurable; dual-stack-aware listen ranges; rendered config byte-identical to the demo-validated one | Config-driven ToR deployment (replaces the hand-run bgp-tor.sh); upstream-quality, live-validated against the run14 cluster (session re-establishment + cleanup/reconfigure cycle) |
+
 ## Build procedures
 
 Image build commands, Dockerfile substitutions (stale CI builder tags), the
