@@ -42,7 +42,27 @@ must be present for zebra to track table 198.
 5. frr-k8s validation webhook requires router-level `prefixes` for any `toAdvertise` prefixes.
 6. CNO status manager treated desired=0 DaemonSets as stuck (fixed; needed for compact clusters under BGP mode).
 7. upstream kube-vip ignores `k8sConfigPath` in both manager init and backend health checks (two downstream patches).
-8. frr-reload/table-direct/import-table lifecycle is fragile post-startup (open issue above).
+8. FRR < 10.7: routes pre-existing in a table at config time are never
+   redistributed via table-direct (zebra import clears SELECTED on source
+   routes; even de-selects). Upstream fix FRRouting/frr b2c17ad52 backported
+   (see frr-zebra-import-table-selected.patch + lab/).
+9. Ingress VIP health source is the router `:1936/healthz` (keepalived's
+   chk_ingress) — the EP's `:29445` is the API haproxy monitor.
+10. frr-k8s `toAdvertise.allowed.mode: all` egress covers only DECLARED router
+   prefixes (deny-any lists otherwise) — the CRD cannot express advertising
+   redistributed routes. Demo uses high-seq raw permits into the generated
+   `<peer>-out` route-maps (couples to internal naming; upstream feature
+   request needed).
+11. frr-status requires `--pod-name` (mirror pod name `frr-k8s-<node>`) for
+   static pod deployments.
+
+## Related documents
+
+- docs/RUN-LEDGER.md — per-run debugging narrative (runs 1-14)
+- docs/RUNBOOK.md — operational procedures
+- docs/NEXT-STEPS.md — productization handoff
+- docs/PATCHES.md — authoritative commit inventory (supersedes the list below,
+  which is session-1 only)
 
 ## Commits produced this session
 

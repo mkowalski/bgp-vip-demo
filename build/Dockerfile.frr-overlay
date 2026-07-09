@@ -1,0 +1,7 @@
+# metallb-frr with the zebra import-table/table-direct fix backported.
+# Upstream: FRRouting/frr b2c17ad52 "zebra: Do not clear selected flag on
+# route about to be imported" (fixed in 10.7; base image ships 10.4.3).
+# Built from frr-10.4.3 + cherry-pick on CentOS Stream 9 (glibc 2.34 ABI).
+FROM quay.io/openshift-release-dev/ocp-v5.0-art-dev@sha256:70bcbe25918f5169b8304ed216c68f5cbef11a115864ca7f545a97daf777c7ab
+COPY zebra /usr/lib/frr/zebra
+COPY zebra /usr/libexec/frr/zebra

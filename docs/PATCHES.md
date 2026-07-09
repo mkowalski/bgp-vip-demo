@@ -91,6 +91,12 @@ Demo delivery: overlay image `quay.io/mkowalski/metallb-frr:bgp-demo`
 (payload-image + patched zebra binary). Production path: backport into the
 `frr10` RPM (RHEL 9) or the ART ose-frr build.
 
+## Build procedures
+
+Image build commands, Dockerfile substitutions (stale CI builder tags), the
+FRR patched-zebra build, and all operational pitfalls: see docs/RUNBOOK.md.
+The exact Dockerfiles used are preserved in build/.
+
 ## Payload assembly (demo)
 
 ```

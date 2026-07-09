@@ -1,5 +1,15 @@
 # BGP VIP Dev Demo Implementation Plan
 
+> **STATUS: EXECUTED TO COMPLETION (2026-07-09).** All 18 tasks done via
+> subagent-driven development; the demo run (Task 17/18) required 14 install
+> iterations and 12 additional live-debugging fixes beyond this plan — see
+> `docs/RUN-LEDGER.md` for each, `docs/PATCHES.md` for the final commit
+> inventory, and the Execution Addendum in the spec for design deviations
+> (label→role anti-affinity, RBAC identity, advertisement mechanism, FRR
+> zebra backport, cluster-config-api + metallb-frr payload overrides,
+> ingress health endpoint :1936). Checkboxes below are left as authored;
+> treat this file as the historical plan, not current truth.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** A dev-scripts bare metal cluster installs end-to-end with API + Ingress VIPs advertised via BGP (kube-vip routing-table mode + frr-k8s static pods), including the bootstrap-to-CRD handover.

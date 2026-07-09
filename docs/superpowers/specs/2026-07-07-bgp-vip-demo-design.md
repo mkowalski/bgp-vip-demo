@@ -241,3 +241,43 @@ VIP-less BareMetal configs render again (BGP off included).
    Established; sessions survived the CRD handover.
 6. `ip route get 192.168.111.5` on the hypervisor resolves via the BGP
    route (not the connected subnet).
+
+---
+
+## Execution Addendum (2026-07-09)
+
+The demo was implemented and completed (run14, all criteria). Reality diverged
+from this spec in the following ways — the spec is preserved as-designed; see
+docs/RUN-LEDGER.md for the full story:
+
+- **S2/S4 label-based anti-affinity abandoned**: NodeRestriction denies
+  node-credential labels and DaemonSet scheduling races the label anyway.
+  Replaced with role-based anti-affinity (DaemonSet avoids masters when BGP
+  mode is active). `runtimecfg label-node` is dead code.
+- **S4 RBAC subject**: the node kubeconfig identity is the MCO
+  `node-bootstrapper` ServiceAccount, not `system:nodes` (the spec's flagged
+  risk fired). Grants also needed `frrk8sconfigurations` + namespace-scoped
+  secrets/pods reads.
+- **S4 handover advertisement mechanism redesigned twice**: CRD
+  prefixes/toAdvertise are unconditionally-advertised network statements
+  (destroyed health gating, run8); frr-k8s `mode: all` egress only covers
+  declared prefixes. Final design: CR carries sessions; advertisement stays on
+  `redistribute table-direct 198` + filters + `ip import-table 198` in
+  rawConfig, with high-seq raw permits appended to frr-k8s's generated
+  `<peer>-out` route-maps.
+- **New dependency discovered**: FRR < 10.7 never redistributes routes that
+  pre-exist in the table at config time (zebra import clears SELECTED).
+  Backported FRRouting/frr b2c17ad52; shipped as a zebra overlay on the
+  metallb-frr image; payload gained a sixth override.
+- **Payload also needed `cluster-config-api`** from the api branch — the stock
+  CRD prunes `vipManagement` and the feature gate is unknown otherwise. Spec's
+  S3 listed only four custom images.
+- **Ingress health endpoint corrected**: router `:1936/healthz`, not the EP's
+  `:29445` (API haproxy monitor).
+- **kube-vip upstream gaps**: manager AND backend health checks ignore the
+  configured kubeconfig (two downstream patches); the RT-mode loop is not
+  leadership-gated → the demo runs health-gated ECMP rather than
+  active/passive (works well; EP-level decision pending).
+- The "known accepted race" (S2, controller empty-config) manifested as the
+  larger FRR/frr-k8s advertisement issues above and is resolved by the same
+  design change.

@@ -1,0 +1,34 @@
+# Run Ledger — all 14 install attempts
+
+Chronological debugging record. Each run: what happened, root cause, fix
+(commit). Full evidence in the session; distilled here for handoff.
+
+| Run | Outcome | Root cause(s) found | Fix |
+|-----|---------|---------------------|-----|
+| 1 | Bootstrap got BGP static pods + correct frr-peers.json (pipeline proof) but kube-vip printed CLI usage and exited; render-config-frr panicked | kube-vip manifests lacked the `manager` subcommand; runtimecfg cannot derive cluster domain from the bootstrap kubeconfig | MCO fd072b1a0: `args: [manager]` ×3 manifests; `--cluster-config /opt/openshift/manifests/cluster-config.yaml` + volume (mirrors keepalived) |
+| 2 | Cluster came up with **keepalived** | `make redeploy` regenerates install-config → bgpVIPConfig patch lost | Procedural: never use `make redeploy`; use `ocp_cleanup && build_installer install_config && re-patch && ocp_run` |
+| 3 | First BGP session established (bootstrap↔ToR) but `(Policy)` — no routes exchanged; kube-vip: "in-cluster config" error | FRR 9/RFC 8212 requires policy on eBGP (ToR side); kube-vip needs an explicit kubeconfig | ToR `no bgp ebgp-requires-policy` (cb1adfc); MCO c1bf266e1 `k8s_config_file` env |
+| 4 | kube-vip still "in-cluster config" error despite env | **Upstream kube-vip ignores `K8sConfigFile`** in the manager path (hardcodes admin.conf/~/.kube/in-cluster) | kube-vip 173173011: manager honors explicit kubeconfig (+`kubernetes_addr` override); MCO 5b311c8ee: point at `https://localhost:6443` (avoids VIP-dependency deadlock at pivot) |
+| 5 | Surgical image swap on live bootstrap → **first VIP advertisement + API reachable via BGP route**; masters joined. Then: `vipManagement` empty on live Infra; kube-vip backend loop erroring | (a) stock payload's Infrastructure CRD prunes `vipManagement` + gate unknown; (b) `backend.Entry.Check()` ALSO hardcodes kubeconfig paths | (a) build `cluster-config-api` from our api branch, add to payload; (b) kube-vip 8cd17f786 backend honors configured kubeconfig |
+| 6 | Gates + vipManagement persist ✓; masters ran BOTH frr-k8s DaemonSet AND stuck static pods; CNO's FRRConfiguration denied by webhook | (a) DaemonSet scheduled before label-node could label (and NodeRestriction denies the label anyway); (b) frr-k8s webhook requires router-level `prefixes` for toAdvertise | CNO a62d892c0: router prefixes + role-based DaemonSet anti-affinity under BGP; MCO bd240b8c6: drop label-node |
+| 7 | All-master sessions from static config (`?` origin) ✓; controller/frr-status crashloop: cache sync timeouts | RBAC bound to `system:nodes`, but `/etc/kubernetes/kubeconfig` identity = **SA openshift-machine-config-operator/node-bootstrapper** (verified `oc auth whoami`); also missing `frrk8sconfigurations` | CNO 07a24912c (subject + resource), then 0a457915 (secrets/pods namespace reads). Also c04ab0abb: status manager treated desired==0 DaemonSet as hung (blocked co/network on compact clusters) |
+| 8 | **CRD handover happened** — but advertisement flipped to origin `i` (unconditional network statements); masters with mid-rollout apiservers kept advertising → ECMP into dead backends → install self-strangled | CRD `prefixes`/`toAdvertise` render as static `network` statements — health gating destroyed | CNO 9222d8407: CR carries sessions only; advertisement via `redistribute table-direct 198` + route-map/prefix-list filters in rawConfig (bootstrap-identical semantics) |
+| 9 | Sessions ✓, VIP health-gated INTO bgpd's table ✓ (weight 32768 `?`) but 0 prefixes sent; frr-status crash (Secret cache) | frr-k8s renders deny-all per-neighbor outbound route-maps when toAdvertise absent | CNO ecb5282fe: `toAdvertise.allowed.mode: all` (later superseded, see run12); RBAC secrets fix |
+| 10 | bgpd table EMPTY on masters; zebra not tracking table 198; manual import-table/route-replace probes failed | Suspected `ip import-table` missing from CR config (bootstrap config has it) | CNO 93e48830: `ip import-table 198` in rawConfig. Probes inconclusive → built the standalone FRR lab |
+| lab | **Isolated the real bug** in a container against the exact payload image: routes pre-existing in table 198 at config time are never redistributed (zebra import clears SELECTED on source routes; even de-selects previously selected ones); any later netlink add heals; `ip route replace` does NOT | **Upstream FRR bug**, fixed in 10.7 by FRRouting/frr b2c17ad52 | Backported onto 10.4.3 (`frr-zebra-import-table-selected.patch`), built patched zebra (CentOS Stream 9, glibc 2.34 ABI), overlay image `metallb-frr:bgp-demo`, added to payload. Lab matrix fully green after (reload path needs +5s route-map timer) |
+| 11 | (control run, killed early — superseded by lab evidence) | — | — |
+| 12 | FRR patch verified in-cluster (VIP selected + in bgpd table post-handover) but PfxSnt=0; frr-status: "resource name may not be empty" | frr-k8s `mode: all` = "all DECLARED router prefixes" (source-verified `prefixesToAdvertiseForFamily`) → renders `deny any` allowed-lists; CRD cannot express advertising redistributed routes. frr-status needs `--pod-name` | CNO be5b5ae9a: drop toAdvertise; rawConfig appends high-seq permits to frr-k8s's generated `<peer>-out` route-maps (prefix-list deny = no-match = fall-through; leak-proof). MCO d6b2df182: `--pod-name=frr-k8s-$(NODE_NAME)` |
+| 13 | **API VIP advertised from all 3 masters post-handover, gated (`?` origin)**; pods 4/4; ingress VIP absent while routers Running | kube-vip-ingress gated on `:29445/healthz` = the API haproxy monitor (503 forever); the router health is `:1936/healthz` (keepalived's chk_ingress) — EP doc error | MCO 29e4f8042: gate on `http://localhost:1936/healthz` |
+| 14 | **ALL CRITERIA MET.** Both VIPs advertised, ingress only from router-bearing masters; 35/36 COs Available; console HTTP 200 over BGP-routed VIP; FRRNodeState + BGPSessionState(Established×3) | Sole failure: karpenter — "failed to initialize cloud provider: unsupported platform" on baremetal; base-nightly bug, identical without BGP | none needed |
+
+## Meta-lessons for whoever continues
+
+1. **The render pipeline was where all the bugs were** — hacking around it
+   (hardcoded images, manual manifests) would have proven nothing. Testing
+   through the real installer/MCO/CNO path surfaced 14 distinct product bugs.
+2. **In-subnet VIPs mask BGP failures** (kube-vip also puts the address on the
+   interface → L2 ARP serves it). Several runs "half-worked" because of this.
+   For strict L3 validation, move the VIPs off-subnet (future work).
+3. **`make redeploy` is a trap** (run2). The redeploy recipe is in RUNBOOK.md.
+4. The exact-image standalone lab (lab/) cracked in 30 minutes what
+   cluster-level probing couldn't in hours — build the small repro early.
