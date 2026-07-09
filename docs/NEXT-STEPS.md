@@ -4,9 +4,11 @@ What remains between "working dev demo" and Tech Preview per the enhancement's
 graduation criteria. Ordered by dependency. Anyone picking this up: read
 README.md → demo-results.md → RUN-LEDGER.md first; RUNBOOK.md to reproduce.
 
-## A. Enhancement text corrections (PR 1982)
+## A. Enhancement text corrections (PR 1982) — DONE
 
-Findings the demo proved against the current EP text — update the doc:
+Incorporated into PR 1982 (commit a52da909, pushed 2026-07-09): all seven
+corrections below plus an Implementation Experience section. Kept for
+reference:
 
 1. **Ingress health check endpoint**: EP says `http://localhost:29445/healthz`.
    Wrong — that's baremetal-runtimecfg's API-haproxy monitor (503 on masters,
