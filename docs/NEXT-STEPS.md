@@ -46,7 +46,7 @@ Findings the demo proved against the current EP text — update the doc:
 | kube-vip | manager + backend honor `k8sConfigPath`/`k8s_config_file` (+`kubernetes_addr`) | commits 173173011, 8cd17f786 — generic fixes, PR-ready |
 | frr-k8s (metallb/frr-k8s) | Feature request: advertise redistributed/table-direct routes (CRD egress is bound to declared prefixes; our raw `-out` route-map permits couple to internal naming — fragile across bumps) | design note in CNO bgp_vip.go comments |
 | FRR | b2c17ad52 backport request to stable/10.4 (or confirm 10.7 uptake downstream) | `frr-zebra-import-table-selected.patch` |
-| dev-scripts | **DONE** — `ENABLE_BGP_TOR` on fork branch `bgp-tor-speaker` (f6b686c), live-validated; ready to PR to openshift-metal3/dev-scripts | dev-scripts repo |
+| dev-scripts | **PR OPEN** — https://github.com/openshift-metal3/dev-scripts/pull/1929 (`ENABLE_BGP_TOR`, live-validated) | dev-scripts repo |
 
 ## C. Downstream productization
 

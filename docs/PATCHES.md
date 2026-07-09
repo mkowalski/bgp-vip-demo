@@ -95,7 +95,7 @@ Demo delivery: overlay image `quay.io/mkowalski/metallb-frr:bgp-demo`
 
 | Commit | What | Why |
 |--------|------|-----|
-| f6b686c | `ENABLE_BGP_TOR` config option: `bgp/configure_bgp_tor.sh` + `bgp/cleanup_bgp_tor.sh`, hooks in 02_configure_host.sh / host_cleanup.sh, defaults in common.sh, config_example.sh docs. ASNs + FRR image configurable; dual-stack-aware listen ranges; rendered config byte-identical to the demo-validated one | Config-driven ToR deployment (replaces the hand-run bgp-tor.sh); upstream-quality, live-validated against the run14 cluster (session re-establishment + cleanup/reconfigure cycle) |
+| b45264d (PR openshift-metal3/dev-scripts#1929) | `ENABLE_BGP_TOR` config option: `bgp/configure_bgp_tor.sh` + `bgp/cleanup_bgp_tor.sh`, hooks in 02_configure_host.sh / host_cleanup.sh, defaults in common.sh, config_example.sh docs. ASNs + FRR image configurable; dual-stack-aware listen ranges; rendered config byte-identical to the demo-validated one | Config-driven ToR deployment (replaces the hand-run bgp-tor.sh); upstream-quality, live-validated against the run14 cluster (session re-establishment + cleanup/reconfigure cycle) |
 
 ## Build procedures
 
