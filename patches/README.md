@@ -38,8 +38,12 @@ if `git am` complains, `git am -3` (three-way) resolves minor drift.
    CNO's 14 commits iterate the advertisement design. Squash guidance for
    real PRs: docs/NEXT-STEPS.md §C3.
 3. **Vendor patches** (installer/MCO/CNO "vendor openshift/api" commits) are
-   included verbatim so the series builds standalone. When the api PR merges
-   upstream, drop them and re-vendor normally.
+   included verbatim so the series builds standalone. They carry the DEV-era
+   api shape (`vipManagement` enum still permitting `""`); the merged shape
+   from openshift/api#2923 drops `""` from the enum — a no-op for the
+   consumers (they compare against `"BGP"`). When the api PR merges, drop the
+   vendor patches and re-vendor normally; the demo-validated behavior is
+   unaffected.
 4. **kube-vip** series applies onto upstream `main` (commit above); the fork
    needs the whole series (2 upstreamable fixes + 4 downstream build bits).
 5. **frr**: apply onto the `frr-10.4.3` tag; build with
