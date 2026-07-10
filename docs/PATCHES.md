@@ -94,7 +94,7 @@ Upstreamable: both kubeconfig commits are generic fixes.
 
 | Patch | What | Why |
 |-------|------|-----|
-| FRRouting/frr `b2c17ad52` backported to 10.4.3 | zebra: do not clear SELECTED on routes being imported (`zebra_add_import_table_entry` mutated source route flags) | **Any route present in table 198 before `ip import-table`/`redistribute table-direct` config lands is never redistributed** (and the import scan de-selects previously selected routes). Bootstrap always worked (kube-vip writes after FRR starts); masters broke at CRD handover (route predates config). Reproduced + verified fixed in an isolated container lab (4-case matrix), exact payload image. Fixed upstream in 10.7.0-rc1; needs downstream frr10 RPM backport (el9) or ose-frr image-level carry |
+| FRRouting/frr `b2c17ad52` backported to 10.4.3 | zebra: do not clear SELECTED on routes being imported (`zebra_add_import_table_entry` mutated source route flags) | **Any route present in table 198 before `ip import-table`/`redistribute table-direct` config lands is never redistributed** (and the import scan de-selects previously selected routes). Bootstrap always worked (kube-vip writes after FRR starts); masters broke at CRD handover (route predates config). Reproduced + verified fixed in an isolated container lab (4-case matrix), exact payload image. Fixed upstream in 10.7.0-rc1; downstream frr10 RPM backport (el9) requested as **RHEL-193997**; ose-frr image-level carry remains the fallback |
 
 Demo delivery: overlay image `quay.io/mkowalski/metallb-frr:bgp-demo`
 (payload-image + patched zebra binary). Production path: backport into the

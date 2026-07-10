@@ -47,12 +47,14 @@ reference:
 |-------|------|----------|
 | kube-vip | **PR OPEN** — https://github.com/kube-vip/kube-vip/pull/1627 (manager + backend honor the configured kubeconfig). NOTE: the RT-mode HTTP health check (51e05fd) is ALREADY upstream as kube-vip/kube-vip#1604 (fcd3eec) — drop that patch from the downstream fork on the next rebase |
 | frr-k8s (metallb/frr-k8s) | Feature request: advertise redistributed/table-direct routes (CRD egress is bound to declared prefixes; our raw `-out` route-map permits couple to internal naming — fragile across bumps) | design note in CNO bgp_vip.go comments |
-| FRR | b2c17ad52 backport request to stable/10.4 (or confirm 10.7 uptake downstream) | `patches/frr/0001-zebra-Do-not-clear-selected-flag-on-route-about-to-b.patch` |
+| FRR | upstream: b2c17ad52 backport request to stable/10.4 (pending); downstream: frr10 RPM backport **filed as RHEL-193997** | `patches/frr/0001-zebra-Do-not-clear-selected-flag-on-route-about-to-b.patch` |
 | dev-scripts | **PR OPEN** — https://github.com/openshift-metal3/dev-scripts/pull/1929 (`ENABLE_BGP_TOR`, live-validated) | dev-scripts repo |
 
 ## C. Downstream productization
 
-1. **frr10 RPM backport** (el9) of the zebra fix — the demo overlays the
+1. **frr10 RPM backport** (el9) of the zebra fix — **filed: RHEL-193997**
+   ("frr10: (upstream backport request) routes pre-existing in kernel table
+   are not redistributed", status New 2026-07-10) — the demo overlays the
    binary in the image; production needs the RPM (or ose-frr image carry).
    Owner: whoever owns the frr10 package + ART.
 2. **ocp-build-data**: add `kube-vip` payload member (ose-kube-vip image from
@@ -126,6 +128,6 @@ reference:
 | OPNET-779 | kubevip onboarding | ocp-build-data / ART engagement pending |
 | OPNET-781 | installer | pending api merge |
 | OPNET-782 | mco | pending api merge + OPNET-779 |
-| OPNET-786 | FRR | zebra b2c17ad52 backport requests pending |
+| OPNET-786 | FRR | downstream RPM backport filed: **RHEL-193997** (frr10, el9); upstream stable/10.4 backport request still pending |
 | OPNET-778 | PoC | github.com/mkowalski/bgp-vip-demo (complete) |
 | OPNET-621/622/623 | testing/CI | not started |
