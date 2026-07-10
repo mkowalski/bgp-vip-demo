@@ -112,3 +112,20 @@ reference:
 - install-config documentation.
 - Gate promotion DevPreviewNoUpgrade → TechPreviewNoUpgrade (implementation
   currently sits in DevPreview; EP says TechPreview).
+
+## Jira subtask mapping + PR tracker (OPNET-595 children)
+
+| Subtask | Repo | PR |
+|---|---|---|
+| OPNET-773 | enhancements | openshift/enhancements#1982 (findings incorporated) |
+| OPNET-780 | openshift/api | openshift/api#2923 (CI green) |
+| OPNET-783 | cluster-network-operator | openshift/cluster-network-operator#3046 (standalone statusmanager fix); main BGP series pending api merge |
+| OPNET-785 | baremetal-runtimecfg | openshift/baremetal-runtimecfg#395 |
+| OPNET-787 | dev-scripts | openshift-metal3/dev-scripts#1929 |
+| OPNET-784 | kubevip | upstream kube-vip/kube-vip#1627; downstream fork branch pending push |
+| OPNET-779 | kubevip onboarding | ocp-build-data / ART engagement pending |
+| OPNET-781 | installer | pending api merge |
+| OPNET-782 | mco | pending api merge + OPNET-779 |
+| OPNET-786 | FRR | zebra b2c17ad52 backport requests pending |
+| OPNET-778 | PoC | github.com/mkowalski/bgp-vip-demo (complete) |
+| OPNET-621/622/623 | testing/CI | not started |
