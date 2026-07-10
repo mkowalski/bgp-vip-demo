@@ -9,12 +9,12 @@ Apply with `git am` onto the documented base. Rationale for every commit:
 
 | Directory | Repository | Apply onto (base SHA) | Produces branch equivalent |
 |---|---|---|---|
-| `openshift-api/` | github.com/openshift/api | `508e9949c` (master, 2026-06) | `OPNET-595-bgp-vip-management` |
+| `openshift-api/` | github.com/openshift/api | `580f1c1ba` (master, 2026-07) | `opnet-595-bgp-vip-api` — **PR open: openshift/api#2923 (OPNET-780), CI green** |
 | `installer/` | github.com/openshift/installer | `7746340202` (master, 2026-06) | `OPNET-595-bgp-vip-management-vendored` |
 | `machine-config-operator/` | github.com/openshift/machine-config-operator | `6a2c5c654` (master, 2026-06) | `OPNET-595-bgp-vip-management-dev` |
-| `cluster-network-operator/` | github.com/openshift/cluster-network-operator | `6dc18040e` (master, 2026-06) | `OPNET-595-bgp-vip-management-vendored` |
-| `kube-vip/` | github.com/kube-vip/kube-vip | `12928dc` (main, 2026-06) | `OPNET-595-bgp-vip-management` |
-| `baremetal-runtimecfg/` | github.com/openshift/baremetal-runtimecfg | `2f969c7` (master) | `OPNET-595-bgp-vip-management` |
+| `cluster-network-operator/` | github.com/openshift/cluster-network-operator | `6dc18040e` (master, 2026-06) | `OPNET-595-bgp-vip-management-vendored`; statusmanager fix extracted standalone: **PR open: openshift/cluster-network-operator#3046 (OPNET-783)** |
+| `kube-vip/` | github.com/kube-vip/kube-vip | `12928dc` (main, 2026-06) | `OPNET-595-bgp-vip-management`; kubeconfig fixes upstream: **PR open: kube-vip/kube-vip#1627** |
+| `baremetal-runtimecfg/` | github.com/openshift/baremetal-runtimecfg | `2f969c7` (master) | `OPNET-595-bgp-vip-management`; upstream-clean subset (label-node dropped, rebased on main): **PR open: openshift/baremetal-runtimecfg#395 (OPNET-785)** |
 | `dev-scripts/` | github.com/openshift-metal3/dev-scripts | `06759b3` (master, 2026-07) | `bgp-tor-speaker` — **PR open: openshift-metal3/dev-scripts#1929** |
 | `frr/` | github.com/FRRouting/frr | tag `frr-10.4.3` | backport of upstream `b2c17ad52` (fixed in 10.7) |
 

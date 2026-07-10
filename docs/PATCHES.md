@@ -7,11 +7,20 @@ pending.
 
 ## 1. openshift/api — branch `OPNET-595-bgp-vip-management`
 
+**PR open: https://github.com/openshift/api/pull/2923 (OPNET-780), CI fully
+green.** The PR branch `opnet-595-bgp-vip-api` supersedes the dev branch: it
+was rebuilt on latest master with fresh regen, and CI iteration changed the
+API shape — the `vipManagement` enum no longer permits `""` (kube-api-linter:
+a valid zero value would force a pointer type; absent already means
+keepalived), `TestInfrastructureStatusDefault` follows the regrouped CRD
+manifest names, and both gates gained the mandatory declarative integration
+test suites (`config/v1/tests/.../BGPBasedVIPManagement.yaml`,
+`machineconfiguration/v1/tests/.../BGPBasedVIPManagement.yaml`).
+
 | Commit | What | Why |
 |--------|------|-----|
-| a7e2b9c7b (pre-session) | `BGPBasedVIPManagement` feature gate (DevPreviewNoUpgrade); `BareMetalPlatformStatus.VIPManagement` field | Gate + install-time signal on the Infrastructure CR |
-| ad8da98b9 | `ControllerConfigSpec.BGPVIPPeersJSON` (+regen) | Carries the peer-config JSON through MCO to the node peer file |
-| 2d1992b69 | MinLength/MaxLength on the field + openapi refresh | kube-api-linter compliance |
+| PR commit 1 | `BGPBasedVIPManagement` feature gate (DevPreviewNoUpgrade); `BareMetalPlatformStatus.VIPManagement` (Enum=Keepalived;BGP) + suite + regen | Gate + install-time signal on the Infrastructure CR |
+| PR commit 2 | `ControllerConfigSpec.BGPVIPPeersJSON` (MinLength=1/MaxLength=65536) + suite + regen | Carries the peer-config JSON through MCO to the node peer file |
 
 Ship note: the `cluster-config-api` payload image is built from this repo —
 the CRD schema + featuregate manifests MUST land here first or
