@@ -1,4 +1,4 @@
-# Run Ledger — all 14 install attempts
+# Run Ledger — all 17 install attempts
 
 Chronological debugging record. Each run: what happened, root cause, fix
 (commit). Full evidence in the session; distilled here for handoff.
@@ -20,6 +20,30 @@ Chronological debugging record. Each run: what happened, root cause, fix
 | 12 | FRR patch verified in-cluster (VIP selected + in bgpd table post-handover) but PfxSnt=0; frr-status: "resource name may not be empty" | frr-k8s `mode: all` = "all DECLARED router prefixes" (source-verified `prefixesToAdvertiseForFamily`) → renders `deny any` allowed-lists; CRD cannot express advertising redistributed routes. frr-status needs `--pod-name` | CNO be5b5ae9a: drop toAdvertise; rawConfig appends high-seq permits to frr-k8s's generated `<peer>-out` route-maps (prefix-list deny = no-match = fall-through; leak-proof). MCO d6b2df182: `--pod-name=frr-k8s-$(NODE_NAME)` |
 | 13 | **API VIP advertised from all 3 masters post-handover, gated (`?` origin)**; pods 4/4; ingress VIP absent while routers Running | kube-vip-ingress gated on `:29445/healthz` = the API haproxy monitor (503 forever); the router health is `:1936/healthz` (keepalived's chk_ingress) — EP doc error | MCO 29e4f8042: gate on `http://localhost:1936/healthz` |
 | 14 | **ALL CRITERIA MET.** Both VIPs advertised, ingress only from router-bearing masters; 35/36 COs Available; console HTTP 200 over BGP-routed VIP; FRRNodeState + BGPSessionState(Established×3) | Sole failure: karpenter — "failed to initialize cloud provider: unsupported platform" on baremetal; base-nightly bug, identical without BGP | none needed |
+| — | (aborted install, worker scope-out) BMHs stuck "registering"; Redfish GETs failing | sushy-tools wedged — "client socket is closed" on every request | `podman restart sushy-tools` on the hypervisor; also: stale `ironic_nodes.json` (3 nodes) after raising NUM_WORKERS fails install_config → `rm` it + `make configure` |
+| 15 | First run with workers (NUM_MASTERS=3 NUM_WORKERS=2): routers on workers, 5/5 sessions Established, but ingress VIP ABSENT from ToR; console 200 was the in-subnet L2 fallback masking it | Worker kube-vip + kernel table-198 route + DaemonSet FRR config (import-table/table-direct/route-maps) all correct; zebra's table-198 view EMPTY. Manual `ip route replace` healed instantly → kube-vip's one-shot route add loses a race | kube-vip 6d51cbd: RT mode re-asserts the VIP route (netlink RouteReplace) every healthy check cycle. (First version 8b92df2 had a dead branch — `routeMgr.Add` returns fs.ErrExist steady-state so the `else if err == nil` re-assert never ran; amended) |
+| 16 | STILL asymmetric (1 worker + 2 masters advertising) despite level-triggered re-assertion | `ip monitor` forensics: kube-vip re-asserts, but the kernel emits NO netlink event for a no-op replace; run15's "manual heals" only worked because iproute2's default scope (link) differed from kube-vip's (global) = a real change. Deeper: .56/.60 masters' zebra learned the route only via later health-flap del/add churn — ALL 5 nodes missed the ORIGINAL event | → lab TEST E |
+| lab | **TEST E** (`lab/frr-lab-addr-route-race.sh`) reproduced in the metallb-frr:bgp-demo container: same-prefix interface address (kube-vip AddIP, deprecated /32) + table-198 route arriving in the same netlink batch → zebra keeps the kernel route but never imports/redistributes it (2/5 with `ip -batch`; addr→route separately = OK, route→addr = 100% broken) | **NEW zebra bug**, distinct from the SELECTED-flag one (RHEL-193997); the patched 10.4.3 zebra does NOT cover it | kube-vip 7d27248: alternate the (inert) route realm attribute 1↔2 on each re-assertion so every replace is a real kernel change and emits a netlink event. Workaround, not a fix — file the zebra bug upstream (NEXT-STEPS) |
+| 17 | **ALL CRITERIA MET on the full cluster, zero manual intervention.** Ingress .4 ECMP from exactly the two router workers (.23/.24), API .5 ECMP from 3 masters, single cluster-wide `bgp-vip` CR, console 200, `ip route get` = L3 path. Failover: cordon worker-0 + delete router pod → path withdrawn ~50s (health threshold), console 200 throughout via worker-1; uncordon → path restored ≤20s | Note: a plain pod delete does NOT withdraw — the replacement router is Ready again before the failure threshold | none needed |
+
+## Scope extension (2026-07-10..13): ingress VIP on a full cluster
+
+Runs 15–17 validated routers on WORKERS (NUM_MASTERS=3 NUM_WORKERS=2,
+WORKER_VCPU=8 WORKER_MEMORY=16384 WORKER_DISK=60). Enabling code changes:
+
+- MCO 47948106d (`OPNET-595-bgp-vip-management-dev`): moved
+  `templates/master/00-master/on-prem/files/0020-kube-vip-ingress.yaml` →
+  `templates/common/` (keepalived parity: ingress pod on ALL nodes incl.
+  arbiter, health-gated inert without a local router). kube-vip-api stays
+  master-only.
+- CNO d65941092 (dev branch, folded into PR #3047's first commit —
+  force-pushed, still 3 commits): FRRConfiguration CR renamed
+  `bgp-vip-master` → `bgp-vip`, nodeSelector REMOVED (cluster-wide; masters'
+  static pod + workers' DaemonSet consume the same sessions + rawConfig).
+- kube-vip 6d51cbd + 7d27248 (`OPNET-595-bgp-vip-management`, pushed): RT
+  mode re-asserts the VIP route via netlink RouteReplace every healthy check
+  cycle, alternating the inert realm attribute 1↔2 so each re-assertion is a
+  real kernel change (kernel emits NO netlink event for a no-op replace).
 
 ## Meta-lessons for whoever continues
 

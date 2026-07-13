@@ -45,7 +45,8 @@ reference:
 
 | Where | What | Artifact |
 |-------|------|----------|
-| kube-vip | **PR OPEN** — https://github.com/kube-vip/kube-vip/pull/1627 (manager + backend honor the configured kubeconfig). NOTE: the RT-mode HTTP health check (51e05fd) is ALREADY upstream as kube-vip/kube-vip#1604 (fcd3eec) — drop that patch from the downstream fork on the next rebase |
+| kube-vip | **PR OPEN** — https://github.com/kube-vip/kube-vip/pull/1627 (manager + backend honor the configured kubeconfig). NOTE: the RT-mode HTTP health check (51e05fd) is ALREADY upstream as kube-vip/kube-vip#1604 (fcd3eec) — drop that patch from the downstream fork on the next rebase. The fork now carries 2 MORE upstream-able commits (6d51cbd level-triggered route re-assertion, 7d27248 realm toggle) |
+| FRR (NEW bug) | File upstream: zebra loses an imported kernel-table route when the same-prefix connected address is processed in the same netlink batch (`lab/frr-lab-addr-route-race.sh` is the repro). Distinct from RHEL-193997; the kube-vip realm-toggle is a workaround, not a fix | lab/frr-lab-addr-route-race.sh |
 | frr-k8s (metallb/frr-k8s) | Feature request: advertise redistributed/table-direct routes (CRD egress is bound to declared prefixes; our raw `-out` route-map permits couple to internal naming — fragile across bumps) | design note in CNO bgp_vip.go comments |
 | FRR | upstream: b2c17ad52 backport request to stable/10.4 (pending); downstream: frr10 RPM backport **filed as RHEL-193997** | `patches/frr/0001-zebra-Do-not-clear-selected-flag-on-route-about-to-b.patch` |
 | dev-scripts | **PR OPEN** — https://github.com/openshift-metal3/dev-scripts/pull/1929 (`ENABLE_BGP_TOR`, live-validated) | dev-scripts repo |
@@ -105,6 +106,17 @@ reference:
     exists, unexercised.
 12. Flaky `TestOSBuildControllerLeavesSuccessfulBuildAlone` in MCO — pre-
     existing (verified at base), watch in CI.
+13. kube-vip restart-on-live-cluster gap: `/etc/kubernetes/kubeconfig` on a
+    settled cluster points at the node IP; the apiserver cert doesn't cover
+    it → kube-vip-api blocks in "discover k8s version" forever and manages no
+    routes after a restart. Needs the kubeconfig-honoring work (upstream PR
+    #1627 area) or a TLS/server override.
+14. The realm 1/2 values are visible in `ip route show table 198` output
+    ("realm 2") — cosmetic; document or pick dedicated values before
+    productization.
+15. MCO/CNO worker-ingress changes: reflected in PR #3047 (CNO), but the MCO
+    PR (pending, OPNET-782) must include the `templates/common/` move of
+    0020-kube-vip-ingress.yaml (47948106d).
 
 ## E. Tech Preview criteria (EP graduation) not started
 
@@ -124,7 +136,7 @@ reference:
 | OPNET-783 | cluster-network-operator | #3046 (statusmanager fix) + **#3047 (main BGP series — api-decoupled: local gate constant + unstructured vipManagement read, inert until the gate ships; typed-access follow-up after api merge)** |
 | OPNET-785 | baremetal-runtimecfg | openshift/baremetal-runtimecfg#395 |
 | OPNET-787 | dev-scripts | openshift-metal3/dev-scripts#1929 |
-| OPNET-784 | kubevip | upstream kube-vip/kube-vip#1627; downstream fork branch pending push |
+| OPNET-784 | kubevip | upstream kube-vip/kube-vip#1627; downstream fork branch pushed (incl. 6d51cbd + 7d27248) |
 | OPNET-779 | kubevip onboarding | ocp-build-data / ART engagement pending |
 | OPNET-781 | installer | pending api merge |
 | OPNET-782 | mco | pending api merge + OPNET-779 |

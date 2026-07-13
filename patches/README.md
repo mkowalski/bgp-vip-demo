@@ -35,7 +35,7 @@ if `git am` complains, `git am -3` (three-way) resolves minor drift.
    #1 landmine — see docs/NEXT-STEPS.md §C3.
 2. **History is the debugging story, not a PR series.** MCO includes
    "hardcode kube-vip image" later reverted by the image-resolution commit;
-   CNO's 14 commits iterate the advertisement design. Squash guidance for
+   CNO's 15 commits iterate the advertisement design. Squash guidance for
    real PRs: docs/NEXT-STEPS.md §C3.
 3. **Vendor patches** (installer/MCO/CNO "vendor openshift/api" commits) are
    included verbatim so the series builds standalone. They carry the DEV-era
@@ -45,7 +45,8 @@ if `git am` complains, `git am -3` (three-way) resolves minor drift.
    vendor patches and re-vendor normally; the demo-validated behavior is
    unaffected.
 4. **kube-vip** series applies onto upstream `main` (commit above); the fork
-   needs the whole series (2 upstreamable fixes + 4 downstream build bits).
+   needs the whole series (4 upstreamable fixes + 4 downstream build bits —
+   0007/0008 are the run15-17 route re-assertion + realm-toggle fixes).
 5. **frr**: apply onto the `frr-10.4.3` tag; build with
    `../build/frr-build.sh` in a CentOS Stream 9 container (glibc 2.34 ABI
    compatible with the RHEL9 runtime image); overlay via

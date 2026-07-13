@@ -1,6 +1,6 @@
 # BGP VIP Demo — Results Log
 
-Last updated: 2026-07-09 (session 2 complete, runs 1–14) — ALL DEMO CRITERIA MET
+Last updated: 2026-07-13 (scope extension complete, runs 1–17) — ALL DEMO CRITERIA MET ON A FULL CLUSTER (routers on workers)
 
 ## Demo acceptance status
 
@@ -9,9 +9,10 @@ Last updated: 2026-07-09 (session 2 complete, runs 1–14) — ALL DEMO CRITERIA
 | 1 | Bootstrap advertises API VIP via BGP | **PROVEN** | run5-10: `192.168.111.5/32` in ToR BGP table, next-hop = bootstrap; `ip route show table 198` on bootstrap; kube-vip route add logged |
 | 2 | Masters join via the VIP; install proceeds | **PROVEN** | run6-10: all 3 masters Ready, joined through BGP-routed VIP; hypervisor `ip route get 192.168.111.5` → `via <node> proto bgp` (L3 path, not connected /24) |
 | 3 | API `healthz: ok` over the BGP-routed VIP | **PROVEN** | run6+: curl via VIP with kernel ECMP over BGP next-hops |
-| 4 | Ingress VIP advertised, health-gated | **PROVEN (run14)** | `192.168.111.4/32` advertised ONLY from the two router-bearing masters; gate = router healthz :1936 (EP's :29445 was the API haproxy monitor — wrong) |
-| 5 | CNO renders FRRConfiguration; controller applies it (handover) | **PROVEN (run14)** | `bgp-vip-master` CR created and accepted (run8+); controller applies (reloader "FRR reloaded successfully"); sessions re-established through CRD path; advertisement survives via gated redistribution + raw egress permits; FRRNodeState + BGPSessionState (Established x3) reported |
+| 4 | Ingress VIP advertised, health-gated | **PROVEN (run14, full cluster run17)** | `192.168.111.4/32` advertised ONLY from the two router-bearing masters (run14) / router-bearing WORKERS .23/.24 (run17); gate = router healthz :1936 (EP's :29445 was the API haproxy monitor — wrong) |
+| 5 | CNO renders FRRConfiguration; controller applies it (handover) | **PROVEN (run14)** | `bgp-vip-master` CR created and accepted (run8+; renamed cluster-wide `bgp-vip` in run15+); controller applies (reloader "FRR reloaded successfully"); sessions re-established through CRD path; advertisement survives via gated redistribution + raw egress permits; FRRNodeState + BGPSessionState (Established x3) reported |
 | 6 | Install completes end-to-end | **PROVEN (run14)** | 35/36 cluster operators Available; console HTTP 200 over the BGP-routed ingress VIP. Sole failure: karpenter — "unsupported platform" on baremetal, base-nightly bug, fails identically without BGP |
+| 7 | Full cluster: routers on workers, health-gated ECMP + failover | **PROVEN (run17)** | 3 masters + 2 workers, zero manual intervention: ingress .4 ECMP from exactly the two router workers, API .5 ECMP from 3 masters, single cluster-wide `bgp-vip` CR, console 200, `ip route get` = L3 path. Failover: cordon + router pod delete → path withdrawn ~50s (health threshold), console 200 throughout via the surviving worker; uncordon → restored ≤20s. Plain pod delete does NOT withdraw (replacement Ready before the failure threshold) |
 
 ## Resolved: the CRD-handover advertisement issue
 
@@ -22,6 +23,20 @@ and the 4-case container lab in the session log). Plus two frr-k8s semantic
 layers: mode:all egress is bound to declared router prefixes (deny-any
 otherwise) — solved with high-seq raw route-map permits; and ip import-table
 must be present for zebra to track table 198.
+
+## Resolved: the worker-ingress advertisement race (runs 15-17)
+
+Second, distinct zebra bug found while extending scope to workers: when the
+same-prefix interface address (kube-vip AddIP, deprecated /32) and the
+table-198 route arrive in the same netlink batch, zebra keeps the kernel
+route but never imports/redistributes it (lab TEST E,
+`lab/frr-lab-addr-route-race.sh`: 2/5 with `ip -batch`; route→addr order =
+100% broken). NOT covered by the patched 10.4.3 zebra (the SELECTED-flag
+fix, RHEL-193997). Worked around in kube-vip: level-triggered route
+re-assertion (6d51cbd) + realm 1↔2 toggle so each replace is a real kernel
+change emitting a netlink event (7d27248) — a no-op replace emits NONE,
+which also broke plain re-assertion in run16. Upstream zebra bug to file
+(NEXT-STEPS §B).
 
 ## Verified working (accumulated across runs)
 
@@ -58,7 +73,7 @@ must be present for zebra to track table 198.
 
 ## Related documents
 
-- docs/RUN-LEDGER.md — per-run debugging narrative (runs 1-14)
+- docs/RUN-LEDGER.md — per-run debugging narrative (runs 1-17)
 - docs/RUNBOOK.md — operational procedures
 - docs/NEXT-STEPS.md — productization handoff
 - docs/PATCHES.md — authoritative commit inventory (supersedes the list below,

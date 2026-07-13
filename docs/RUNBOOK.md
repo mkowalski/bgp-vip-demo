@@ -81,7 +81,8 @@ the base nightly or the tag set.
   one: `config_root.sh.pre-bgp-demo`). Key vars: custom payload,
   `KNI_INSTALL_FROM_GIT=1` + `OPENSHIFT_INSTALL_PATH=/root/installer-bgp`
   (clone of the installer branch — transferred via git bundle),
-  `FEATURE_SET=DevPreviewNoUpgrade`, `NUM_MASTERS=3 NUM_WORKERS=0`,
+  `FEATURE_SET=DevPreviewNoUpgrade`, `NUM_MASTERS=3 NUM_WORKERS=2`
+  (`WORKER_VCPU=8 WORKER_MEMORY=16384 WORKER_DISK=60`),
   `IP_STACK=v4`, `MASTER_MEMORY=32768 MASTER_VCPU=10`.
 - ToR: config-driven since dev-scripts branch `bgp-tor-speaker` —
   `ENABLE_BGP_TOR=true` in config_root.sh deploys it during `make configure`
@@ -125,7 +126,7 @@ ip route get 192.168.111.5                             # via <node> = L3 path, n
 
 # Cluster (KUBECONFIG=~/dev-scripts/ocp/ostest/auth/kubeconfig)
 oc get infrastructure cluster -o jsonpath='{.status.platformStatus.baremetal.vipManagement}'  # BGP
-oc get frrconfiguration -n openshift-frr-k8s           # bgp-vip-master
+oc get frrconfiguration -n openshift-frr-k8s           # bgp-vip (cluster-wide; was bgp-vip-master pre-run15)
 oc get bgpsessionstates -n openshift-frr-k8s           # Established per master
 oc get frrnodestates                                   # one per master
 oc get pods -n openshift-frr-k8s                       # static mirror pods 4/4
@@ -141,7 +142,8 @@ curl -k https://console-openshift-console.apps.ostest.test.metalkube.org   # 200
 ```
 
 Healthy end state: origin `?` paths (redistribute = health-gated); ingress VIP
-advertised ONLY from router-bearing nodes; karpenter CO unavailable is a known
+advertised ONLY from router-bearing nodes (with workers present: the router
+WORKERS only); karpenter CO unavailable is a known
 base-nightly baremetal bug ("unsupported platform"), not BGP-related.
 
 ## 6. Debugging toolbox (what actually worked)
@@ -161,3 +163,10 @@ base-nightly baremetal bug ("unsupported platform"), not BGP-related.
 - Live CNO-managed objects get stomped by CNO's sync — hot `oc apply` fixes
   are only good for hypothesis testing; real fixes need the image rebuilt
   (payload tags make that cheap: rebuild + repush + fresh deploy).
+- sushy-tools can wedge ("client socket is closed" on Redfish GET → BMHs
+  stuck "registering") → `podman restart sushy-tools`.
+- Changing NUM_WORKERS requires
+  `rm /mnt/nvme0n1p1/dev-scripts/ostest/ironic_nodes.json` + `make configure`
+  (stale node count fails install_config).
+- Diagnosis pitfall: `ip monitor route` shows NO event for a no-op route
+  replace — the kernel only emits netlink events for real changes.

@@ -1,0 +1,24 @@
+From 47948106dbd02e5dc869b6a411ec47b4bba4854c Mon Sep 17 00:00:00 2001
+From: Mat Kowalski <mko@redhat.com>
+Date: Fri, 10 Jul 2026 12:17:18 +0200
+Subject: [PATCH] MCO: run kube-vip-ingress on all nodes
+
+Routers run on workers in standard topologies; the ingress VIP pod must
+exist wherever a router might be, and its router-healthz gate keeps it
+inert on nodes without one - the same reasoning keepalived's ingress
+instance follows in templates/common. Arbiter nodes are deliberately not
+excluded, mirroring keepalived. kube-vip-api stays master-only. The
+worker-side FRR advertisement path is the CNO-managed frr-k8s DaemonSet
+consuming the cluster-wide FRRConfiguration.
+---
+ .../00-master => common}/on-prem/files/0020-kube-vip-ingress.yaml | 0
+ 1 file changed, 0 insertions(+), 0 deletions(-)
+ rename templates/{master/00-master => common}/on-prem/files/0020-kube-vip-ingress.yaml (100%)
+
+diff --git a/templates/master/00-master/on-prem/files/0020-kube-vip-ingress.yaml b/templates/common/on-prem/files/0020-kube-vip-ingress.yaml
+similarity index 100%
+rename from templates/master/00-master/on-prem/files/0020-kube-vip-ingress.yaml
+rename to templates/common/on-prem/files/0020-kube-vip-ingress.yaml
+-- 
+2.55.0
+
