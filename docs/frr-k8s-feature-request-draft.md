@@ -1,7 +1,8 @@
-# DRAFT — frr-k8s feature request: advertise redistributed / table-direct routes
+# frr-k8s feature request: advertise redistributed / table-direct routes
 
-Status: **NOT FILED**. Target: https://github.com/metallb/frr-k8s/issues (new issue).
-Tracked in NEXT-STEPS.md §B. Update this file and the tracker row when filed.
+Status: **FILED as https://github.com/metallb/frr-k8s/issues/469** (2026-07-14).
+This file is kept as the source-verified reference material behind the issue.
+Tracked in NEXT-STEPS.md §B.
 
 ---
 
