@@ -41,12 +41,19 @@ reference:
    FRR-only (no controller/status/metrics — the EP's static pod sketch
    includes them).
 
+### A2. EP second findings pass — TODO
+
+PR 1982 predates the worker-ingress scope extension. Still to incorporate:
+ingress pod runs on ALL nodes via templates/common (keepalived parity), the
+FRRConfiguration is cluster-wide (no node selector), the second zebra bug
+(FRRouting/frr#22654, addr/route netlink batch race) + kube-vip level-triggered
+re-assertion as mitigation, and the kube-vip restart kubeconfig/TLS gap (D13).
+
 ## B. Upstream contributions
 
 | Where | What | Artifact |
 |-------|------|----------|
-| kube-vip | **PR OPEN** — https://github.com/kube-vip/kube-vip/pull/1627 (manager + backend honor the configured kubeconfig). NOTE: the RT-mode HTTP health check (51e05fd) is ALREADY upstream as kube-vip/kube-vip#1604 (fcd3eec) — drop that patch from the downstream fork on the next rebase. The 2 route re-assertion commits (6d51cbd level-triggered, 7d27248 realm toggle) are **PR OPEN downstream: openshift/kube-vip#6** (cherry-picks 9afbbb6 + 7df5a53, branch mkowalski:route-reassert); upstream kube-vip/kube-vip submission still to follow (needs rebase — upstream main has since reworked pkg/vip/address.go) |
-| FRR (NEW bug) | File upstream: zebra loses an imported kernel-table route when the same-prefix connected address is processed in the same netlink batch (`lab/frr-lab-addr-route-race.sh` is the repro). Distinct from RHEL-193997; the kube-vip realm-toggle is a workaround, not a fix | lab/frr-lab-addr-route-race.sh |
+| kube-vip | **PR OPEN** — https://github.com/kube-vip/kube-vip/pull/1627 (manager + backend honor the configured kubeconfig). NOTE: the RT-mode HTTP health check (51e05fd) is ALREADY upstream as kube-vip/kube-vip#1604 (fcd3eec) — drop that patch from the downstream fork on the next rebase. The 2 route re-assertion commits (6d51cbd level-triggered, 7d27248 realm toggle) are **PR OPEN downstream: openshift/kube-vip#6** (cherry-picks 9afbbb6 + 7df5a53, branch mkowalski:route-reassert); upstream kube-vip/kube-vip submission still to follow (needs rebase — upstream main has since reworked pkg/vip/address.go). STILL TO OPEN downstream: second openshift/kube-vip PR with 51e05fd (HTTP health check, cherry-pick of upstream #1604 — missing from downstream main, based before its merge) + the kubeconfig commits 1731730/8cd17f7 |
 | frr-k8s (metallb/frr-k8s) | Feature request: advertise redistributed/table-direct routes (CRD egress is bound to declared prefixes; our raw `-out` route-map permits couple to internal naming — fragile across bumps) | **FILED: https://github.com/metallb/frr-k8s/issues/469** (draft + source refs: docs/frr-k8s-feature-request-draft.md); also design note in CNO bgp_vip.go comments |
 | FRR | upstream: b2c17ad52 backport request to stable/10.4 (pending); NEW zebra bug (addr/route same-batch race) **FILED: https://github.com/FRRouting/frr/issues/22654** (ref: docs/frr-zebra-issue-draft.md); downstream: frr10 RPM backport **filed as RHEL-193997** | `patches/frr/0001-zebra-Do-not-clear-selected-flag-on-route-about-to-b.patch`, `lab/frr-lab-addr-route-race.sh` |
 | dev-scripts | **PR OPEN** — https://github.com/openshift-metal3/dev-scripts/pull/1929 (`ENABLE_BGP_TOR`, live-validated) | dev-scripts repo |
@@ -62,22 +69,24 @@ reference:
    the fork) BEFORE MCO's image-references change merges — otherwise nightly
    payload assembly breaks (unresolvable tag).
 3. **PR strategy per repo** (all branches carry demo shortcuts to unwind):
-   - openshift/api: 2 commits, PR-ready; squash the stale-regen fallout into
-     the parent commit per reviewer note.
+   - openshift/api: DONE — #2923 is 2 clean commits, rebased onto master
+     2026-07-14 with regen folded per commit; awaiting api-approver review.
    - installer: rebase `-vendored` onto the clean branch; re-vendor from the
      merged api instead of local content.
    - **MCO: go.mod has a LOCAL-PATH replace for openshift/api** (dev-only) —
      must be swapped to the merged api version. `-dev` branch also carries the
      old "hardcode kube-vip image" commit history; rebase/squash the -dev/
-     -vendored layering into a clean PR series.
-   - CNO: re-vendor; the 13-commit sequence tells the debugging story — squash
-     into logical units (render, RBAC, status-manager fix, advertisement
-     mechanism).
-   - kube-vip: split upstream-able fixes (2) from downstream build bits (3).
-   - baremetal-runtimecfg: drop the now-unused `label-node` command before PR.
-4. **CNO status-manager fix** (c04ab0abb, desired==0 DaemonSets) is
-   BGP-independent and mergeable on its own — extract it first, it's a real
-   bug for anyone shipping optional DaemonSets.
+     -vendored layering into a clean PR series. Must include the
+     `templates/common/` move of 0020-kube-vip-ingress.yaml (47948106d) and
+     should fold in hardening gaps D1/D2.
+   - CNO: DONE for the gate-decoupled part — #3047 is a clean 3-commit series
+     (render incl. cluster-wide CR, DaemonSet placement, RBAC). Remaining:
+     re-vendor + switch to typed VIPManagement access after api merges.
+   - kube-vip: route re-assertion split out as openshift/kube-vip#6.
+     Remaining: second downstream PR (health check + kubeconfig, see B).
+   - baremetal-runtimecfg: DONE — #395 carries 3 commits, label-node dropped.
+4. **CNO status-manager fix** (desired==0 DaemonSets) — DONE: extracted as
+   #3046, BGP-independent, mergeable on its own.
 
 ## D. Known gaps / deferred hardening (from reviews + demo)
 
@@ -102,8 +111,10 @@ reference:
 10. Strict L3 validation: demo used in-subnet VIPs (L2 ARP fallback masks BGP
     failures); run an off-subnet-VIP variant (needs DNS overrides in
     dev-scripts).
-11. Failover/BFD/multi-rack (`hosts[].bgpPeers`) demo scenarios — plumbing
-    exists, unexercised.
+11. BFD/multi-rack (`hosts[].bgpPeers`) demo scenarios — plumbing exists,
+    unexercised. (Failover WAS exercised in run17: withdraw ~50s on router
+    loss, restore ≤20s; note a plain router-pod delete does not withdraw —
+    the replacement outraces the health threshold.)
 12. Flaky `TestOSBuildControllerLeavesSuccessfulBuildAlone` in MCO — pre-
     existing (verified at base), watch in CI.
 13. kube-vip restart-on-live-cluster gap: `/etc/kubernetes/kubeconfig` on a
@@ -131,12 +142,12 @@ reference:
 
 | Subtask | Repo | PR |
 |---|---|---|
-| OPNET-773 | enhancements | openshift/enhancements#1982 (findings incorporated) |
-| OPNET-780 | openshift/api | openshift/api#2923 (CI green) |
+| OPNET-773 | enhancements | openshift/enhancements#1982 (first findings pass in; second pass pending — see A2) |
+| OPNET-780 | openshift/api | openshift/api#2923 (rebased+regen 2026-07-14, awaiting api-approver review) |
 | OPNET-783 | cluster-network-operator | #3046 (statusmanager fix) + **#3047 (main BGP series — api-decoupled: local gate constant + unstructured vipManagement read, inert until the gate ships; typed-access follow-up after api merge)** |
 | OPNET-785 | baremetal-runtimecfg | openshift/baremetal-runtimecfg#395 |
 | OPNET-787 | dev-scripts | openshift-metal3/dev-scripts#1929 |
-| OPNET-784 | kubevip | upstream kube-vip/kube-vip#1627; downstream **openshift/kube-vip#6** (route re-assertion, 6d51cbd + 7d27248) |
+| OPNET-784 | kubevip | upstream kube-vip/kube-vip#1627; downstream **openshift/kube-vip#6** (route re-assertion); second downstream PR (health check + kubeconfig) still to open |
 | OPNET-779 | kubevip onboarding | ocp-build-data / ART engagement pending |
 | OPNET-781 | installer | pending api merge |
 | OPNET-782 | mco | pending api merge + OPNET-779 |
