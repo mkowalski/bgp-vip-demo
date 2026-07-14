@@ -115,6 +115,16 @@ tmux new-session -d -s bgprun "make ocp_run 2>&1 | tee /tmp/ocp-run.log"
 Install takes 60–75 min. First host provisioning: `make requirements configure`
 (target is `configure`, not `host`).
 
+## Current image-tag state (2026-07-14)
+
+`quay.io/mkowalski/metallb-frr:bgp-demo` = 10.4.3 + SELECTED-flag patch ONLY
+(the table-scope fix from FRRouting/frr#22654 is NOT deployed — awaiting
+upstream review; branch table-scoped-early-cleanup on mkowalski/frr).
+`quay.io/mkowalski/kube-vip:bgp-demo` = realm-toggle workaround build (7d27248).
+This is the run17/run19 configuration. run18 proved the FRR fix alone is
+enough; to switch, rebuild zebra at 8989c33 into the overlay and repoint
+kube-vip to 8cd17f7.
+
 ## 5. Verification checklist
 
 ```bash
