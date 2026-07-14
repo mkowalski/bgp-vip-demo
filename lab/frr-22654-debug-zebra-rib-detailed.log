@@ -1,0 +1,84 @@
+### FRR version:
+FRRouting 10.4.3 (c8abe8e113f3) on Linux(5.14.0-697.el9.x86_64).
+### injecting: ip route add 192.0.2.99/32 dev dummy0 table 198 proto 248 ; ip addr add 192.0.2.99/32 dev dummy0
+### kernel state:
+192.0.2.99 dev dummy0 proto 248 scope link 
+    inet 192.0.2.99/32 scope global dummy0
+### zebra state:
+(nothing above = zebra table 198 view empty)
+No BGP prefixes displayed, 0 exist
+### full zebra log from route injection onwards:
+2026/07/14 15:45:14.667321 ZEBRA: [KK45E-M1J2F] RTM_NEWROUTE 192.0.2.99/32 nsid: 0 table_id: 198 metric: 0 Admin Distance: 0
+2026/07/14 15:45:14.667330 ZEBRA: [K2A4T-TS83H] RTM_NEWROUTE 192.0.2.99/32 vrf default(0) table_id: 198 metric: 0 Admin Distance: 0
+2026/07/14 15:45:14.667342 ZEBRA: [ZQ7YA-RRJBM] Route 192.0.2.99/32(default) (add) queued for processing into sub-queue Early Route Processing mq size 1
+2026/07/14 15:45:14.668762 ZEBRA: [KMXEB-K771Y] netlink_parse_info: netlink-listen (NS 0) type RTM_NEWROUTE(24), len=60, seq=0, pid=0
+2026/07/14 15:45:14.668763 ZEBRA: [SKNFJ-G938V] RTM_NEWROUTE ipv4 local proto kernel NS 0
+2026/07/14 15:45:14.668764 ZEBRA: [J3J81-V75NW] Route rtm_type: local(2) intentionally ignoring
+2026/07/14 15:45:14.668820 ZEBRA: [KMXEB-K771Y] netlink_parse_info: netlink-dp-in (NS 0) type RTM_NEWADDR(20), len=80, seq=1784043915, pid=68
+2026/07/14 15:45:14.668850 ZEBRA: [RGWF1-EHXT1] netlink_interface_addr_dplane: RTM_NEWADDR nsid 0 ifindex 3 flags 0x80:
+2026/07/14 15:45:14.668854 ZEBRA: [XMC8C-4ZFJ9]   IFA_LOCAL     192.0.2.99/32
+2026/07/14 15:45:14.668855 ZEBRA: [ME3M2-X6YT9]   IFA_ADDRESS   192.0.2.99/32
+2026/07/14 15:45:14.668856 ZEBRA: [Y9HR3-XD5TG]   IFA_LABEL     dummy0
+2026/07/14 15:45:14.668856 ZEBRA: [P2VPT-508WP]   IFA_CACHEINFO pref -1, valid -1
+2026/07/14 15:45:14.668872 ZEBRA: [K8FXY-V65ZJ] Intf dplane ctx 0x7fd350027100, op INTF_ADDR_ADD, ifindex (3), result QUEUED
+2026/07/14 15:45:14.668874 ZEBRA: [MZPZA-W042K] zebra_if_addr_update_ctx: INTF_ADDR_ADD: ifindex dummy0(3), addr 192.0.2.99/32
+2026/07/14 15:45:14.668883 ZEBRA: [NBGDS-5ZDQ9] MESSAGE: ZEBRA_INTERFACE_ADDRESS_ADD 192.0.2.99/32 on dummy0 vrf default(0)
+2026/07/14 15:45:14.668906 ZEBRA: [QQR0S-XC4CW] Route 192.0.2.99/32(default) type 1 removed from early route queue
+2026/07/14 15:45:14.668909 ZEBRA: [ZQ7YA-RRJBM] Route 192.0.2.99/32(default) (add) queued for processing into sub-queue Early Route Processing mq size 1
+2026/07/14 15:45:14.668911 ZEBRA: [ZQ7YA-RRJBM] Route 192.0.2.99/32(default) (add) queued for processing into sub-queue Early Route Processing mq size 2
+2026/07/14 15:45:14.668912 ZEBRA: [ZQ7YA-RRJBM] Route 192.0.2.99/32(default) (add) queued for processing into sub-queue Early Route Processing mq size 3
+2026/07/14 15:45:14.668916 ZEBRA: [ZQ7YA-RRJBM] Route 192.0.2.99/32(default) (add) queued for processing into sub-queue Early Route Processing mq size 4
+2026/07/14 15:45:14.677360 ZEBRA: [SJ6HS-F486Q] process_subq_early_route_add: (default:?):192.0.2.99/32: Inserting route rn 0x55a6a5bfb640, re 0x55a6a5bf7bd0 (connected/IPv4/unicast) existing 0x0, same_count 0
+2026/07/14 15:45:14.677371 ZEBRA: [Q4T2G-E2SQF] process_subq_early_route_add: dumping RE entry 0x55a6a5bf7bd0 for 192.0.2.99/32 vrf default(0)
+2026/07/14 15:45:14.677373 ZEBRA: [K32P5-SH2K9] 192.0.2.99/32(default): uptime == 6476918, type == 2, instance == 0, table == 254
+2026/07/14 15:45:14.677375 ZEBRA: [GQ29C-F43AX] 192.0.2.99/32(default): metric == 0, mtu == 0, distance == 0, flags == None status == None 
+2026/07/14 15:45:14.677376 ZEBRA: [R84HW-Y2BKD] 192.0.2.99/32(default): tag == 0, nexthop_num == 1, nexthop_active_num == 0
+2026/07/14 15:45:14.677378 ZEBRA: [KY41R-H81KW] 192.0.2.99/32(default): NH dummy0[dummy0:3] vrf default(0) wgt 1, with flags 
+2026/07/14 15:45:14.677379 ZEBRA: [VHS8D-STZWZ] 192.0.2.99/32(default): dump complete
+2026/07/14 15:45:14.677380 ZEBRA: [TZ6SQ-ZTMJ5] rib_link: (default:?):192.0.2.99/32: rn 0x55a6a5bfb640 adding dest
+2026/07/14 15:45:14.677382 ZEBRA: [W3XNK-8CC35] rib_meta_queue_add: (default:254):192.0.2.99/32: queued rn 0x55a6a5bfb640 into sub-queue Connected Routes mq size 5
+2026/07/14 15:45:14.677389 ZEBRA: [SJ6HS-F486Q] process_subq_early_route_add: (default:?):192.0.2.99/32 (MRIB): Inserting route rn 0x55a6a5bfa230, re 0x55a6a5bfa2d0 (connected/IPv4/multicast) existing 0x0, same_count 0
+2026/07/14 15:45:14.677391 ZEBRA: [Q4T2G-E2SQF] process_subq_early_route_add: dumping RE entry 0x55a6a5bfa2d0 for 192.0.2.99/32 vrf default(0)
+2026/07/14 15:45:14.677392 ZEBRA: [K32P5-SH2K9] 192.0.2.99/32(default): uptime == 6476918, type == 2, instance == 0, table == 254
+2026/07/14 15:45:14.677392 ZEBRA: [GQ29C-F43AX] 192.0.2.99/32(default): metric == 0, mtu == 0, distance == 0, flags == None status == None 
+2026/07/14 15:45:14.677393 ZEBRA: [R84HW-Y2BKD] 192.0.2.99/32(default): tag == 0, nexthop_num == 1, nexthop_active_num == 0
+2026/07/14 15:45:14.677394 ZEBRA: [KY41R-H81KW] 192.0.2.99/32(default): NH dummy0[dummy0:3] vrf default(0) wgt 1, with flags 
+2026/07/14 15:45:14.677395 ZEBRA: [VHS8D-STZWZ] 192.0.2.99/32(default): dump complete
+2026/07/14 15:45:14.677395 ZEBRA: [TZ6SQ-ZTMJ5] rib_link: (default:?):192.0.2.99/32 (MRIB): rn 0x55a6a5bfa230 adding dest
+2026/07/14 15:45:14.677396 ZEBRA: [W3XNK-8CC35] rib_meta_queue_add: (default:254):192.0.2.99/32 (MRIB): queued rn 0x55a6a5bfa230 into sub-queue Connected Routes mq size 5
+2026/07/14 15:45:14.677399 ZEBRA: [SJ6HS-F486Q] process_subq_early_route_add: (default:254):192.0.2.99/32: Inserting route rn 0x55a6a5bfb640, re 0x55a6a5bfb190 (local/IPv4/unicast) existing 0x0, same_count 0
+2026/07/14 15:45:14.677400 ZEBRA: [Q4T2G-E2SQF] process_subq_early_route_add: dumping RE entry 0x55a6a5bfb190 for 192.0.2.99/32 vrf default(0)
+2026/07/14 15:45:14.677401 ZEBRA: [K32P5-SH2K9] 192.0.2.99/32(default): uptime == 6476918, type == 3, instance == 0, table == 254
+2026/07/14 15:45:14.677402 ZEBRA: [GQ29C-F43AX] 192.0.2.99/32(default): metric == 0, mtu == 0, distance == 0, flags == None status == None 
+2026/07/14 15:45:14.677402 ZEBRA: [R84HW-Y2BKD] 192.0.2.99/32(default): tag == 0, nexthop_num == 1, nexthop_active_num == 0
+2026/07/14 15:45:14.677403 ZEBRA: [KY41R-H81KW] 192.0.2.99/32(default): NH dummy0[dummy0:3] vrf default(0) wgt 1, with flags 
+2026/07/14 15:45:14.677404 ZEBRA: [VHS8D-STZWZ] 192.0.2.99/32(default): dump complete
+2026/07/14 15:45:14.677404 ZEBRA: [GW4S4-NE28R] rib_meta_queue_add: (default:254):192.0.2.99/32: rn 0x55a6a5bfb640 is already queued in sub-queue Connected Routes
+2026/07/14 15:45:14.677406 ZEBRA: [SJ6HS-F486Q] process_subq_early_route_add: (default:254):192.0.2.99/32 (MRIB): Inserting route rn 0x55a6a5bfa230, re 0x55a6a5bf7a90 (local/IPv4/multicast) existing 0x0, same_count 0
+2026/07/14 15:45:14.677408 ZEBRA: [Q4T2G-E2SQF] process_subq_early_route_add: dumping RE entry 0x55a6a5bf7a90 for 192.0.2.99/32 vrf default(0)
+2026/07/14 15:45:14.677408 ZEBRA: [K32P5-SH2K9] 192.0.2.99/32(default): uptime == 6476918, type == 3, instance == 0, table == 254
+2026/07/14 15:45:14.677408 ZEBRA: [GQ29C-F43AX] 192.0.2.99/32(default): metric == 0, mtu == 0, distance == 0, flags == None status == None 
+2026/07/14 15:45:14.677409 ZEBRA: [R84HW-Y2BKD] 192.0.2.99/32(default): tag == 0, nexthop_num == 1, nexthop_active_num == 0
+2026/07/14 15:45:14.677409 ZEBRA: [KY41R-H81KW] 192.0.2.99/32(default): NH dummy0[dummy0:3] vrf default(0) wgt 1, with flags 
+2026/07/14 15:45:14.677410 ZEBRA: [VHS8D-STZWZ] 192.0.2.99/32(default): dump complete
+2026/07/14 15:45:14.677411 ZEBRA: [GW4S4-NE28R] rib_meta_queue_add: (default:254):192.0.2.99/32 (MRIB): rn 0x55a6a5bfa230 is already queued in sub-queue Connected Routes
+2026/07/14 15:45:14.677412 ZEBRA: [WYX2S-4PN9G] default(0:254:1):192.0.2.99/32: Processing rn 0x55a6a5bfb640
+2026/07/14 15:45:14.677414 ZEBRA: [KJ5DQ-3PGDB] default(0:254:1):192.0.2.99/32: Examine re 0x55a6a5bfb190 (local) status: Changed flags: None dist 0 metric 0
+2026/07/14 15:45:14.677418 ZEBRA: [KJ5DQ-3PGDB] default(0:254:1):192.0.2.99/32: Examine re 0x55a6a5bf7bd0 (connected) status: Changed flags: None dist 0 metric 0
+2026/07/14 15:45:14.677420 ZEBRA: [P9ZB1-6NJZM] default(0:254:1):192.0.2.99/32: After processing: old_selected 0x0 new_selected 0x55a6a5bf7bd0 old_fib 0x0 new_fib 0x55a6a5bf7bd0
+2026/07/14 15:45:14.677422 ZEBRA: [ZFRN1-EZNJZ] default(0:254):192.0.2.99/32: Adding route rn 0x55a6a5bfb640, re 0x55a6a5bf7bd0 (connected)
+2026/07/14 15:45:14.677442 ZEBRA: [HH6N2-PDCJS] default(0:254):192.0.2.99/32 rn 0x55a6a5bfb640 dequeued from sub-queue Connected Routes
+2026/07/14 15:45:14.677443 ZEBRA: [WYX2S-4PN9G] default(0:254:2):192.0.2.99/32: Processing rn 0x55a6a5bfa230
+2026/07/14 15:45:14.677444 ZEBRA: [KJ5DQ-3PGDB] default(0:254:2):192.0.2.99/32: Examine re 0x55a6a5bf7a90 (local) status: Changed flags: None dist 0 metric 0
+2026/07/14 15:45:14.677446 ZEBRA: [KJ5DQ-3PGDB] default(0:254:2):192.0.2.99/32: Examine re 0x55a6a5bfa2d0 (connected) status: Changed flags: None dist 0 metric 0
+2026/07/14 15:45:14.677450 ZEBRA: [P9ZB1-6NJZM] default(0:254:2):192.0.2.99/32: After processing: old_selected 0x0 new_selected 0x55a6a5bfa2d0 old_fib 0x0 new_fib 0x55a6a5bfa2d0
+2026/07/14 15:45:14.677451 ZEBRA: [ZFRN1-EZNJZ] default(0:254):192.0.2.99/32: Adding route rn 0x55a6a5bfa230, re 0x55a6a5bfa2d0 (connected)
+2026/07/14 15:45:14.677453 ZEBRA: [HH6N2-PDCJS] default(0:254):192.0.2.99/32 rn 0x55a6a5bfa230 dequeued from sub-queue Connected Routes
+2026/07/14 15:45:14.677537 ZEBRA: [GHWHS-ZKQM5] update_from_ctx: default(0:254):192.0.2.99/32: SELECTED, re 0x55a6a5bf7bd0
+2026/07/14 15:45:14.677538 ZEBRA: [TS3SH-1276M] default(0:254):192.0.2.99/32 update_from_ctx(): no fib nhg
+2026/07/14 15:45:14.677540 ZEBRA: [HKQXC-4STSK] default(0:254):192.0.2.99/32 update_from_ctx(): rib nhg matched, changed 'false'
+2026/07/14 15:45:14.677541 ZEBRA: [Z1MP1-RFGJA] (0:254):192.0.2.99/32(0): Redist update re 0x55a6a5bf7bd0 (connected), old 0x0 (None)
+2026/07/14 15:45:14.677546 ZEBRA: [GHWHS-ZKQM5] update_from_ctx: default(0:254):192.0.2.99/32: SELECTED, re 0x55a6a5bfa2d0
+2026/07/14 15:45:14.677547 ZEBRA: [TS3SH-1276M] default(0:254):192.0.2.99/32 update_from_ctx(): no fib nhg
+2026/07/14 15:45:14.677548 ZEBRA: [HKQXC-4STSK] default(0:254):192.0.2.99/32 update_from_ctx(): rib nhg matched, changed 'false'
+2026/07/14 15:45:14.677548 ZEBRA: [Z1MP1-RFGJA] (0:254):192.0.2.99/32(0): Redist update re 0x55a6a5bfa2d0 (connected), old 0x0 (None)
