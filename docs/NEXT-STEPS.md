@@ -53,17 +53,20 @@ re-assertion as mitigation, and the kube-vip restart kubeconfig/TLS gap (D13).
 
 | Where | What | Artifact |
 |-------|------|----------|
-| kube-vip | **PR OPEN** — https://github.com/kube-vip/kube-vip/pull/1627 (manager + backend honor the configured kubeconfig). NOTE: the RT-mode HTTP health check (51e05fd) is ALREADY upstream as kube-vip/kube-vip#1604 (fcd3eec) — drop that patch from the downstream fork on the next rebase. The 2 route re-assertion commits (6d51cbd level-triggered, 7d27248 realm toggle) are **PR OPEN downstream: openshift/kube-vip#6** (cherry-picks 9afbbb6 + 7df5a53, branch mkowalski:route-reassert); upstream kube-vip/kube-vip submission still to follow (needs rebase — upstream main has since reworked pkg/vip/address.go). STILL TO OPEN downstream: second openshift/kube-vip PR with 51e05fd (HTTP health check, cherry-pick of upstream #1604 — missing from downstream main, based before its merge) + the kubeconfig commits 1731730/8cd17f7 |
+| kube-vip | **PR OPEN** — https://github.com/kube-vip/kube-vip/pull/1627 (manager + backend honor the configured kubeconfig). NOTE: the RT-mode HTTP health check (51e05fd) is ALREADY upstream as kube-vip/kube-vip#1604 (fcd3eec) — drop that patch from the downstream fork on the next rebase. The 2 route re-assertion commits (6d51cbd level-triggered, 7d27248 realm toggle) are **PR OPEN downstream: openshift/kube-vip#6** (cherry-picks 9afbbb6 + 7df5a53, branch mkowalski:route-reassert) — **NO LONGER REQUIRED: the FRR table-scoped-cleanup fix alone is enough (proven run18, pre-workaround kube-vip + patched zebra)**; #6 is now optional robustness hardening, keep-or-close decision open; upstream kube-vip submission moot unless kept. STILL TO OPEN downstream: second openshift/kube-vip PR with 51e05fd (HTTP health check, cherry-pick of upstream #1604 — missing from downstream main, based before its merge) + the kubeconfig commits 1731730/8cd17f7 |
 | frr-k8s (metallb/frr-k8s) | Feature request: advertise redistributed/table-direct routes (CRD egress is bound to declared prefixes; our raw `-out` route-map permits couple to internal naming — fragile across bumps) | **FILED: https://github.com/metallb/frr-k8s/issues/469** (draft + source refs: docs/frr-k8s-feature-request-draft.md); also design note in CNO bgp_vip.go comments |
-| FRR | upstream: b2c17ad52 backport request to stable/10.4 (pending); NEW zebra bug (addr/route same-batch race) **FILED: https://github.com/FRRouting/frr/issues/22654** (ref: docs/frr-zebra-issue-draft.md); downstream: frr10 RPM backport **filed as RHEL-193997** | `patches/frr/0001-zebra-Do-not-clear-selected-flag-on-route-about-to-b.patch`, `lab/frr-lab-addr-route-race.sh` |
+| FRR | upstream: b2c17ad52 backport request to stable/10.4 (pending); NEW zebra bug (addr/route same-batch race) **FILED: https://github.com/FRRouting/frr/issues/22654** — **root cause FIXED**: branch `table-scoped-early-cleanup` on mkowalski/frr (8989c33); upstream PR against FRRouting/frr referencing #22654 STILL TO SUBMIT (fix forward-ports: master needs the same table check; master already has the vrf scoping + the debug-path UAF fix); downstream: frr10 RPM backport **filed as RHEL-193997** | `patches/frr/0001-zebra-Do-not-clear-selected-flag-on-route-about-to-b.patch`, `patches/frr/0002-zebra-scope-early-route-queue-cleanup-to-the-matchin.patch`, `lab/frr-lab-addr-route-race.sh` |
 | dev-scripts | **PR OPEN** — https://github.com/openshift-metal3/dev-scripts/pull/1929 (`ENABLE_BGP_TOR`, live-validated) | dev-scripts repo |
 
 ## C. Downstream productization
 
-1. **frr10 RPM backport** (el9) of the zebra fix — **filed: RHEL-193997**
+1. **frr10 RPM backport** (el9) of the zebra fixes — **filed: RHEL-193997**
    ("frr10: (upstream backport request) routes pre-existing in kernel table
    are not redistributed", status New 2026-07-10) — the demo overlays the
    binary in the image; production needs the RPM (or ose-frr image carry).
+   NOTE: production now needs BOTH zebra patches in the RPM (SELECTED flag
+   b2c17ad52 + table-scoped early cleanup 8989c33); the second needs its own
+   RHEL bug or an addition to RHEL-193997's scope.
    Owner: whoever owns the frr10 package + ART.
 2. **ocp-build-data**: add `kube-vip` payload member (ose-kube-vip image from
    the fork) BEFORE MCO's image-references change merges — otherwise nightly
@@ -82,8 +85,10 @@ re-assertion as mitigation, and the kube-vip restart kubeconfig/TLS gap (D13).
    - CNO: DONE for the gate-decoupled part — #3047 is a clean 3-commit series
      (render incl. cluster-wide CR, DaemonSet placement, RBAC). Remaining:
      re-vendor + switch to typed VIPManagement access after api merges.
-   - kube-vip: route re-assertion split out as openshift/kube-vip#6.
-     Remaining: second downstream PR (health check + kubeconfig, see B).
+   - kube-vip: route re-assertion split out as openshift/kube-vip#6 — NO
+     LONGER REQUIRED (FRR fix alone is enough, run18); optional hardening,
+     keep-or-close open. Remaining: second downstream PR (health check +
+     kubeconfig, see B).
    - baremetal-runtimecfg: DONE — #395 carries 3 commits, label-node dropped.
 4. **CNO status-manager fix** (desired==0 DaemonSets) — DONE: extracted as
    #3046, BGP-independent, mergeable on its own.
@@ -124,7 +129,9 @@ re-assertion as mitigation, and the kube-vip restart kubeconfig/TLS gap (D13).
     #1627 area) or a TLS/server override.
 14. The realm 1/2 values are visible in `ip route show table 198` output
     ("realm 2") — cosmetic; document or pick dedicated values before
-    productization.
+    productization. NOW MOOT if openshift/kube-vip#6 is dropped (the realm
+    toggle is no longer required — FRR fix alone is enough, run18); only
+    relevant if #6 is kept as defense-in-depth.
 15. MCO/CNO worker-ingress changes: reflected in PR #3047 (CNO), but the MCO
     PR (pending, OPNET-782) must include the `templates/common/` move of
     0020-kube-vip-ingress.yaml (47948106d).
@@ -151,6 +158,6 @@ re-assertion as mitigation, and the kube-vip restart kubeconfig/TLS gap (D13).
 | OPNET-779 | kubevip onboarding | ocp-build-data / ART engagement pending |
 | OPNET-781 | installer | pending api merge |
 | OPNET-782 | mco | pending api merge + OPNET-779 |
-| OPNET-786 | FRR | downstream RPM backport filed: **RHEL-193997** (frr10, el9); upstream stable/10.4 backport request still pending; new zebra bug filed: **FRRouting/frr#22654** |
+| OPNET-786 | FRR | downstream RPM backport filed: **RHEL-193997** (frr10, el9); upstream stable/10.4 backport request still pending; new zebra bug filed: **FRRouting/frr#22654** — root cause fixed (mkowalski/frr 8989c33, `table-scoped-early-cleanup`), upstream PR still to submit |
 | OPNET-778 | PoC | github.com/mkowalski/bgp-vip-demo (complete) |
 | OPNET-621/622/623 | testing/CI | not started |

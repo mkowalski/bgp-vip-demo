@@ -49,7 +49,7 @@ Remote build fallback: metal-u15 (80 cores, 1.5T NVMe).
 | runtimecfg | `podman build -f Dockerfile .` in baremetal-runtimecfg (builders still valid) |
 | kube-vip | worktree the branch first (main checkout is elsewhere): `git worktree add /tmp/kv OPNET-595-bgp-vip-management && podman build -f Dockerfile.openshift /tmp/kv` |
 | cluster-config-api | `podman build -f Dockerfile.ocp ~/git/github.com/openshift-api` |
-| metallb-frr (FRR fix overlay) | 1) build patched zebra: clone FRRouting/frr @ frr-10.4.3, `git am patches/frr/*.patch`, run `build/frr-build.sh` in a `quay.io/centos/centos:stream9` container (mount src + out; el9-compatible glibc 2.34). 2) `podman build build/ -f build/Dockerfile.frr-overlay` (copies zebra over /usr/lib/frr and /usr/libexec/frr). Long-term this belongs in the frr10 RPM — see NEXT-STEPS |
+| metallb-frr (FRR fix overlay) | 1) build patched zebra: clone FRRouting/frr @ frr-10.4.3, `git am patches/frr/*.patch` (TWO patches: 0001 SELECTED flag + 0002 table-scoped early cleanup), run `build/frr-build.sh` in a `quay.io/centos/centos:stream9` container (mount src + out; el9-compatible glibc 2.34). 2) `podman build build/ -f build/Dockerfile.frr-overlay` (copies zebra over /usr/lib/frr and /usr/libexec/frr — BOTH paths, see toolbox). Long-term this belongs in the frr10 RPM — see NEXT-STEPS |
 
 Tag everything `quay.io/mkowalski/<name>:bgp-demo` and push. MCO note:
 `go build ./...` locally fails on 5 gpgme-dependent packages (missing system
@@ -159,7 +159,9 @@ base-nightly baremetal bug ("unsupported platform"), not BGP-related.
 - FRR behavior questions → `lab/frr-lab.sh` pattern: privileged container on
   the exact payload image, dummy iface, table-198 route, iterate configs in
   minutes instead of 75-minute cluster runs. Overlay candidate binaries with
-  `-v ./zebra:/usr/lib/frr/zebra`.
+  `-v ./zebra:/usr/lib/frr/zebra` — AND ALSO `/usr/libexec/frr/zebra`: the
+  image ships zebra at BOTH paths; overlaying only /usr/lib silently runs
+  the unpatched binary (falsely showed the table-scoped fix not working).
 - Live CNO-managed objects get stomped by CNO's sync — hot `oc apply` fixes
   are only good for hypothesis testing; real fixes need the image rebuilt
   (payload tags make that cheap: rebuild + repush + fresh deploy).

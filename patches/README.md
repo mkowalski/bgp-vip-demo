@@ -16,7 +16,7 @@ Apply with `git am` onto the documented base. Rationale for every commit:
 | `kube-vip/` | github.com/kube-vip/kube-vip | `12928dc` (main, 2026-06) | `OPNET-595-bgp-vip-management`; kubeconfig fixes upstream: **PR open: kube-vip/kube-vip#1627** |
 | `baremetal-runtimecfg/` | github.com/openshift/baremetal-runtimecfg | `2f969c7` (master) | `OPNET-595-bgp-vip-management`; upstream-clean subset (label-node dropped, rebased on main): **PR open: openshift/baremetal-runtimecfg#395 (OPNET-785)** |
 | `dev-scripts/` | github.com/openshift-metal3/dev-scripts | `06759b3` (master, 2026-07) | `bgp-tor-speaker` — **PR open: openshift-metal3/dev-scripts#1929** |
-| `frr/` | github.com/FRRouting/frr | tag `frr-10.4.3` | backport of upstream `b2c17ad52` (fixed in 10.7) |
+| `frr/` | github.com/FRRouting/frr | tag `frr-10.4.3` | `table-scoped-early-cleanup` on mkowalski/frr — 0001 = backport of upstream `b2c17ad52` (fixed in 10.7), 0002 = 8989c33 table-scoped early cleanup fix (FRRouting/frr#22654, upstream PR to submit) |
 
 ```bash
 cd <repo> && git checkout -b bgp-vip <base-sha> && git am <this-repo>/patches/<dir>/*.patch
@@ -47,9 +47,14 @@ if `git am` complains, `git am -3` (three-way) resolves minor drift.
 4. **kube-vip** series applies onto upstream `main` (commit above); the fork
    needs the whole series (4 upstreamable fixes + 4 downstream build bits —
    0007/0008 are the run15-17 route re-assertion + realm-toggle fixes).
-5. **frr**: apply onto the `frr-10.4.3` tag; build with
-   `../build/frr-build.sh` in a CentOS Stream 9 container (glibc 2.34 ABI
-   compatible with the RHEL9 runtime image); overlay via
-   `../build/Dockerfile.frr-overlay`. Production destiny: frr10 RPM backport.
+5. **frr**: apply onto the `frr-10.4.3` tag; TWO patches: 0001 (SELECTED-flag
+   backport of upstream b2c17ad52) + 0002 (table-scoped early route queue
+   cleanup, our fix for FRRouting/frr#22654 — upstream master still lacks the
+   table check; PR to submit). Run18 proved the FRR fixes ALONE suffice —
+   the kube-vip realm-toggle workaround is not required with patched zebra.
+   Build with `../build/frr-build.sh` in a CentOS Stream 9 container (glibc
+   2.34 ABI compatible with the RHEL9 runtime image); overlay via
+   `../build/Dockerfile.frr-overlay` (BOTH /usr/lib/frr and /usr/libexec/frr
+   zebra paths). Production destiny: frr10 RPM backport (both patches).
 6. Sequencing for real merges (api first, ocp-build-data before MCO, etc.):
    docs/PATCHES.md "Production sequencing".

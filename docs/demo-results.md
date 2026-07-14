@@ -1,6 +1,6 @@
 # BGP VIP Demo — Results Log
 
-Last updated: 2026-07-13 (scope extension complete, runs 1–17) — ALL DEMO CRITERIA MET ON A FULL CLUSTER (routers on workers)
+Last updated: 2026-07-15 (runs 1–18) — ALL DEMO CRITERIA MET ON A FULL CLUSTER; second zebra bug ROOT-CAUSED AND FIXED — **the FRR fix alone is enough** (run18)
 
 ## Demo acceptance status
 
@@ -24,7 +24,7 @@ layers: mode:all egress is bound to declared router prefixes (deny-any
 otherwise) — solved with high-seq raw route-map permits; and ip import-table
 must be present for zebra to track table 198.
 
-## Resolved: the worker-ingress advertisement race (runs 15-17)
+## Resolved: the worker-ingress advertisement race (runs 15-18) — FRR FIX ALONE IS ENOUGH
 
 Second, distinct zebra bug found while extending scope to workers: when the
 same-prefix interface address (kube-vip AddIP, deprecated /32) and the
@@ -32,11 +32,30 @@ table-198 route arrive in the same netlink batch, zebra keeps the kernel
 route but never imports/redistributes it (lab TEST E,
 `lab/frr-lab-addr-route-race.sh`: 2/5 with `ip -batch`; route→addr order =
 100% broken). NOT covered by the patched 10.4.3 zebra (the SELECTED-flag
-fix, RHEL-193997). Worked around in kube-vip: level-triggered route
+fix, RHEL-193997). Initially worked around in kube-vip: level-triggered route
 re-assertion (6d51cbd) + realm 1↔2 toggle so each replace is a real kernel
-change emitting a netlink event (7d27248) — a no-op replace emits NONE,
-which also broke plain re-assertion in run16. Upstream zebra bug filed:
+change emitting a netlink event (7d27248). Upstream zebra bug filed:
 FRRouting/frr#22654 (see docs/frr-zebra-issue-draft.md).
+
+**Root cause found and FIXED (2026-07-14/15)**: zebra's
+`connected_remove_kernel_for_connected()` (zebra/connected.c) calls
+`rib_meta_queue_early_route_cleanup()` (zebra/zebra_rib.c), which removed
+QUEUED same-prefix kernel routes matching prefix+type only — no table
+comparison — destroying the pending table-198 route when the VIP address's
+connected route arrives in the same batch. Upstream master already scopes by
+afi/safi/vrf_id (and fixed a use-after-free in the debug path that 10.4.3
+still has) but STILL lacks the table check — the bug is alive upstream. Fix
+(~10 lines, commit 8989c33 "zebra: scope early route queue cleanup to the
+matching table", branch `table-scoped-early-cleanup` of mkowalski/frr,
+`patches/frr/0002-*`): scope the cleanup by `table_id` and fix the UAF.
+Lab: addr-route-race 10/10 green, batched 5/5; matrix A–D unchanged.
+
+**Run18 proved THE FRR FIX ALONE IS ENOUGH**: clean install with patched
+zebra + PRE-WORKAROUND kube-vip (byte-identical image to run15's, which
+failed on all 5 nodes) met all criteria with zero manual intervention — no
+realm attribute in kernel routes, so the workaround was provably absent. The
+kube-vip realm-toggle is NO LONGER REQUIRED; it is kept only as optional
+defense-in-depth in openshift/kube-vip#6.
 
 ## Verified working (accumulated across runs)
 
@@ -73,7 +92,7 @@ FRRouting/frr#22654 (see docs/frr-zebra-issue-draft.md).
 
 ## Related documents
 
-- docs/RUN-LEDGER.md — per-run debugging narrative (runs 1-17)
+- docs/RUN-LEDGER.md — per-run debugging narrative (runs 1-18)
 - docs/RUNBOOK.md — operational procedures
 - docs/NEXT-STEPS.md — productization handoff
 - docs/PATCHES.md — authoritative commit inventory (supersedes the list below,
