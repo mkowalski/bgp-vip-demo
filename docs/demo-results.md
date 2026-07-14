@@ -35,8 +35,8 @@ route but never imports/redistributes it (lab TEST E,
 fix, RHEL-193997). Worked around in kube-vip: level-triggered route
 re-assertion (6d51cbd) + realm 1↔2 toggle so each replace is a real kernel
 change emitting a netlink event (7d27248) — a no-op replace emits NONE,
-which also broke plain re-assertion in run16. Upstream zebra bug to file
-(NEXT-STEPS §B).
+which also broke plain re-assertion in run16. Upstream zebra bug filed:
+FRRouting/frr#22654 (see docs/frr-zebra-issue-draft.md).
 
 ## Verified working (accumulated across runs)
 
