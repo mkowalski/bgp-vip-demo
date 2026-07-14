@@ -48,7 +48,7 @@ reference:
 | kube-vip | **PR OPEN** — https://github.com/kube-vip/kube-vip/pull/1627 (manager + backend honor the configured kubeconfig). NOTE: the RT-mode HTTP health check (51e05fd) is ALREADY upstream as kube-vip/kube-vip#1604 (fcd3eec) — drop that patch from the downstream fork on the next rebase. The 2 route re-assertion commits (6d51cbd level-triggered, 7d27248 realm toggle) are **PR OPEN downstream: openshift/kube-vip#6** (cherry-picks 9afbbb6 + 7df5a53, branch mkowalski:route-reassert); upstream kube-vip/kube-vip submission still to follow (needs rebase — upstream main has since reworked pkg/vip/address.go) |
 | FRR (NEW bug) | File upstream: zebra loses an imported kernel-table route when the same-prefix connected address is processed in the same netlink batch (`lab/frr-lab-addr-route-race.sh` is the repro). Distinct from RHEL-193997; the kube-vip realm-toggle is a workaround, not a fix | lab/frr-lab-addr-route-race.sh |
 | frr-k8s (metallb/frr-k8s) | Feature request: advertise redistributed/table-direct routes (CRD egress is bound to declared prefixes; our raw `-out` route-map permits couple to internal naming — fragile across bumps) | **FILED: https://github.com/metallb/frr-k8s/issues/469** (draft + source refs: docs/frr-k8s-feature-request-draft.md); also design note in CNO bgp_vip.go comments |
-| FRR | upstream: b2c17ad52 backport request to stable/10.4 (pending); NEW zebra bug (addr/route same-batch race) **issue draft ready, NOT filed**: docs/frr-zebra-issue-draft.md; downstream: frr10 RPM backport **filed as RHEL-193997** | `patches/frr/0001-zebra-Do-not-clear-selected-flag-on-route-about-to-b.patch`, `lab/frr-lab-addr-route-race.sh` |
+| FRR | upstream: b2c17ad52 backport request to stable/10.4 (pending); NEW zebra bug (addr/route same-batch race) **FILED: https://github.com/FRRouting/frr/issues/22654** (ref: docs/frr-zebra-issue-draft.md); downstream: frr10 RPM backport **filed as RHEL-193997** | `patches/frr/0001-zebra-Do-not-clear-selected-flag-on-route-about-to-b.patch`, `lab/frr-lab-addr-route-race.sh` |
 | dev-scripts | **PR OPEN** — https://github.com/openshift-metal3/dev-scripts/pull/1929 (`ENABLE_BGP_TOR`, live-validated) | dev-scripts repo |
 
 ## C. Downstream productization
@@ -140,6 +140,6 @@ reference:
 | OPNET-779 | kubevip onboarding | ocp-build-data / ART engagement pending |
 | OPNET-781 | installer | pending api merge |
 | OPNET-782 | mco | pending api merge + OPNET-779 |
-| OPNET-786 | FRR | downstream RPM backport filed: **RHEL-193997** (frr10, el9); upstream stable/10.4 backport request still pending |
+| OPNET-786 | FRR | downstream RPM backport filed: **RHEL-193997** (frr10, el9); upstream stable/10.4 backport request still pending; new zebra bug filed: **FRRouting/frr#22654** |
 | OPNET-778 | PoC | github.com/mkowalski/bgp-vip-demo (complete) |
 | OPNET-621/622/623 | testing/CI | not started |

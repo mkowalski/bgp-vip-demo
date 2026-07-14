@@ -1,6 +1,6 @@
-# FRRouting bug report — DRAFT, paste into https://github.com/FRRouting/frr/issues/new (Bug report template)
+# FRRouting bug report — FILED as https://github.com/FRRouting/frr/issues/22654 (2026-07-14)
 
-Suggested title:
+Kept as reference material behind the issue. Title as filed:
 **zebra: imported kernel-table route (`ip import-table`) lost when a same-prefix interface address is added in the same netlink batch**
 
 ---
