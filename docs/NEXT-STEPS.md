@@ -45,7 +45,7 @@ reference:
 
 | Where | What | Artifact |
 |-------|------|----------|
-| kube-vip | **PR OPEN** — https://github.com/kube-vip/kube-vip/pull/1627 (manager + backend honor the configured kubeconfig). NOTE: the RT-mode HTTP health check (51e05fd) is ALREADY upstream as kube-vip/kube-vip#1604 (fcd3eec) — drop that patch from the downstream fork on the next rebase. The fork now carries 2 MORE upstream-able commits (6d51cbd level-triggered route re-assertion, 7d27248 realm toggle) |
+| kube-vip | **PR OPEN** — https://github.com/kube-vip/kube-vip/pull/1627 (manager + backend honor the configured kubeconfig). NOTE: the RT-mode HTTP health check (51e05fd) is ALREADY upstream as kube-vip/kube-vip#1604 (fcd3eec) — drop that patch from the downstream fork on the next rebase. The 2 route re-assertion commits (6d51cbd level-triggered, 7d27248 realm toggle) are **PR OPEN downstream: openshift/kube-vip#6** (cherry-picks 9afbbb6 + 7df5a53, branch mkowalski:route-reassert); upstream kube-vip/kube-vip submission still to follow (needs rebase — upstream main has since reworked pkg/vip/address.go) |
 | FRR (NEW bug) | File upstream: zebra loses an imported kernel-table route when the same-prefix connected address is processed in the same netlink batch (`lab/frr-lab-addr-route-race.sh` is the repro). Distinct from RHEL-193997; the kube-vip realm-toggle is a workaround, not a fix | lab/frr-lab-addr-route-race.sh |
 | frr-k8s (metallb/frr-k8s) | Feature request: advertise redistributed/table-direct routes (CRD egress is bound to declared prefixes; our raw `-out` route-map permits couple to internal naming — fragile across bumps) | design note in CNO bgp_vip.go comments |
 | FRR | upstream: b2c17ad52 backport request to stable/10.4 (pending); downstream: frr10 RPM backport **filed as RHEL-193997** | `patches/frr/0001-zebra-Do-not-clear-selected-flag-on-route-about-to-b.patch` |
@@ -136,7 +136,7 @@ reference:
 | OPNET-783 | cluster-network-operator | #3046 (statusmanager fix) + **#3047 (main BGP series — api-decoupled: local gate constant + unstructured vipManagement read, inert until the gate ships; typed-access follow-up after api merge)** |
 | OPNET-785 | baremetal-runtimecfg | openshift/baremetal-runtimecfg#395 |
 | OPNET-787 | dev-scripts | openshift-metal3/dev-scripts#1929 |
-| OPNET-784 | kubevip | upstream kube-vip/kube-vip#1627; downstream fork branch pushed (incl. 6d51cbd + 7d27248) |
+| OPNET-784 | kubevip | upstream kube-vip/kube-vip#1627; downstream **openshift/kube-vip#6** (route re-assertion, 6d51cbd + 7d27248) |
 | OPNET-779 | kubevip onboarding | ocp-build-data / ART engagement pending |
 | OPNET-781 | installer | pending api merge |
 | OPNET-782 | mco | pending api merge + OPNET-779 |
