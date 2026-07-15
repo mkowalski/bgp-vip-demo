@@ -6,9 +6,8 @@ Status:
   to ocp/5.0 on main + release-5.0 config with disabled promotion; root
   cause of the missing release-5.0 branch was the test-only onboarding —
   no promotion means repo-brancher and private-org sync ignore the repo).
-- ocp-build-data config DRAFTED: branch `ose-kube-vip` on
-  mkowalski/ocp-build-data (bfffc96a, upstream/openshift-5.0 base); PR to
-  openshift-eng to be opened, cross-linking ART-21663.
+- ocp-build-data PR OPEN: openshift-eng/ocp-build-data#11838
+  (base openshift-5.0, commit bfffc96a, titled ART-21663).
 
 ## ART Jira draft (project ART, "New Content Request")
 

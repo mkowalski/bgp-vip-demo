@@ -175,7 +175,7 @@ Resolution (run20):
 | OPNET-785 | baremetal-runtimecfg | openshift/baremetal-runtimecfg#395 |
 | OPNET-787 | dev-scripts | openshift-metal3/dev-scripts#1929 |
 | OPNET-784 | kubevip | upstream: #1627 MERGED, re-assert **kube-vip/kube-vip#1636 OPEN**; downstream **openshift/kube-vip#6** (route re-assertion); second downstream PR (health check + kubeconfig) still to open |
-| OPNET-779 | kubevip onboarding | ART Jira FILED: **ART-21663**; CI promotion **PR OPEN: openshift/release#81957** (images + promotion to ocp/5.0 + release-5.0 config — prerequisite for priv-mirror/branching/payload tag); ocp-build-data config drafted (mkowalski/ocp-build-data branch ose-kube-vip, bfffc96a), PR to open alongside; see docs/kube-vip-art-onboarding.md |
+| OPNET-779 | kubevip onboarding | ART Jira FILED: **ART-21663**; CI promotion **PR OPEN: openshift/release#81957** (images + promotion to ocp/5.0 + release-5.0 config — prerequisite for priv-mirror/branching/payload tag); ocp-build-data **PR OPEN: openshift-eng/ocp-build-data#11838** (base openshift-5.0); see docs/kube-vip-art-onboarding.md |
 | OPNET-781 | installer | pending api merge |
 | OPNET-782 | mco | pending api merge + OPNET-779 |
 | OPNET-786 | FRR | downstream RPM backport filed: **RHEL-193997** (frr10, el9); upstream stable/10.4 backport request still pending; new zebra bug filed: **FRRouting/frr#22654** — root cause fixed (mkowalski/frr 8989c33, `table-scoped-early-cleanup`), upstream PR still to submit |
