@@ -136,6 +136,22 @@ re-assertion as mitigation, and the kube-vip restart kubeconfig/TLS gap (D13).
     PR (pending, OPNET-782) must include the `templates/common/` move of
     0020-kube-vip-ingress.yaml (47948106d).
 
+### D2. import-table is unnecessary (lab-verified 2026-07-15)
+
+FRR docs (10.5, `redistribute table-direct`) and lab tests (stock 10.4.3 +
+fixed zebra; pre-existing and live routes; table 6553) show `table-direct`
+reads the kernel table directly — `ip import-table` is NOT needed and table
+ids up to 65535 work. The run5-era "zebra needs import-table" conclusion was
+an artifact of debugging before the deny-any and zebra bugs were isolated.
+Follow-ups:
+- CNO: drop `ip import-table 198` from buildBGPVIPRawConfig (also removes the
+  side effect of copying table-198 routes into the main RIB at distance 15).
+- MCO: drop it from the bootstrap frr.conf.tmpl.
+- Revalidate on cluster; update the frr-k8s design PR expectations (#470
+  already updated to reflect this).
+- Note: FRRouting/frr#22654 repro is unaffected (the early-queue drop happens
+  before any import), but the issue text mentions import-table — harmless.
+
 ## E. Tech Preview criteria (EP graduation) not started
 
 - 5+ e2e tests `[OCPFeatureGate:BGPBasedVIPManagement]`, CI 7x/week (BGP peer
