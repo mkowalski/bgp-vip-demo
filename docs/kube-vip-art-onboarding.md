@@ -1,8 +1,14 @@
 # ART onboarding — ose-kube-vip payload member (OPNET-779)
 
-Status: ocp-build-data config DRAFTED, branch `ose-kube-vip` on
-mkowalski/ocp-build-data (commit bfffc96a, based on upstream/openshift-5.0).
-PR to openshift-eng/ocp-build-data and the ART Jira: to be filed by Mat.
+Status:
+- ART Jira FILED: ART-21663.
+- CI promotion PR OPEN: openshift/release#81957 (images stanza + promotion
+  to ocp/5.0 on main + release-5.0 config with disabled promotion; root
+  cause of the missing release-5.0 branch was the test-only onboarding —
+  no promotion means repo-brancher and private-org sync ignore the repo).
+- ocp-build-data config DRAFTED: branch `ose-kube-vip` on
+  mkowalski/ocp-build-data (bfffc96a, upstream/openshift-5.0 base); PR to
+  openshift-eng to be opened, cross-linking ART-21663.
 
 ## ART Jira draft (project ART, "New Content Request")
 
