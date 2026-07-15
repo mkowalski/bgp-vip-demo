@@ -70,7 +70,10 @@ re-assertion as mitigation, and the kube-vip restart kubeconfig/TLS gap (D13).
    Owner: whoever owns the frr10 package + ART.
 2. **ocp-build-data**: add `kube-vip` payload member (ose-kube-vip image from
    the fork) BEFORE MCO's image-references change merges — otherwise nightly
-   payload assembly breaks (unresolvable tag).
+   payload assembly breaks (unresolvable tag). Config DRAFTED:
+   images/ose-kube-vip.yml on mkowalski/ocp-build-data branch ose-kube-vip
+   (bfffc96a, openshift-5.0 base, modeled on baremetal-runtimecfg rhel9);
+   ART Jira draft + onboarding checklist: docs/kube-vip-art-onboarding.md.
 3. **PR strategy per repo** (all branches carry demo shortcuts to unwind):
    - openshift/api: DONE — #2923 is 2 clean commits, rebased onto master
      2026-07-14 with regen folded per commit; awaiting api-approver review.
@@ -172,7 +175,7 @@ Resolution (run20):
 | OPNET-785 | baremetal-runtimecfg | openshift/baremetal-runtimecfg#395 |
 | OPNET-787 | dev-scripts | openshift-metal3/dev-scripts#1929 |
 | OPNET-784 | kubevip | upstream: #1627 MERGED, re-assert **kube-vip/kube-vip#1636 OPEN**; downstream **openshift/kube-vip#6** (route re-assertion); second downstream PR (health check + kubeconfig) still to open |
-| OPNET-779 | kubevip onboarding | ocp-build-data / ART engagement pending |
+| OPNET-779 | kubevip onboarding | ocp-build-data config drafted (mkowalski/ocp-build-data branch ose-kube-vip, bfffc96a); ART Jira + PR to file — see docs/kube-vip-art-onboarding.md |
 | OPNET-781 | installer | pending api merge |
 | OPNET-782 | mco | pending api merge + OPNET-779 |
 | OPNET-786 | FRR | downstream RPM backport filed: **RHEL-193997** (frr10, el9); upstream stable/10.4 backport request still pending; new zebra bug filed: **FRRouting/frr#22654** — root cause fixed (mkowalski/frr 8989c33, `table-scoped-early-cleanup`), upstream PR still to submit |
