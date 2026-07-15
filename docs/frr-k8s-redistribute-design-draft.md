@@ -1,7 +1,8 @@
 # Redistribution Support for FRRConfiguration
 
-DRAFT — target: metallb/frr-k8s `design/redistribute-support.md`. Not pushed.
+Submitted as https://github.com/metallb/frr-k8s/pull/470 (2026-07-15).
 Companion to https://github.com/metallb/frr-k8s/issues/469.
+This file is the reference copy; the PR is authoritative.
 
 ## Summary
 
