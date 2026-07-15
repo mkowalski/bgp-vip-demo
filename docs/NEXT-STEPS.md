@@ -140,7 +140,8 @@ re-assertion as mitigation, and the kube-vip restart kubeconfig/TLS gap (D13).
     FRRConfiguration neighbor `password` field. frr-k8s supports
     `passwordSecret` (basic-auth Secret ref) — switch installer to emit a
     Secret + CNO to reference it (flagged by review on #3047; needs
-    OPNET-781). 16. MCO/CNO worker-ingress changes: reflected in PR #3047 (CNO), but the MCO
+    OPNET-781).
+16. MCO/CNO worker-ingress changes: reflected in PR #3047 (CNO), but the MCO
     PR (pending, OPNET-782) must include the `templates/common/` move of
     0020-kube-vip-ingress.yaml (47948106d).
 
