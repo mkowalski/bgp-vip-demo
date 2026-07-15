@@ -3,6 +3,9 @@
 Submitted as https://github.com/metallb/frr-k8s/pull/470 (2026-07-15).
 Companion to https://github.com/metallb/frr-k8s/issues/469.
 This file is the reference copy; the PR is authoritative.
+Revision 3155856 addressed review: dual-stack section, VRF-scoped
+route-map/prefix-list names, egress permits only for mode:all neighbors,
+Validation section restored.
 
 ## Summary
 
@@ -14,7 +17,7 @@ The CRD only bounds which prefixes may leave.
 ## Motivation
 
 Some agents signal per-node state through kernel routes.
-Example: a health checker installs a /32 into table 198 while a local backend is healthy.
+Example: a health checker (kubevip) installs a /32 into table 198 while a local backend is healthy.
 FRR should advertise that route only while it exists.
 This gives automatic per-node withdrawal and ECMP across healthy nodes.
 
@@ -23,12 +26,10 @@ Today the CRD cannot express this:
 1. `router.prefixes` renders unconditional `network` statements. This bypasses the gating.
 2. `toAdvertise.allowed.mode: all` only allows prefixes declared in `router.prefixes`. Redistributed routes are always filtered out on egress.
 
-The only workaround is `rawConfig`.
-It must append permits to the generated `<neighbor>-out` route-maps.
-That couples user config to internal naming and sequence numbers.
-It silently breaks across frr-k8s upgrades.
+The only workaround is `rawConfig`. It must append permits to the generated `<neighbor>-out` route-maps.
+That couples user config to internal naming and sequence numbers. It can silently break on frr-k8s upgrade.
 
-OpenShift's BGP-based VIP management uses this pattern in production and carries the fragile rawConfig today.
+OpenShift's BGP-based VIP management plans to use this pattern in production and carries the fragile rawConfig today in the POC.
 
 ### Goals
 
@@ -85,50 +86,54 @@ Fields:
 - `table`: kernel table id. Required for `table-direct`.
 - `allowedPrefixes`: prefixes permitted to leave. Required. No implicit "all".
 
+### Dual-stack
+
+`allowedPrefixes` may mix IPv4 and IPv6. The renderer splits them by family.
+Each family gets its own route-map, prefix-list and `address-family` block.
+A family with no prefixes renders nothing. No validation against neighbor families is needed.
+`table-direct` supports both families in FRR.
+
 ### Generated FRR Configuration
+
+Names are scoped by VRF and family: `redistribute-<vrf>-<table>-<family>`.
+Route-maps and prefix-lists are global in FRR.
+Scoping prevents collisions when different VRFs redistribute the same table id.
 
 ```
 ip import-table 198
 router bgp 64512
  address-family ipv4 unicast
-  redistribute table-direct 198 route-map redistribute-198-ipv4
-route-map redistribute-198-ipv4 permit 1
- match ip address prefix-list redistribute-198-allowed-ipv4
-route-map redistribute-198-ipv4 deny 2
-ip prefix-list redistribute-198-allowed-ipv4 seq 1 permit 192.168.111.4/32
-ip prefix-list redistribute-198-allowed-ipv4 seq 2 permit 192.168.111.5/32
+  redistribute table-direct 198 route-map redistribute-default-198-ipv4
+route-map redistribute-default-198-ipv4 permit 1
+ match ip address prefix-list redistribute-default-198-allowed-ipv4
+route-map redistribute-default-198-ipv4 deny 2
+ip prefix-list redistribute-default-198-allowed-ipv4 seq 1 permit 192.168.111.4/32
+ip prefix-list redistribute-default-198-allowed-ipv4 seq 2 permit 192.168.111.5/32
 ```
 
-Egress: the same `allowedPrefixes` are appended as permit entries to each neighbor's generated `-out` route-map.
+IPv6 prefixes render the same under `address-family ipv6 unicast`, with `ipv6 prefix-list` and `-ipv6` names.
+
+Egress: the `allowedPrefixes` permits are appended **only** to the `-out` route-maps of neighbors with `toAdvertise.allowed.mode: all`.
+Neighbors with explicit `allowed.prefixes` are untouched.
+They advertise a redistributed prefix only if it is also in their own allow-list.
 `toAdvertise` semantics for declared prefixes stay unchanged.
-Neighbors with `mode: all` also advertise redistributed routes.
-Neighbors with explicit `allowed.prefixes` do not, unless the prefixes overlap.
 
 Note: `zebra` needs `ip import-table <n>` for `redistribute table-direct <n>` to see the table.
 The renderer emits it automatically.
+The IPv6 zebra visibility path will be verified during implementation and covered by a dual-stack e2e.
 
 ### Validation
 
-- Webhook rejects `table` outside 1-252 and reserved tables (253-255).
-- Webhook rejects empty `allowedPrefixes`.
-- Webhook rejects duplicate `table` entries per router.
-- Merge across FRRConfigurations: union of `allowedPrefixes` for the same table; conflict-free by construction.
-
-### Known FRR caveats
-
-Two zebra bugs affect table-direct redistribution.
-Both were found while validating this pattern:
-
-- Pre-existing routes lose the SELECTED flag on import. Fixed upstream in 10.7 (b2c17ad52).
-- A queued kernel route is dropped when a same-prefix address arrives in the same netlink batch. Open: FRRouting/frr#22654.
-
-The feature should document the minimum FRR version once both fixes land.
+- Reject `table` outside 1-252.
+- Reject empty `allowedPrefixes`.
+- Reject duplicate `table` entries within one router.
+- The same table in different VRFs is legal. Scoped names keep it collision-free.
+- Merge across FRRConfigurations: union of `allowedPrefixes` per (vrf, table).
 
 ## Alternatives Considered
 
-- **Extend `toAdvertise` with a redistribution source.** More invasive. `toAdvertise` is per-neighbor; redistribution is per-router. Rejected.
-- **Keep rawConfig.** Fragile coupling to generated names. Rejected — that is the problem statement.
-- **CRD-declared prefixes (`network` statements).** Unconditional. Defeats health gating. Rejected.
+- **Keep rawConfig.** Fragile and defeats the purpose.
+- **CRD-declared prefixes (`network` statements).** Unconditional. Defeats health gating.
 
 ## Test Plan
 
