@@ -135,7 +135,12 @@ re-assertion as mitigation, and the kube-vip restart kubeconfig/TLS gap (D13).
     productization. NOW MOOT if openshift/kube-vip#6 is dropped (the realm
     toggle is no longer required — FRR fix alone is enough, run18); only
     relevant if #6 is kept as defense-in-depth.
-15. MCO/CNO worker-ingress changes: reflected in PR #3047 (CNO), but the MCO
+15. BGP peer password handling: the installer writes it into the
+    bgp-vip-config ConfigMap and CNO copies it plaintext into the
+    FRRConfiguration neighbor `password` field. frr-k8s supports
+    `passwordSecret` (basic-auth Secret ref) — switch installer to emit a
+    Secret + CNO to reference it (flagged by review on #3047; needs
+    OPNET-781). 16. MCO/CNO worker-ingress changes: reflected in PR #3047 (CNO), but the MCO
     PR (pending, OPNET-782) must include the `templates/common/` move of
     0020-kube-vip-ingress.yaml (47948106d).
 
