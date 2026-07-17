@@ -118,7 +118,14 @@ re-assertion as mitigation, and the kube-vip restart kubeconfig/TLS gap (D13).
    design statement.
 7. kube-vip: EP-fidelity decision on leadership-gating the RT loop (see A2).
 8. frr-status/metrics: metrics exporter dropped from static pods (no cert
-   provisioning); needed for the TP observability criteria.
+   provisioning). RESOLUTION PROTOTYPED (see RUN-LEDGER "proto" row):
+   masters-only companion DaemonSet reads the static FRR via hostPath
+   sockets, serves TLS with the serving cert, scraped by Prometheus —
+   validated live. To productize: MCO template hostPath volumes (+tmpfiles.d
+   perms), CNO companion manifest with dedicated Service/ServiceMonitor +
+   PrometheusRule, then optionally move frr-status there too (shrinks the
+   node-bootstrapper RBAC). Cheap alternative for the bare TP criterion:
+   kube-state-metrics custom-resource-state config over BGPSessionState.
 9. `openshift-kube-vip` namespace never created (mirror-pod noise only).
 10. Strict L3 validation: demo used in-subnet VIPs (L2 ARP fallback masks BGP
     failures); run an off-subnet-VIP variant (needs DNS overrides in
