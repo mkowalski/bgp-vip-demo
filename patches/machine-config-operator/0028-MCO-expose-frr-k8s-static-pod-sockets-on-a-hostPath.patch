@@ -1,0 +1,65 @@
+From f1784cd7e28073c19fb15a08b89d72dcd866df85 Mon Sep 17 00:00:00 2001
+From: Mat Kowalski <mko@redhat.com>
+Date: Fri, 17 Jul 2026 17:43:36 +0200
+Subject: [PATCH] MCO: expose frr-k8s static pod sockets on a hostPath
+
+The CNO-managed metrics companion DaemonSet reads the static pod's FRR
+through /run/frr-k8s (static pods cannot mount the metrics serving-cert
+Secret themselves). tmpfiles.d provides the 100:101-owned directories
+both sides expect.
+---
+ .../00-master/on-prem/files/0000-frr-k8s.yaml  | 10 ++++++++--
+ .../units/frr-k8s-hostpath.service.yaml        | 18 ++++++++++++++++++
+ 2 files changed, 26 insertions(+), 2 deletions(-)
+ create mode 100644 templates/master/00-master/on-prem/units/frr-k8s-hostpath.service.yaml
+
+diff --git a/templates/master/00-master/on-prem/files/0000-frr-k8s.yaml b/templates/master/00-master/on-prem/files/0000-frr-k8s.yaml
+index 351de8455..008e213be 100644
+--- a/templates/master/00-master/on-prem/files/0000-frr-k8s.yaml
++++ b/templates/master/00-master/on-prem/files/0000-frr-k8s.yaml
+@@ -231,10 +231,16 @@ contents:
+       - name: resource-dir
+         hostPath:
+           path: /etc/kubernetes/static-pod-resources/frr-k8s
++      # hostPath (not emptyDir) so the CNO-managed metrics companion
++      # DaemonSet can reach the FRR sockets; perms via tmpfiles.d.
+       - name: frr-conf
+-        emptyDir: {}
++        hostPath:
++          path: /run/frr-k8s/conf
++          type: DirectoryOrCreate
+       - name: frr-sockets
+-        emptyDir: {}
++        hostPath:
++          path: /run/frr-k8s/sockets
++          type: DirectoryOrCreate
+       - name: reloader
+         emptyDir: {}
+       - name: frr-status
+diff --git a/templates/master/00-master/on-prem/units/frr-k8s-hostpath.service.yaml b/templates/master/00-master/on-prem/units/frr-k8s-hostpath.service.yaml
+new file mode 100644
+index 000000000..3c73a4f8a
+--- /dev/null
++++ b/templates/master/00-master/on-prem/units/frr-k8s-hostpath.service.yaml
+@@ -0,0 +1,18 @@
++name: frr-k8s-hostpath.service
++enabled: {{if isBGPVIPManagement .}}true{{else}}false{{end}}
++contents: |
++  [Unit]
++  Description=Prepare the frr-k8s static pod hostPath directories
++  # /run/frr-k8s is shared between the frr-k8s static pod and the
++  # CNO-managed metrics companion DaemonSet. 0777 mirrors emptyDir
++  # semantics: FRR daemons run as uid 100 while watchfrr runs as root
++  # without CAP_DAC_OVERRIDE.
++  Before=kubelet-dependencies.target
++
++  [Service]
++  Type=oneshot
++  RemainAfterExit=yes
++  ExecStart=/bin/bash -c 'mkdir -p /run/frr-k8s/sockets /run/frr-k8s/conf && chmod 0777 /run/frr-k8s/sockets /run/frr-k8s/conf'
++
++  [Install]
++  WantedBy=kubelet-dependencies.target
+-- 
+2.55.0
+
