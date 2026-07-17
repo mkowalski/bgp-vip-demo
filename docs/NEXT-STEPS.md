@@ -119,7 +119,7 @@ re-assertion as mitigation, and the kube-vip restart kubeconfig/TLS gap (D13).
 7. kube-vip: EP-fidelity decision on leadership-gating the RT loop (see A2).
 8. frr-status/metrics — RESOLVED (run21): masters-only companion DaemonSet
    validated on a clean install, full 5-node metric coverage in Prometheus.
-   CNO e192ecdb2 + MCO f1784cd7e (dev branches); fold into #3047 and the MCO
+   CNO a099392f2 + MCO f1784cd7e (dev branches); fold into #3047 and the MCO
    PR. Remaining optional: move frr-status to the companion (RBAC shrink),
    PrometheusRule alerts. Original notes:
    masters-only companion DaemonSet reads the static FRR via hostPath

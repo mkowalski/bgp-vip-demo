@@ -1,4 +1,4 @@
-From e192ecdb298fecb99e22bab593211bdb3a5f00e9 Mon Sep 17 00:00:00 2001
+From a099392f2a5a088563d8b558668b498e37fe12c6 Mon Sep 17 00:00:00 2001
 From: Mat Kowalski <mko@redhat.com>
 Date: Fri, 17 Jul 2026 17:41:41 +0200
 Subject: [PATCH] CNO: metrics companion DaemonSet for the frr-k8s static pods
@@ -10,17 +10,17 @@ serves TLS with a serving certificate, scraped via its own Service and
 ServiceMonitor. Requires the MCO static pod to expose its sockets on the
 same hostPath. Prototype validated live before this commit.
 ---
- bindata/network/frr-k8s/master-monitor.yaml | 138 ++++++++++++++++++++
+ bindata/network/frr-k8s/master-monitor.yaml | 132 ++++++++++++++++++++
  pkg/network/render_test.go                  |   2 +-
- 2 files changed, 139 insertions(+), 1 deletion(-)
+ 2 files changed, 133 insertions(+), 1 deletion(-)
  create mode 100644 bindata/network/frr-k8s/master-monitor.yaml
 
 diff --git a/bindata/network/frr-k8s/master-monitor.yaml b/bindata/network/frr-k8s/master-monitor.yaml
 new file mode 100644
-index 000000000..958c2052f
+index 000000000..c1cab185d
 --- /dev/null
 +++ b/bindata/network/frr-k8s/master-monitor.yaml
-@@ -0,0 +1,138 @@
+@@ -0,0 +1,132 @@
 +{{ if .BGPVIPManagement }}
 +# Metrics companion for the frr-k8s static pods on control plane nodes.
 +# Static pods cannot mount Secrets, so the FRR metrics exporter runs here
@@ -57,9 +57,6 @@ index 000000000..958c2052f
 +      initContainers:
 +      - name: cp-metrics
 +        image: {{.FRRK8sImage}}
-+        securityContext:
-+          runAsUser: 100
-+          runAsGroup: 101
 +        command: ["/bin/sh", "-c", "cp -f /frr-metrics /etc/frr_metrics/"]
 +        terminationMessagePolicy: FallbackToLogsOnError
 +        volumeMounts:
@@ -68,9 +65,6 @@ index 000000000..958c2052f
 +      containers:
 +      - name: frr-metrics
 +        image: {{.FRRK8sImage}}
-+        securityContext:
-+          runAsUser: 100
-+          runAsGroup: 101
 +        command: ["/etc/frr_metrics/frr-metrics"]
 +        args:
 +        - --metrics-port=9141
