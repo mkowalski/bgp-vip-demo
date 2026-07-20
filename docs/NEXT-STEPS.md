@@ -119,8 +119,8 @@ re-assertion as mitigation, and the kube-vip restart kubeconfig/TLS gap (D13).
 7. kube-vip: EP-fidelity decision on leadership-gating the RT loop (see A2).
 8. frr-status/metrics — RESOLVED (run21): masters-only companion DaemonSet
    validated on a clean install, full 5-node metric coverage in Prometheus.
-   CNO a099392f2 + MCO f1784cd7e (dev branches); fold into #3047 and the MCO
-   PR. Remaining optional: move frr-status to the companion (RBAC shrink),
+   CNO folded into #3047 (45184c046, 4th commit) + MCO f1784cd7e (dev branch,
+   goes into the MCO PR). Remaining optional: move frr-status to the companion (RBAC shrink),
    PrometheusRule alerts. Original notes:
    masters-only companion DaemonSet reads the static FRR via hostPath
    sockets, serves TLS with the serving cert, scraped by Prometheus —
@@ -191,7 +191,7 @@ Resolution (run20):
 |---|---|---|
 | OPNET-773 | enhancements | openshift/enhancements#1982 (first findings pass in; second pass pending — see A2) |
 | OPNET-780 | openshift/api | openshift/api#2923 (rebased+regen 2026-07-14, awaiting api-approver review) |
-| OPNET-783 | cluster-network-operator | #3046 (statusmanager fix) + **#3047 (main BGP series — api-decoupled: local gate constant + unstructured vipManagement read, inert until the gate ships; typed-access follow-up after api merge)** |
+| OPNET-783 | cluster-network-operator | #3046 (statusmanager fix) + **#3047 (main BGP series, 4 commits incl. the static pod metrics companion — api-decoupled: local gate constant + unstructured vipManagement read, inert until the gate ships; typed-access follow-up after api merge)** |
 | OPNET-785 | baremetal-runtimecfg | openshift/baremetal-runtimecfg#395 |
 | OPNET-787 | dev-scripts | openshift-metal3/dev-scripts#1929 |
 | OPNET-784 | kubevip | upstream: #1627 MERGED, re-assert **kube-vip/kube-vip#1636 OPEN**; downstream **openshift/kube-vip#6** (route re-assertion); second downstream PR (health check + kubeconfig) still to open |
