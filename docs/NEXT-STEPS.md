@@ -204,8 +204,8 @@ SA token unmount (exporter TokenReviews its scrapers).
 
 | Subtask | Repo | PR |
 |---|---|---|
-| OPNET-773 | enhancements | openshift/enhancements#1982 (first findings pass in; second pass pending — see A2) |
-| OPNET-780 | openshift/api | openshift/api#2923 (rebased+regen 2026-07-14, awaiting api-approver review) |
+| OPNET-773 | enhancements | openshift/enhancements#1982 (first findings pass + TP BGPVIPConfig CRD design 59b32c7f; remaining second-pass items — see A2) |
+| OPNET-780 | openshift/api | openshift/api#2923 (vipManagement immutability CEL added 2026-07-20 per review agreement; awaiting api-approver review). Agreed with MCO reviewer: JSON blob OK for DevPreview, structured BGPVIPConfig CRD for TechPreview (design in EP 59b32c7f) |
 | OPNET-783 | cluster-network-operator | #3046 (statusmanager fix) + **#3047 (main BGP series, 4 commits incl. the static pod metrics companion — api-decoupled: local gate constant + unstructured vipManagement read, inert until the gate ships; typed-access follow-up after api merge)** |
 | OPNET-785 | baremetal-runtimecfg | openshift/baremetal-runtimecfg#395 |
 | OPNET-787 | dev-scripts | openshift-metal3/dev-scripts#1929 |
