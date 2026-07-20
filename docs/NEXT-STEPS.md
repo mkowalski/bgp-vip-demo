@@ -4,6 +4,70 @@ What remains between "working dev demo" and Tech Preview per the enhancement's
 graduation criteria. Ordered by dependency. Anyone picking this up: read
 README.md → demo-results.md → RUN-LEDGER.md first; RUNBOOK.md to reproduce.
 
+## Implementation plan (POC green as of run22)
+
+State: the PoC is fully validated (22 clean installs; API+ingress VIPs over
+BGP, worker routers, failover, metrics from every node). The trigger for the
+next implementation wave is **openshift/api#2923 merging in its current
+DevPreview form** (JSON blob on ControllerConfig — structured API agreed for
+TechPreview, EP 066d3556).
+
+### Phase 0 — now, nothing blocked (parallel)
+
+1. Review-chase the unblocked PRs: api#2923 (api-approvers), CNO #3046 +
+   #3047 (jcaamano), runtimecfg#395, openshift/release#81957 (DPTP; post
+   `/pj-rehearse ack` — release-5.0 rehearsals fail until the branch exists).
+2. Post the drafted replies on the 8 open EP threads (see session notes;
+   BGPVIPStatus one is answered by 6d527fe4) and fold the remaining A2
+   items into the EP.
+3. Open the second downstream openshift/kube-vip PR: 51e05fd (health check,
+   upstream #1604 cherry-pick) + kubeconfig commits (until a rebase past
+   upstream #1627).
+4. Jira hygiene: target version 5.0.0 on OPNET-784 and OPNET-779/783.
+5. Prepare the MCO PR series offline (squash the -dev/-vendored layering;
+   MUST include 47948106d templates/common move and 1a13a1ea5
+   hostPath+boot-unit; fold hardening D1/D2) so it opens within hours of
+   the api merge.
+
+### Phase 1 — once api#2923 merges
+
+1. installer PR (OPNET-781): rebase the -vendored branch, re-vendor the
+   merged api; carries types+validation, bgp-vip-config asset, Infra
+   vipManagement, FRR provider enablement.
+2. MCO PR (OPNET-782): vendored api replaces the local-path go.mod hack;
+   split if useful: templates/render (needs api only) vs image-references
+   (ALSO needs #81957 + ART-21663/ocp-build-data#11838 — hard ordering,
+   payload breaks otherwise).
+3. CNO typed-access follow-up: re-vendor, swap the unstructured
+   vipManagement read + local gate constant for the typed field and
+   generated FeatureGateBGPBasedVIPManagement.
+
+### Phase 2 — DevPreview complete in-payload
+
+1. Nightly with the gate: install a DevPreviewNoUpgrade cluster from a real
+   nightly (no custom payload) — the first end-to-end proof outside the PoC
+   harness.
+2. e2e enablement (OPNET-621/622/623): ToR-container pattern from
+   dev-scripts#1929 into an openshift/release lane; 5+ gate-tagged tests
+   (install, failover, dual-stack) per graduation criteria.
+3. Known-gap burndown that doesn't need the TP API: dual-stack validation
+   (D4), strict L3 / off-subnet VIPs (D10), BFD/multi-rack exercises (D11),
+   CEL VAP for per-node state writes (D3).
+
+### Phase 3 — TechPreview
+
+1. Structured BGP API per EP: preferred Infra.spec.platformSpec.baremetal.bgp
+   (fallback dedicated CRD) + passwordSecretRef (D15) + NodeDisruptionPolicy
+   for peer-file changes (D6).
+2. PrometheusRule alerts on the run22 metrics; optionally move frr-status to
+   the companion (shrinks node-bootstrapper RBAC).
+3. Gate DevPreviewNoUpgrade → TechPreviewNoUpgrade; CI 7x/week.
+
+External tracks that land on their own clocks: FRR #22654 (fix branch
+table-scoped-early-cleanup ready; upstream PR + RHEL-193997 scope extension),
+kube-vip #1636 (removes the need for the FRR fix to be urgent), frr-k8s
+#469/#470 (eventually deletes CNO's rawConfig).
+
 ## A. Enhancement text corrections (PR 1982) — DONE
 
 Incorporated into PR 1982 (commit a52da909, pushed 2026-07-09): all seven
