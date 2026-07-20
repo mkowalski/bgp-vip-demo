@@ -1,0 +1,112 @@
+From d9a13552b8566c4d16997ee6b6ad1cc7eb3b1a64 Mon Sep 17 00:00:00 2001
+From: Mat Kowalski <mko@redhat.com>
+Date: Mon, 20 Jul 2026 12:05:10 +0200
+Subject: [PATCH] CNO: harden the metrics companion (sync from #3047 review)
+
+hostNetwork dropped (pod-network scrape), allowPrivilegeEscalation
+false, readOnlyRootFilesystem, caps drop ALL (+DAC_OVERRIDE for
+frr-metrics: vtysh needs root, the sockets belong to the frr user),
+seccomp RuntimeDefault, tcpSocket probes.
+---
+ bindata/network/frr-k8s/master-monitor.yaml | 50 ++++++++++++++++++++-
+ pkg/network/render_test.go                  |  2 +-
+ 2 files changed, 50 insertions(+), 2 deletions(-)
+
+diff --git a/bindata/network/frr-k8s/master-monitor.yaml b/bindata/network/frr-k8s/master-monitor.yaml
+index c1cab185d..de4062144 100644
+--- a/bindata/network/frr-k8s/master-monitor.yaml
++++ b/bindata/network/frr-k8s/master-monitor.yaml
+@@ -25,7 +25,6 @@ spec:
+         component: frr-k8s-master-monitor
+     spec:
+       serviceAccountName: frr-k8s-daemon
+-      hostNetwork: true
+       nodeSelector:
+         kubernetes.io/os: linux
+         node-role.kubernetes.io/master: ""
+@@ -35,6 +34,13 @@ spec:
+       - name: cp-metrics
+         image: {{.FRRK8sImage}}
+         command: ["/bin/sh", "-c", "cp -f /frr-metrics /etc/frr_metrics/"]
++        securityContext:
++          allowPrivilegeEscalation: false
++          readOnlyRootFilesystem: true
++          capabilities:
++            drop: ["ALL"]
++          seccompProfile:
++            type: RuntimeDefault
+         terminationMessagePolicy: FallbackToLogsOnError
+         volumeMounts:
+         - name: metrics
+@@ -51,6 +57,26 @@ spec:
+         ports:
+         - containerPort: 9141
+           name: frrmetricshttps
++        # Root without extra capabilities except DAC_OVERRIDE: vtysh requires
++        # root, and the FRR vty sockets are owned by the frr user (100).
++        securityContext:
++          allowPrivilegeEscalation: false
++          readOnlyRootFilesystem: true
++          capabilities:
++            drop: ["ALL"]
++            add: ["DAC_OVERRIDE"]
++          seccompProfile:
++            type: RuntimeDefault
++        readinessProbe:
++          tcpSocket:
++            port: 9141
++          initialDelaySeconds: 5
++          periodSeconds: 10
++        livenessProbe:
++          tcpSocket:
++            port: 9141
++          initialDelaySeconds: 10
++          periodSeconds: 30
+         resources:
+           requests:
+             cpu: 10m
+@@ -103,6 +129,28 @@ spec:
+   sessionAffinity: None
+   type: ClusterIP
+ ---
++# The namespace carries a default-deny NetworkPolicy; the worker DaemonSet
++# is exempt as hostNetwork, the pod-network companion is not.
++apiVersion: networking.k8s.io/v1
++kind: NetworkPolicy
++metadata:
++  name: frr-k8s-master-monitor
++  namespace: openshift-frr-k8s
++spec:
++  podSelector:
++    matchLabels:
++      component: frr-k8s-master-monitor
++  policyTypes:
++  - Ingress
++  ingress:
++  - from:
++    - namespaceSelector:
++        matchLabels:
++          kubernetes.io/metadata.name: openshift-monitoring
++    ports:
++    - protocol: TCP
++      port: 9141
++---
+ apiVersion: monitoring.coreos.com/v1
+ kind: ServiceMonitor
+ metadata:
+diff --git a/pkg/network/render_test.go b/pkg/network/render_test.go
+index 65c755d6b..2124a60c8 100644
+--- a/pkg/network/render_test.go
++++ b/pkg/network/render_test.go
+@@ -651,7 +651,7 @@ func Test_renderAdditionalRoutingCapabilitiesBGPVIPManagement(t *testing.T) {
+ 	// BGP VIP management active: the DaemonSet must avoid masters by role.
+ 	got, err := renderAdditionalRoutingCapabilities(operConf, manifestDir, bootstrapResult, featureGates)
+ 	g.Expect(err).NotTo(HaveOccurred())
+-	g.Expect(got).To(HaveLen(28))
++	g.Expect(got).To(HaveLen(29))
+ 	affinity, found := daemonSetAffinity(got)
+ 	g.Expect(found).To(BeTrue())
+ 	terms, found, err := uns.NestedSlice(affinity, "nodeAffinity", "requiredDuringSchedulingIgnoredDuringExecution", "nodeSelectorTerms")
+-- 
+2.55.0
+

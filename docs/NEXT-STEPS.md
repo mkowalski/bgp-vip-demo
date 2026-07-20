@@ -176,16 +176,17 @@ Resolution (run20):
 - FRRouting/frr#22654 repro is unaffected (the early-queue drop happens
   before any import), but the issue text mentions import-table — harmless.
 
-### D8-followup. Metrics companion hardening — PENDING LIVE RE-VALIDATION
+### D8-followup. Metrics companion hardening — VALIDATED (run22)
 
 Review round on #3047 hardened the companion (07be6312d): hostNetwork
 removed (pod-network scrape), allowPrivilegeEscalation false,
 readOnlyRootFilesystem, caps drop ALL (+DAC_OVERRIDE on frr-metrics only:
 vtysh needs root but root does not own the frr-user sockets), seccomp
-RuntimeDefault, tcpSocket probes. Unit tests green; NOT yet live-validated
-(metal-u15 down when pushed). On next deploy verify: companion Ready,
-metrics scraped from masters over POD network, readOnlyRootFilesystem does
-not break vtysh/frr-metrics temp files, probes pass. Declined from the
+RuntimeDefault, tcpSocket probes. Run22 clean-install validated after two hot-caught fixes: the MCO boot
+unit regained `chcon container_file_t` (losing hostNetwork loses spc_t ->
+MCS confinement) and the companion gained a NetworkPolicy (namespace
+default-deny never applied to hostNetwork pods; ingress 9141 from
+monitoring + egress 443/6443 for TokenReview). All 7 frr targets up. Declined from the
 review: CPU/memory limits (deliberate, matches the frr-k8s DS
 requests-only convention), runAsNonRoot (vtysh requires root - run21),
 SA token unmount (exporter TokenReviews its scrapers).
