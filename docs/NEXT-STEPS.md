@@ -43,11 +43,8 @@ reference:
 
 ### A2. EP second findings pass — TODO
 
-PR 1982 predates the worker-ingress scope extension. Still to incorporate:
-drop `BGPVIPStatus` from the BareMetalPlatformStatus sketch (deliberately not
-in openshift/api#2923: the BGP/keepalived signal is `vipManagement`; health is
-per-node in frr-k8s BGPSessionState/FRRNodeState; localASN/peers would echo
-config into status and need CNO as a second Infrastructure-status writer);
+PR 1982 predates the worker-ingress scope extension. DONE: BGPVIPStatus
+dropped (6d527fe4, rationale kept inline). Still to incorporate:
 ingress pod runs on ALL nodes via templates/common (keepalived parity), the
 FRRConfiguration is cluster-wide (no node selector), the second zebra bug
 (FRRouting/frr#22654, addr/route netlink batch race) + kube-vip level-triggered
