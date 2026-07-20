@@ -24,10 +24,16 @@ TechPreview, EP 066d3556).
    upstream #1604 cherry-pick) + kubeconfig commits (until a rebase past
    upstream #1627).
 4. Jira hygiene: target version 5.0.0 on OPNET-784 and OPNET-779/783.
-5. Prepare the MCO PR series offline (squash the -dev/-vendored layering;
-   MUST include 47948106d templates/common move and 1a13a1ea5
-   hostPath+boot-unit; fold hardening D1/D2) so it opens within hours of
-   the api merge.
+5. DONE: MCO PR series prepared — branch OPNET-595-mco-pr on
+   mkowalski/machine-config-operator, rebuilt tree-wise onto current
+   upstream/main (not history-squashed), 4 commits, each builds:
+   vendor api (from PR branch, one-commit swap on merge) / template:
+   render BGP static pods + D2 non-empty-VIPs guard / operator: bootstrap
+   + day-2 ingestion + D1 missing-image hard-fail / install:
+   image-references (held for ART-21663). Includes the templates/common
+   move, hostPath+boot-unit, and VIPManagementType enum adaptation. To
+   open: swap commit 1 for the merged api vendor, then PR (drop the
+   image-references commit if ART has not landed).
 
 ### Phase 1 — once api#2923 merges
 
