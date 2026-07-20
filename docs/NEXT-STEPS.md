@@ -31,9 +31,14 @@ TechPreview, EP 066d3556).
    render BGP static pods + D2 non-empty-VIPs guard / operator: bootstrap
    + day-2 ingestion + D1 missing-image hard-fail / install:
    image-references (held for ART-21663). Includes the templates/common
-   move, hostPath+boot-unit, and VIPManagementType enum adaptation. To
-   open: swap commit 1 for the merged api vendor, then PR (drop the
-   image-references commit if ART has not landed).
+   move, hostPath+boot-unit, and VIPManagementType enum adaptation.
+   D2 unified (58f3cdf13 tip): one shared ctrlcommon.IsBGPVIPManagement
+   predicate (BareMetal + BGP + non-empty VIPs) used by template render,
+   bootstrap manifest selection, D1 image check and peers ingestion, with
+   a VIP-less-BGP no-op test. Remaining before opening: D1 unit test,
+   make verify, one validation install from this branch. To open: swap
+   commit 1 for the merged api vendor, then PR (drop the image-references
+   commit if ART has not landed).
 
 ### Phase 1 — once api#2923 merges
 
