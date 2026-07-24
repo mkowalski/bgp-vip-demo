@@ -5,6 +5,37 @@ end to end, as proven by the dev demo. Grouped by repository, in dependency
 order. Status: all on local branches; PR splitting/vendor-commit cleanup
 pending.
 
+> **Branch state addendum (2026-07-22).** All customized branches were rebased
+> onto current upstream mains (runs 25/26 validated the result; commit SHAs in
+> the tables below predate the rebase — content is unchanged unless noted):
+> - Default-branch renames: installer, MCO, baremetal-runtimecfg now use
+>   `main` (`master` is stale) — rebase against the right ref.
+> - **Vendoring pins** (openshift/api master moved to k8s-1.36 libs while
+>   installer/MCO/CNO mains are on 0.35): installer + CNO vendor from the
+>   `~/git/github.com/openshift-api-pre136` worktree (pre-1.36 snapshot of the
+>   api branch); MCO vendors from `~/git/github.com/openshift-api-mco`
+>   (MCO main's pinned api commit ef71f942e + the three BGP commits
+>   cherry-picked — main's client-go needs `InternalReleaseImage`, absent from
+>   the pre136 snapshot). The MCO **PR** branch instead pins
+>   `github.com/mkowalski/openshift-api` by pseudo-version (interim until
+>   api#2923 merges).
+> - One runtimecfg commit ("platform as optional parameter") was dropped
+>   during rebase as already merged upstream.
+> - CNO dev branch carries `DEMO-CARRY: frr-k8s CRD int32→int64 asn` (1.36
+>   apiserver rejects the shipped CRD; upstream fix is CNO #3070) — drop the
+>   carry once #3070 merges.
+> - MCO PR review round (#6326, 2026-07-22) folded hardening into the series:
+>   securityContexts (drop ALL everywhere except the frr container — tested:
+>   breaks FRR's privilege-separated startup; DAC_OVERRIDE re-added for
+>   reloader/frr-status), readOnly input mounts, `set -eu`, resource limits
+>   on every container, `terminationGracePeriodSeconds: 10` (Cease
+>   NOTIFICATION vs GR-helper stale-route retention), VIP-COMMUNITY route-map
+>   actually attached to peers, `IsBGPVIPManagement` requires ingress VIPs
+>   too, bootstrap rejects empty config.json. The dev branches do NOT carry
+>   these yet — fold before the next image rebuild, or rebuild from the PR
+>   branch.
+
+
 ## 1. openshift/api — branch `OPNET-595-bgp-vip-management`
 
 **PR open: https://github.com/openshift/api/pull/2923 (OPNET-780), CI fully

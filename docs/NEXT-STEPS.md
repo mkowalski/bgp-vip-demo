@@ -24,21 +24,35 @@ TechPreview, EP 066d3556).
    upstream #1604 cherry-pick) + kubeconfig commits (until a rebase past
    upstream #1627).
 4. Jira hygiene: target version 5.0.0 on OPNET-784 and OPNET-779/783.
-5. DONE: MCO PR series prepared — branch OPNET-595-mco-pr on
-   mkowalski/machine-config-operator, rebuilt tree-wise onto current
-   upstream/main (not history-squashed), 4 commits, each builds:
-   vendor api (from PR branch, one-commit swap on merge) / template:
-   render BGP static pods + D2 non-empty-VIPs guard / operator: bootstrap
-   + day-2 ingestion + D1 missing-image hard-fail / install:
-   image-references (held for ART-21663). Includes the templates/common
-   move, hostPath+boot-unit, and VIPManagementType enum adaptation.
-   D2 unified (58f3cdf13 tip): one shared ctrlcommon.IsBGPVIPManagement
-   predicate (BareMetal + BGP + non-empty VIPs) used by template render,
-   bootstrap manifest selection, D1 image check and peers ingestion, with
-   a VIP-less-BGP no-op test. Remaining before opening: D1 unit test,
-   make verify, one validation install from this branch. To open: swap
-   commit 1 for the merged api vendor, then PR (drop the image-references
-   commit if ART has not landed).
+5. DONE: MCO PR **OPENED: openshift/machine-config-operator#6326**
+   (OPNET-782, 2026-07-22) from branch OPNET-595-mco-pr, 4 commits
+   (vendor api via mkowalski fork pseudo-version pin — one-commit swap on
+   api merge / template: render BGP static pods / operator: bootstrap +
+   day-2 ingestion / install: image-references, held for ART-21663).
+   First review round (CodeRabbit) fully addressed, notable outcomes
+   folded into the series and live-validated on the run26 cluster:
+   - securityContext hardening everywhere EXCEPT the frr container:
+     `drop: ALL` + re-adds was tested live and breaks FRR's
+     privilege-separated startup (watchfrr needs root-implicit
+     SETUID/SETGID/DAC_OVERRIDE/CHOWN beyond the 4 network caps);
+     reloader/frr-status kept `drop: ALL` but need `add: [DAC_OVERRIDE]`
+     (vtysh as root against frr-user-owned vty sockets)
+   - resource limits on every container, sized from live usage
+     (frr-status idles at ~390m CPU — looks like a busy-poll, possible
+     upstream frr-k8s issue worth filing separately)
+   - `terminationGracePeriodSeconds` 0→10 (diverges from the upstream
+     DaemonSet's 0 deliberately): SIGTERM'd bgpd sends Cease
+     NOTIFICATION; after SIGKILL a graceful-restart *helper* peer
+     retains stale VIP routes on bare TCP loss until the restart timer
+   - real bug found by review: `VIP-COMMUNITY` route-map was defined but
+     never attached to any neighbor — now attached per-AF in both FRR
+     templates
+   - `IsBGPVIPManagement` now also requires non-empty IngressIPs;
+     bootstrap rejects a present-but-empty config.json (day-2 parity)
+   - declined with rationale (recorded by the bot for future reviews):
+     probes on frr/kube-vip, runAsNonRoot (caps not effective without
+     file capabilities), bootstrap hostPath (emptyDir is 0777 by
+     kubelet; the day-2 boot unit replicates exactly that)
 
 ### Phase 1 — once api#2923 merges
 
@@ -277,14 +291,14 @@ SA token unmount (exporter TokenReviews its scrapers).
 | Subtask | Repo | PR |
 |---|---|---|
 | OPNET-773 | enhancements | openshift/enhancements#1982 (first findings pass + TP BGPVIPConfig CRD design 59b32c7f; remaining second-pass items — see A2) |
-| OPNET-780 | openshift/api | openshift/api#2923 (vipManagement immutability CEL added 2026-07-20 per review agreement; awaiting api-approver review). Agreed with MCO reviewer: JSON blob OK for DevPreview, structured BGP API for TechPreview (EP presents both placements, preference Infra.spec.platformSpec.baremetal.bgp, CRD as fallback if Infra should not grow — 066d3556) |
-| OPNET-783 | cluster-network-operator | #3046 (statusmanager fix) + **#3047 (main BGP series, 4 commits incl. the static pod metrics companion — api-decoupled: local gate constant + unstructured vipManagement read, inert until the gate ships; typed-access follow-up after api merge)** |
+| OPNET-780 | openshift/api | openshift/api#2923 (vipManagement immutability CEL added 2026-07-20 per review agreement; JoelSpeed review round 2026-07-22 addressed: gate test suites rewritten — trivial enum tests replaced with CEL immutability transition tests (BGP↔Keepalived both rejected, verified against envtest), vSphere copy-paste residue removed from the ControllerConfig suite. OPEN QUESTION for him: should Keepalived→BGP be a legal transition? Current CEL+doc say immutable-once-set; allowing it flips two tests and the CEL). Agreed with MCO reviewer: JSON blob OK for DevPreview, structured BGP API for TechPreview (EP presents both placements, preference Infra.spec.platformSpec.baremetal.bgp, CRD as fallback if Infra should not grow — 066d3556) |
+| OPNET-783 | cluster-network-operator | #3046 (statusmanager fix) + **#3047 (main BGP series, 4 commits incl. the static pod metrics companion — api-decoupled: local gate constant + unstructured vipManagement read, inert until the gate ships; typed-access follow-up after api merge; rebased onto current master 2026-07-22, MERGEABLE)**. Related upstream fix consumed: #3070 (OCPBUGS-99074) fixes the frr-k8s CRD asn int32/int64 bug that breaks every FRRConfiguration on 1.36 apiservers (found in run23; our duplicate #3080 closed; DEMO-CARRY on the dev branch until it merges) |
 | OPNET-785 | baremetal-runtimecfg | openshift/baremetal-runtimecfg#395 |
 | OPNET-787 | dev-scripts | openshift-metal3/dev-scripts#1929 |
 | OPNET-784 | kubevip | upstream: #1627 MERGED, re-assert **kube-vip/kube-vip#1636 OPEN**; downstream **openshift/kube-vip#6** (route re-assertion); second downstream PR (health check + kubeconfig) still to open |
 | OPNET-779 | kubevip onboarding | ART Jira FILED: **ART-21663**; CI promotion **PR OPEN: openshift/release#81957** (images + promotion to ocp/5.0 + release-5.0 config — prerequisite for priv-mirror/branching/payload tag); ocp-build-data **PR OPEN: openshift-eng/ocp-build-data#11838** (base openshift-5.0); see docs/kube-vip-art-onboarding.md |
 | OPNET-781 | installer | pending api merge |
-| OPNET-782 | mco | pending api merge + OPNET-779 |
+| OPNET-782 | mco | **PR OPEN: openshift/machine-config-operator#6326** (opened ahead of api merge with an interim fork pseudo-version pin; commit 4/image-references still gated on OPNET-779/ART-21663; first review round addressed — see Phase 0 item 5) |
 | OPNET-786 | FRR | downstream RPM backport filed: **RHEL-193997** (frr10, el9); upstream stable/10.4 backport request still pending; new zebra bug filed: **FRRouting/frr#22654** — root cause fixed (mkowalski/frr 8989c33, `table-scoped-early-cleanup`), upstream PR still to submit |
 | OPNET-778 | PoC | github.com/mkowalski/bgp-vip-demo (complete) |
 | OPNET-621/622/623 | testing/CI | not started |
