@@ -24,6 +24,14 @@ pending.
 > - CNO dev branch carries `DEMO-CARRY: frr-k8s CRD int32→int64 asn` (1.36
 >   apiserver rejects the shipped CRD; upstream fix is CNO #3070) — drop the
 >   carry once #3070 merges.
+> - **Workspace migrated 2026-07-24** to metal-u15:/root/OPNET-595-BGP (see
+>   HANDOFF.md there); /home/kmateusz paths are symlinked for the dev-branch
+>   go.mod replace directives.
+> - **api#2923 MERGED (356624ff)**: the PR-era pins are obsolete for the PR
+>   branches — MCO #6326 and installer #10718 now build against plain
+>   upstream api on their mains (vendor bumps #6334 merged / #3089 open /
+>   installer 1.36 rebase #10713 merged). The pre136/mco worktree pins remain
+>   only for the local DEV/demo branches.
 > - MCO PR review round (#6326, 2026-07-22) folded hardening into the series:
 >   securityContexts (drop ALL everywhere except the frr container — tested:
 >   breaks FRR's privilege-separated startup; DAC_OVERRIDE re-added for
