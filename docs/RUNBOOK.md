@@ -92,22 +92,27 @@ the base nightly or the tag set.
   `/root/bgp-vip-demo/bgp-tor.sh up|down|status`. Status/debug:
   `podman exec bgp-tor vtysh -c "show bgp summary"`.
 
-### Deploy cycle (NEVER `make redeploy` — it wipes the install-config patch)
+### Deploy cycle (NEVER `make redeploy` — it regenerates the install-config)
+
+Since 2026-07-30 the install-config patching is a dev-scripts knob
+(`BGP_VIP_MANAGEMENT=true` in config_root.sh, dev-scripts#1939 — applied to
+the metal-u15 checkout; localASN/peerASN/peer address default to the
+ENABLE_BGP_TOR conventions):
 
 ```bash
 cd /root/dev-scripts
 tmux kill-session -t bgprun 2>/dev/null
 make ocp_cleanup
 make build_installer install_config      # regenerates install-config + rhcos.json
-python3 - <<'EOF'                        # re-patch BOTH copies every time
+# metal-u15 quirk: the custom payload defeats the installer version parse,
+# which trips the <=4.4 dnsVIP guard; strip it (CI is unaffected):
+python3 - <<'EOF'
 import yaml
 for f in ("/root/dev-scripts/ocp/ostest/install-config.yaml",
           "/root/dev-scripts/ocp/ostest/install-config.yaml.save"):
-    with open(f) as fh: cfg = yaml.safe_load(fh)
-    cfg["platform"]["baremetal"]["bgpVIPConfig"] = {
-        "localASN": 64512,
-        "peers": [{"peerAddress": "192.168.111.1", "peerASN": 64513}]}
-    with open(f, "w") as fh: yaml.safe_dump(cfg, fh, default_flow_style=False)
+    cfg = yaml.safe_load(open(f))
+    cfg["platform"]["baremetal"].pop("dnsVIP", None)
+    yaml.safe_dump(cfg, open(f, "w"), default_flow_style=False)
 EOF
 tmux new-session -d -s bgprun "make ocp_run 2>&1 | tee /tmp/ocp-run.log"
 ```
