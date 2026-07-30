@@ -68,11 +68,18 @@ closed as superseded).
    post-rebase main, no vendoring; two bot review rounds addressed.
 2. DONE — MCO PR #6326 slimmed to 2 commits (vendor commit collapsed after
    #6334; image-references commit withheld for the ART ordering as planned).
-3. REMAINING (**unblocked 2026-07-30, #3089 merged**) — CNO typed-access
-   follow-up on #3047: rebase onto master and swap the unstructured
-   vipManagement read + local gate constant for the typed field and
-   generated FeatureGateBGPBasedVIPManagement. Also drop the frr-k8s CRD
-   int64 DEMO-CARRY from the dev branch (#3070 merged).
+3. DONE 2026-07-30 — CNO typed-access swap on #3047: rebased onto
+   post-#3089 master; isBGPVIPManagement now uses the generated
+   FeatureGateBGPBasedVIPManagement and the typed
+   PlatformStatus.BareMetal.VIPManagement from the bootstrap result (the
+   dynamic Infrastructure GET is gone — one fewer live API call on the
+   render path). Local gate constant removed; tests swapped to typed
+   fixtures; full pkg suite green.
+   DEFERRED to the next demo rebuild: the CNO dev branch
+   (OPNET-595-bgp-vip-management-vendored) still carries the now-redundant
+   DEMO-CARRY (#3070 merged) AND its local api vendor commit (master now
+   vendors the api) — rebasing it conflicts in vendor/; refresh the whole
+   branch in one pass when the demo stack is next rebuilt.
 
 ### Phase 2 — DevPreview complete in-payload
 
