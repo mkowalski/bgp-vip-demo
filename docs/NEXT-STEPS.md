@@ -313,7 +313,13 @@ SA token unmount (exporter TokenReviews its scrapers).
 - Gate promotion DevPreviewNoUpgrade → TechPreviewNoUpgrade (implementation
   currently sits in DevPreview; EP says TechPreview).
 
-### E1. Combined lane: BGP VIP + OVN-K route advertisements — IN PROGRESS (2026-08-04)
+### E1. Combined lane: BGP VIP + OVN-K route advertisements — PR OPEN (2026-08-04)
+
+**PR OPEN: https://github.com/openshift/release/pull/82912** (branch
+bgp-vip-ovn-bgp-lane on mkowalski/openshift-release): workflow
+`baremetalds-e2e-bgp-vip-ovn-bgp`, coexistence verify ref, idempotent
+namespace fix in the shared ovn-bgp-pre step, optional presubmit
+`e2e-metal-ipi-bgp-vip-ovn-bgp` on openshift/installer.
 
 The coexistence test the EP claims but nothing has ever run (and what
 fedepaol's EP review comments 1/3/4 ask about): on masters the OVN-K
