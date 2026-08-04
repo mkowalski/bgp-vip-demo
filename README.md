@@ -21,7 +21,9 @@ Upstream state:
   CNO#3070 (frr-k8s CRD asn fix), openshift/release#81957 (kube-vip CI
   promotion) + #82698 (`e2e-metal-ipi-bgp-vip` CI lane),
   dev-scripts#1929 (BGP ToR) + #1939 (`BGP_VIP_MANAGEMENT` knob),
-  kube-vip/kube-vip#1627; FRRouting/frr#22654 fixed upstream via #22676.
+  kube-vip/kube-vip#1627 + #1636 (re-assert + realm) and the
+  openshift/kube-vip build PRs #2/#3/#4; FRRouting/frr#22654 fixed upstream
+  via #22676.
 - **Open (review-gated, code complete)**: installer#10718 (OPNET-781),
   MCO#6326 (OPNET-782), CNO#3047 + #3046 (OPNET-783),
   baremetal-runtimecfg#395 (OPNET-785), ocp-build-data#11838 (OPNET-779).
@@ -51,7 +53,7 @@ mapping + PR tracker).
 | Path | What |
 |------|------|
 | `bgp-tor.sh`, `tor/` | FRR ToR container helper for the hypervisor (up/down/status); superseded in dev-scripts by `ENABLE_BGP_TOR` (#1929) |
-| `patches/` | git-am-able patch series for the **not-yet-merged** repos (installer, MCO, CNO, runtimecfg, kube-vip leftovers) — historical form; the open PRs are the canonical carriers. Merged series (api, dev-scripts, FRR, kube-vip fixes) removed; recoverable from git history |
+| `patches/` | git-am-able patch series for the four repos with **open PRs** (installer, MCO, CNO, runtimecfg) — historical form; the open PRs are the canonical carriers. Everything merged (api, dev-scripts, FRR, the whole kube-vip series, vendor patches) removed; recoverable from git history |
 | `build/` | Dockerfiles used for the demo image builds + FRR build script |
 | `lab/` | Standalone FRR reproduction labs that isolated both zebra bugs without a cluster |
 
@@ -90,7 +92,7 @@ replace paths).
 | machine-config-operator | `OPNET-595-mco-pr` (#6326) | `OPNET-595-bgp-vip-management-dev` |
 | cluster-network-operator | `bgp-vip-management` (#3047) | `OPNET-595-bgp-vip-management-vendored` (carries a now-redundant DEMO-CARRY; refresh on next demo rebuild) |
 | baremetal-runtimecfg | `bgp-frr-peer-rendering` (#395) | `OPNET-595-bgp-vip-management` |
-| kube-vip | upstream #1627 merged; #1636 open | `OPNET-595-bgp-vip-management` |
+| kube-vip | upstream #1627 + #1636 merged; downstream #2/#3/#4 merged | `OPNET-595-bgp-vip-management` |
 | dev-scripts | merged (#1929, #1939) | — |
 | openshift/release | merged (#81957, #82698) | — |
 
