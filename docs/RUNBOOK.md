@@ -120,15 +120,43 @@ tmux new-session -d -s bgprun "make ocp_run 2>&1 | tee /tmp/ocp-run.log"
 Install takes 60–75 min. First host provisioning: `make requirements configure`
 (target is `configure`, not `host`).
 
-## Current image-tag state (2026-07-14)
+## Current image-tag state (2026-07-14; provenance updated 2026-08-05)
 
 `quay.io/mkowalski/metallb-frr:bgp-demo` = 10.4.3 + SELECTED-flag patch ONLY
-(the table-scope fix from FRRouting/frr#22654 is NOT deployed — awaiting
-upstream review; branch table-scoped-early-cleanup on mkowalski/frr).
+(the table-scope fix from FRRouting/frr#22654 is NOT deployed; the bug is
+now FIXED UPSTREAM via FRRouting/frr#22676, merged after 10.7.0 — no shipped
+release has it yet).
 `quay.io/mkowalski/kube-vip:bgp-demo` = realm-toggle workaround build (7d27248).
 This is the run17/run19 configuration. run18 proved the FRR fix alone is
 enough; to switch, rebuild zebra at 8989c33 into the overlay and repoint
 kube-vip to 8cd17f7.
+
+### FRR provenance (what actually ships where)
+
+The payload tag `metallb-frr` is built from **github.com/openshift/frr** —
+despite the name, that repo is the midstream **frr-k8s** source tree: its
+Dockerfile.openshift compiles the frr-k8s Go binaries (controller,
+frr-metrics, frr-status, reloader, statuscleaner) and then installs the FRR
+daemons (zebra/bgpd/watchfrr/vtysh) as the RHEL 9 **`frr10` RPM**, which is
+delivered through **FDP (Fast Datapath)**. Nothing is compiled from FRR
+source in the image, and nothing comes from upstream frr-k8s's quay images.
+Consequences:
+- new FRR reaches the cluster as: FDP frr10 update → metallb-frr image
+  rebuild → the one image consumed by all three paths (CNO worker
+  DaemonSet, MCO master/bootstrap static pods, CNO metrics companion)
+- FRR bug backports belong in the FDP frr10 package (hence RHEL-193997);
+  once FDP ships ≥10.7 (SELECTED-flag fix) and the first release carrying
+  #22676, stock releases satisfy every FRR need we have
+- the demo overlay simply replaces the zebra binary inside that image
+
+### kube-vip↔FRR relationship (positioning, for reviews/questions)
+
+There is NO software integration between kube-vip and FRR, direct or via
+frr-k8s: kube-vip (routing-table mode) health-gates VIP routes in kernel
+table 198; FRR redistributes that table (`redistribute table-direct 198`).
+The kernel table is the entire contract; frr-k8s is FRR's delivery and
+configuration vehicle, not an integration layer. kube-vip's native BGP mode
+is deliberately unused (single BGP speaker per node, one session set).
 
 ## 5. Verification checklist
 
