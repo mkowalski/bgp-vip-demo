@@ -315,7 +315,7 @@ SA token unmount (exporter TokenReviews its scrapers).
 
 ### E1. Combined lane: BGP VIP + OVN-K route advertisements — PR OPEN (2026-08-04)
 
-**PR OPEN: https://github.com/openshift/release/pull/82912** (branch
+**PR OPEN: https://github.com/openshift/release/pull/82912** (Jira: OPNET-803) (branch
 bgp-vip-ovn-bgp-lane on mkowalski/openshift-release): workflow
 `baremetalds-e2e-bgp-vip-ovn-bgp`, coexistence verify ref, idempotent
 namespace fix in the shared ovn-bgp-pre step, optional presubmit
