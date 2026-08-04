@@ -34,6 +34,12 @@ Upstream state:
 Full tracker: [docs/NEXT-STEPS.md](docs/NEXT-STEPS.md) (Jira subtask
 mapping + PR tracker).
 
+How the work landed over time — every PR across the eleven repositories,
+from the June demo build-up through the July upstreaming and vendor waves
+to the CI lane:
+
+<img src="drawings/bgp-vip-pr-timeline.svg" alt="Upstreaming timeline: every PR per repository, opened to merged" style="width: 95%; max-width: 1000px;">
+
 ## Document map
 
 | Doc | Purpose |
