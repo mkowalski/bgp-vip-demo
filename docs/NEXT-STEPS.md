@@ -313,6 +313,35 @@ SA token unmount (exporter TokenReviews its scrapers).
 - Gate promotion DevPreviewNoUpgrade → TechPreviewNoUpgrade (implementation
   currently sits in DevPreview; EP says TechPreview).
 
+### E1. Combined lane: BGP VIP + OVN-K route advertisements — IN PROGRESS (2026-08-04)
+
+The coexistence test the EP claims but nothing has ever run (and what
+fedepaol's EP review comments 1/3/4 ask about): on masters the OVN-K
+RouteAdvertisements-generated FRRConfigurations must merge into **our
+static frr-k8s** (the CNO DaemonSet is anti-affine there). Plan analysis
+vs the existing `baremetalds/e2e/ovn/bgp` step-registry lane
+(`e2e-metal-ipi-ovn-dualstack-bgp`):
+
+- Shape: new workflow composing our install-time env
+  (`BGP_VIP_MANAGEMENT=true`) + their post-install
+  `baremetalds-e2e-ovn-bgp-pre` ref (deploys external FRR RR at
+  192.168.111.3, iBGP AS 64512; agnhost containers; patches CNO
+  routeAdvertisements + FRR provider; applies FRRConfiguration/
+  RouteAdvertisements CRs) + `baremetalds-ipi-test` with their skips + our
+  acceptance verify extended to also check pod-network routes at their RR
+  (proves neither consumer broke the other).
+- Known frictions: (1) master-side merge of RA CRs into the static frr-k8s
+  is the genuine unknown — the lane exists to find those bugs; router
+  merge should be ASN-compatible (both local AS 64512, default VRF);
+  (2) hypervisor collisions — their pre-script recreates `ostestbm_net`
+  and claims 192.168.111.3 on the same bridge our ToR sits on: audit
+  IPs/network names; (3) start v4-only (our proven config; their lane is
+  dualstack-only today); (4) do NOT set their `FRR_IMAGE` override (sets
+  CNO Unmanaged — fights our rendered resources).
+- Gating: optional/on-demand until the four feature PRs merge (lane needs
+  them anyway, like the base bgp-vip lane).
+
+
 ## Jira subtask mapping + PR tracker (OPNET-595 children)
 
 | Subtask | Repo | PR |
