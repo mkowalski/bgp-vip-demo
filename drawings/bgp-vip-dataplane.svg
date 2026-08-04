@@ -1,0 +1,83 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="940" height="520" viewBox="0 0 940 520" font-family="Inter, Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="arrowd" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto">
+      <path d="M0,0 L8,3 L0,6 z" fill="#475569"/>
+    </marker>
+    <marker id="arrowb" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto">
+      <path d="M0,0 L8,3 L0,6 z" fill="#2563eb"/>
+    </marker>
+  </defs>
+
+  <text x="470" y="28" text-anchor="middle" font-size="17" font-weight="700" fill="#1e293b">Node data plane and day-2 control — VIP to ToR</text>
+
+  <!-- node boundary -->
+  <rect x="30" y="50" width="640" height="440" rx="12" fill="none" stroke="#94a3b8" stroke-width="1.5" stroke-dasharray="6 4"/>
+  <text x="45" y="73" font-size="13" font-weight="600" fill="#64748b">control-plane node (workers: sessions via CNO DaemonSet)</text>
+
+  <!-- kube-vip -->
+  <rect x="55" y="95" width="250" height="90" rx="8" fill="#dcfce7" stroke="#16a34a" stroke-width="1.5"/>
+  <text x="180" y="120" text-anchor="middle" font-size="13" font-weight="600" fill="#166534">kube-vip (static pods)</text>
+  <text x="180" y="139" text-anchor="middle" font-size="11" fill="#166534">routing-table mode, one per VIP</text>
+  <text x="180" y="155" text-anchor="middle" font-size="11" fill="#166534">health-gated: adds/removes the VIP</text>
+  <text x="180" y="171" text-anchor="middle" font-size="11" fill="#166534">route based on local endpoint health</text>
+
+  <!-- table 198 -->
+  <rect x="55" y="230" width="250" height="66" rx="8" fill="#e0e7ff" stroke="#4f46e5" stroke-width="1.5"/>
+  <text x="180" y="255" text-anchor="middle" font-size="13" font-weight="600" fill="#3730a3">kernel routing table 198</text>
+  <text x="180" y="274" text-anchor="middle" font-size="11" fill="#3730a3">the entire kube-vip ↔ FRR contract</text>
+
+  <line x1="180" y1="185" x2="180" y2="225" stroke="#475569" stroke-width="2" marker-end="url(#arrowd)"/>
+  <text x="248" y="208" text-anchor="middle" font-size="10" fill="#64748b">VIP/32 route add/del</text>
+
+  <!-- frr-k8s -->
+  <rect x="370" y="200" width="270" height="130" rx="8" fill="#fef3c7" stroke="#d97706" stroke-width="1.5"/>
+  <text x="505" y="224" text-anchor="middle" font-size="13" font-weight="600" fill="#92400e">frr-k8s (static pod)</text>
+  <rect x="388" y="238" width="110" height="38" rx="5" fill="#fde68a" stroke="#d97706"/>
+  <text x="443" y="254" text-anchor="middle" font-size="11" fill="#92400e">zebra</text>
+  <text x="443" y="268" text-anchor="middle" font-size="10" fill="#92400e">watches table 198</text>
+  <rect x="514" y="238" width="110" height="38" rx="5" fill="#fde68a" stroke="#d97706"/>
+  <text x="569" y="254" text-anchor="middle" font-size="11" fill="#92400e">bgpd</text>
+  <text x="569" y="268" text-anchor="middle" font-size="10" fill="#92400e">redistribute</text>
+  <text x="505" y="298" text-anchor="middle" font-size="11" fill="#92400e">table-direct 198, VIP-filtered route-map,</text>
+  <text x="505" y="314" text-anchor="middle" font-size="11" fill="#92400e">raw egress permits for VIP prefixes</text>
+
+  <line x1="305" y1="263" x2="365" y2="263" stroke="#475569" stroke-width="2" marker-end="url(#arrowd)"/>
+  <line x1="498" y1="257" x2="510" y2="257" stroke="#475569" stroke-width="2" marker-end="url(#arrowd)"/>
+
+  <!-- metrics -->
+  <rect x="370" y="365" width="270" height="60" rx="8" fill="#f0fdf4" stroke="#16a34a" stroke-width="1.5"/>
+  <text x="505" y="388" text-anchor="middle" font-size="12" font-weight="600" fill="#166534">metrics companion (CNO DaemonSet)</text>
+  <text x="505" y="406" text-anchor="middle" font-size="11" fill="#166534">reads static FRR via hostPath sockets</text>
+
+  <line x1="505" y1="360" x2="505" y2="335" stroke="#475569" stroke-width="2" marker-end="url(#arrowd)"/>
+
+  <!-- CNO day-2 -->
+  <rect x="55" y="365" width="250" height="90" rx="8" fill="#fee2e2" stroke="#dc2626" stroke-width="1.5"/>
+  <text x="180" y="390" text-anchor="middle" font-size="13" font-weight="600" fill="#991b1b">CNO — day-2 handover</text>
+  <text x="180" y="409" text-anchor="middle" font-size="11" fill="#991b1b">FRRConfiguration "bgp-vip"</text>
+  <text x="180" y="425" text-anchor="middle" font-size="11" fill="#991b1b">(cluster-wide, sessions only);</text>
+  <text x="180" y="441" text-anchor="middle" font-size="11" fill="#991b1b">static-pod controller merges CRD</text>
+
+  <line x1="305" y1="400" x2="400" y2="332" stroke="#475569" stroke-width="2" marker-end="url(#arrowd)"/>
+  <text x="330" y="352" text-anchor="middle" font-size="10" fill="#64748b">merge</text>
+
+  <!-- ToR -->
+  <rect x="730" y="200" width="170" height="130" rx="8" fill="#dbeafe" stroke="#2563eb" stroke-width="1.5"/>
+  <text x="815" y="228" text-anchor="middle" font-size="13" font-weight="600" fill="#1e40af">ToR router</text>
+  <text x="815" y="247" text-anchor="middle" font-size="11" fill="#1e40af">FRR container, AS 64513</text>
+  <text x="815" y="266" text-anchor="middle" font-size="11" fill="#1e40af">ECMP across healthy</text>
+  <text x="815" y="281" text-anchor="middle" font-size="11" fill="#1e40af">advertisers</text>
+  <text x="815" y="304" text-anchor="middle" font-size="11" fill="#1e40af">dev-scripts:</text>
+  <text x="815" y="319" text-anchor="middle" font-size="11" fill="#1e40af">ENABLE_BGP_TOR</text>
+
+  <line x1="644" y1="257" x2="725" y2="257" stroke="#2563eb" stroke-width="2.5" marker-end="url(#arrowb)"/>
+  <text x="685" y="248" text-anchor="middle" font-size="10" font-weight="600" fill="#2563eb">eBGP</text>
+  <text x="685" y="275" text-anchor="middle" font-size="10" fill="#2563eb">VIP /32s</text>
+
+  <!-- clients -->
+  <rect x="730" y="380" width="170" height="60" rx="8" fill="#f1f5f9" stroke="#94a3b8" stroke-width="1.2"/>
+  <text x="815" y="405" text-anchor="middle" font-size="12" font-weight="600" fill="#475569">clients</text>
+  <text x="815" y="423" text-anchor="middle" font-size="11" fill="#475569">API + Ingress via BGP path</text>
+
+  <line x1="815" y1="375" x2="815" y2="335" stroke="#475569" stroke-width="2" marker-end="url(#arrowd)"/>
+</svg>

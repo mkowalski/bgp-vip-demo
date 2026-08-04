@@ -56,19 +56,20 @@ mapping + PR tracker).
 | `build/` | Dockerfiles used for the demo image builds + FRR build script |
 | `lab/` | Standalone FRR reproduction labs that isolated both zebra bugs without a cluster |
 
-## The demo in one picture
+## The demo in two pictures
 
-```
- install-config.yaml (bgpVIPConfig)            [dev-scripts: BGP_VIP_MANAGEMENT=true]
-   └─ installer ──► bgp-vip-config ConfigMap ──► MCO (bootstrap file dep / day-2 lister sync)
-      └─ Infrastructure.status vipManagement=BGP  └─► frr-peers.json per node (runtimecfg)
- bootstrap/masters:                               └─► static pods: frr-k8s, kube-vip-api, kube-vip-ingress
-   kube-vip (health-gated) ──route──► kernel table 198
-   frr-k8s zebra ──redistribute table-direct 198 (VIP-filtered)──► bgpd ──► ToR (AS 64513)
- day-2 handover: CNO ──► FRRConfiguration bgp-vip (cluster-wide, sessions only)
-   (advertisement stays on gated redistribution + raw egress permits; workers via CNO DaemonSet)
- metrics: CNO masters-only companion DaemonSet reads the static FRR via hostPath sockets
-```
+A single knob in install-config (`bgpVIPConfig`; `BGP_VIP_MANAGEMENT=true`
+in dev-scripts) flows through the installer and MCO into per-node FRR peer
+config and the three static pods, replacing keepalived:
+
+<img src="drawings/bgp-vip-config-flow.svg" alt="Configuration flow: install-config to node" style="width: 90%; max-width: 800px;">
+
+On each node, kube-vip health-gates a VIP/32 route in kernel table 198;
+frr-k8s redistributes that table into BGP toward the ToR. Day-2, CNO hands
+over session config via a cluster-wide FRRConfiguration and runs the
+metrics companion:
+
+<img src="drawings/bgp-vip-dataplane.svg" alt="Node data plane and day-2 control: VIP to ToR" style="width: 90%; max-width: 800px;">
 
 kube-vip and FRR never talk to each other — kernel table 198 is the entire
 contract (see RUNBOOK "kube-vip↔FRR relationship"). FRR daemons come from

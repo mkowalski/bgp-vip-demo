@@ -1,0 +1,73 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="940" height="430" viewBox="0 0 940 430" font-family="Inter, Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto">
+      <path d="M0,0 L8,3 L0,6 z" fill="#475569"/>
+    </marker>
+  </defs>
+
+  <text x="470" y="28" text-anchor="middle" font-size="17" font-weight="700" fill="#1e293b">Configuration flow — install-config to node</text>
+
+  <!-- install-config -->
+  <rect x="40" y="70" width="190" height="70" rx="8" fill="#fee2e2" stroke="#dc2626" stroke-width="1.5"/>
+  <text x="135" y="97" text-anchor="middle" font-size="13" font-weight="600" fill="#991b1b">install-config.yaml</text>
+  <text x="135" y="116" text-anchor="middle" font-size="11" fill="#991b1b">platform.baremetal</text>
+  <text x="135" y="130" text-anchor="middle" font-size="11" fill="#991b1b">.bgpVIPConfig (peers, ASNs)</text>
+
+  <!-- installer -->
+  <rect x="290" y="70" width="200" height="70" rx="8" fill="#fef3c7" stroke="#d97706" stroke-width="1.5"/>
+  <text x="390" y="97" text-anchor="middle" font-size="13" font-weight="600" fill="#92400e">installer</text>
+  <text x="390" y="116" text-anchor="middle" font-size="11" fill="#92400e">validates config, sets</text>
+  <text x="390" y="130" text-anchor="middle" font-size="11" fill="#92400e">Infrastructure vipManagement=BGP</text>
+
+  <line x1="230" y1="105" x2="285" y2="105" stroke="#475569" stroke-width="2" marker-end="url(#arrow)"/>
+
+  <!-- configmap -->
+  <rect x="550" y="70" width="180" height="70" rx="8" fill="#e0e7ff" stroke="#4f46e5" stroke-width="1.5"/>
+  <text x="640" y="97" text-anchor="middle" font-size="13" font-weight="600" fill="#3730a3">bgp-vip-config</text>
+  <text x="640" y="116" text-anchor="middle" font-size="11" fill="#3730a3">ConfigMap</text>
+  <text x="640" y="130" text-anchor="middle" font-size="11" fill="#3730a3">openshift-machine-config</text>
+
+  <line x1="490" y1="105" x2="545" y2="105" stroke="#475569" stroke-width="2" marker-end="url(#arrow)"/>
+  <text x="517" y="97" text-anchor="middle" font-size="10" fill="#64748b">renders</text>
+
+  <!-- MCO -->
+  <rect x="550" y="180" width="180" height="70" rx="8" fill="#fef3c7" stroke="#d97706" stroke-width="1.5"/>
+  <text x="640" y="207" text-anchor="middle" font-size="13" font-weight="600" fill="#92400e">MCO</text>
+  <text x="640" y="226" text-anchor="middle" font-size="11" fill="#92400e">bootstrap file dependency</text>
+  <text x="640" y="240" text-anchor="middle" font-size="11" fill="#92400e">day-2 ConfigMap lister sync</text>
+
+  <line x1="640" y1="140" x2="640" y2="175" stroke="#475569" stroke-width="2" marker-end="url(#arrow)"/>
+  <text x="655" y="162" font-size="10" fill="#64748b">consumes</text>
+
+  <!-- node boundary -->
+  <rect x="40" y="180" width="440" height="220" rx="12" fill="none" stroke="#94a3b8" stroke-width="1.5" stroke-dasharray="6 4"/>
+  <text x="55" y="203" font-size="13" font-weight="600" fill="#64748b">bootstrap / control-plane node</text>
+
+  <!-- runtimecfg -->
+  <rect x="60" y="220" width="190" height="66" rx="8" fill="#f0fdf4" stroke="#16a34a" stroke-width="1.5"/>
+  <text x="155" y="245" text-anchor="middle" font-size="12" font-weight="600" fill="#166534">baremetal-runtimecfg</text>
+  <text x="155" y="262" text-anchor="middle" font-size="11" fill="#166534">renders per-node</text>
+  <text x="155" y="276" text-anchor="middle" font-size="11" fill="#166534">frr-peers.json</text>
+
+  <line x1="550" y1="215" x2="255" y2="235" stroke="#475569" stroke-width="2" marker-end="url(#arrow)"/>
+  <text x="400" y="212" text-anchor="middle" font-size="10" fill="#64748b">MachineConfig: templates + files</text>
+
+  <!-- static pods -->
+  <rect x="60" y="310" width="400" height="72" rx="8" fill="#dcfce7" stroke="#16a34a" stroke-width="1.5"/>
+  <text x="260" y="333" text-anchor="middle" font-size="12" font-weight="600" fill="#166534">static pods (kubelet manifests)</text>
+  <rect x="78" y="344" width="110" height="28" rx="5" fill="#bbf7d0" stroke="#16a34a"/>
+  <text x="133" y="362" text-anchor="middle" font-size="11" fill="#166534">frr-k8s</text>
+  <rect x="205" y="344" width="110" height="28" rx="5" fill="#bbf7d0" stroke="#16a34a"/>
+  <text x="260" y="362" text-anchor="middle" font-size="11" fill="#166534">kube-vip-api</text>
+  <rect x="332" y="344" width="110" height="28" rx="5" fill="#bbf7d0" stroke="#16a34a"/>
+  <text x="387" y="362" text-anchor="middle" font-size="11" fill="#166534">kube-vip-ingress</text>
+
+  <line x1="155" y1="286" x2="155" y2="305" stroke="#475569" stroke-width="2" marker-end="url(#arrow)"/>
+  <text x="230" y="300" text-anchor="middle" font-size="10" fill="#64748b">config consumed at start</text>
+
+  <!-- replaced note -->
+  <rect x="290" y="220" width="170" height="66" rx="8" fill="#f1f5f9" stroke="#94a3b8" stroke-width="1.2" stroke-dasharray="4 3"/>
+  <text x="375" y="245" text-anchor="middle" font-size="12" font-weight="600" fill="#64748b">keepalived</text>
+  <text x="375" y="262" text-anchor="middle" font-size="11" fill="#64748b">not rendered when</text>
+  <text x="375" y="276" text-anchor="middle" font-size="11" fill="#64748b">vipManagement=BGP</text>
+</svg>
