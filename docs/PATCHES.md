@@ -129,7 +129,7 @@ Upstreamable: both kubeconfig commits are generic fixes.
 |--------|------|-----|
 | (pre-session x4) | `render --peer-file` (FRRPeerMapping resolution by hostname), isIPv4/isIPv6 template funcs, label-node cmd | Per-node frr.conf rendering. NOTE: `label-node` is now unused (NodeRestriction) — candidate for removal |
 
-## 7. FRR (upstream backport) — `patches/frr/`
+## 7. FRR (upstream backport) — `patches/frr/` (removed 2026-08: both fixes merged upstream — b2c17ad52 in 10.7, #22654 fixed via FRRouting/frr#22676; recover from git history)
 
 | Patch | What | Why |
 |-------|------|-----|

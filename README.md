@@ -51,8 +51,7 @@ mapping + PR tracker).
 | Path | What |
 |------|------|
 | `bgp-tor.sh`, `tor/` | FRR ToR container helper for the hypervisor (up/down/status); superseded in dev-scripts by `ENABLE_BGP_TOR` (#1929) |
-| `patches/` | git-am-able patch series per repository — **historical** (pre-rebase bases); the open PRs are now the canonical carriers |
-| `patches/frr/` | FRR backports: 0001 SELECTED-flag (upstream b2c17ad52, in 10.7) + 0002 table-scoped early cleanup (upstream fix #22676, post-10.7) |
+| `patches/` | git-am-able patch series for the **not-yet-merged** repos (installer, MCO, CNO, runtimecfg, kube-vip leftovers) — historical form; the open PRs are the canonical carriers. Merged series (api, dev-scripts, FRR, kube-vip fixes) removed; recoverable from git history |
 | `build/` | Dockerfiles used for the demo image builds + FRR build script |
 | `lab/` | Standalone FRR reproduction labs that isolated both zebra bugs without a cluster |
 
