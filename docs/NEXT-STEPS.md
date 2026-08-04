@@ -107,6 +107,18 @@ table-scoped-early-cleanup ready; upstream PR + RHEL-193997 scope extension),
 kube-vip #1636 (removes the need for the FRR fix to be urgent), frr-k8s
 #469/#470 (eventually deletes CNO's rawConfig).
 
+Pre-GA (deliberately deferred, do not file yet): frr-k8s RFE for a
+**file-form FRRConfiguration source** — frr-k8s reads FRRConfiguration
+manifests from local disk (hostPath) through the same parse/validate/merge
+pipeline as API CRs and merges them with API-server CRs once available.
+Suggested by fedepaol on EP #1982 (review 4853101609, comment on the
+static-pod bootstrap section). Replaces the bootstrap `frr.conf` + day-2
+CRD-handover seam with one config language end-to-end; reboot behavior
+falls out for free (file always present, CRs merge when the API returns).
+Complementary to #469/#470 (that covers *what* the CRD can express; this
+covers *where* config comes from) — see §B table. File it once #469/#470
+conclude, so the two asks don't compete for maintainer attention.
+
 ## A. Enhancement text corrections (PR 1982) — DONE
 
 Incorporated into PR 1982 (commit a52da909, pushed 2026-07-09): all seven
@@ -159,6 +171,7 @@ re-assertion as mitigation, and the kube-vip restart kubeconfig/TLS gap (D13).
 |-------|------|----------|
 | kube-vip | **MERGED upstream**: kube-vip/kube-vip#1627 (manager + backend honor the configured kubeconfig). NOTE: the RT-mode HTTP health check (51e05fd) is ALREADY upstream as kube-vip/kube-vip#1604 (fcd3eec) — drop that patch from the downstream fork on the next rebase. The 2 route re-assertion commits (6d51cbd level-triggered, 7d27248 realm toggle) are **PR OPEN downstream: openshift/kube-vip#6** (cherry-picks 9afbbb6 + 7df5a53, branch mkowalski:route-reassert) — **NO LONGER REQUIRED: the FRR table-scoped-cleanup fix alone is enough (proven run18, pre-workaround kube-vip + patched zebra)**; #6 is now optional robustness hardening, keep-or-close decision open; upstream re-assert **PR OPEN: kube-vip/kube-vip#1636** (branch upstream-route-reassert-2, single squashed commit on upstream main; maintainers pre-agreed to the mechanism). STILL TO OPEN downstream: second openshift/kube-vip PR with 51e05fd (HTTP health check, cherry-pick of upstream #1604 — missing from downstream main, based before its merge) + the kubeconfig commits 1731730/8cd17f7 |
 | frr-k8s (metallb/frr-k8s) | Feature request: advertise redistributed/table-direct routes (CRD egress is bound to declared prefixes; our raw `-out` route-map permits couple to internal naming — fragile across bumps) | **FILED: https://github.com/metallb/frr-k8s/issues/469**; design doc **PR OPEN: https://github.com/metallb/frr-k8s/pull/470**, AI-review rounds done (f40ce42), awaiting maintainer review (ref copies: docs/frr-k8s-feature-request-draft.md, docs/frr-k8s-redistribute-design-draft.md); implementation offer stands; also design note in CNO bgp_vip.go comments |
+| frr-k8s (metallb/frr-k8s) | RFE: file-form FRRConfiguration source (disk-loaded manifests merged with API CRs; fedepaol's suggestion on EP #1982) — removes bootstrap frr.conf + CRD handover seam | **TO FILE, pre-GA — deliberately deferred** until #469/#470 conclude; details in "Pre-GA" note under Phase 3 above. NOT covered by #470 (that PR is redistribution API only) |
 | FRR | upstream: b2c17ad52 backport request to stable/10.4 (pending); NEW zebra bug (addr/route same-batch race) **FILED: https://github.com/FRRouting/frr/issues/22654** — **root cause FIXED**: branch `table-scoped-early-cleanup` on mkowalski/frr (8989c33); upstream PR against FRRouting/frr referencing #22654 STILL TO SUBMIT (fix forward-ports: master needs the same table check; master already has the vrf scoping + the debug-path UAF fix); downstream: frr10 RPM backport **filed as RHEL-193997** | `patches/frr/0001-zebra-Do-not-clear-selected-flag-on-route-about-to-b.patch`, `patches/frr/0002-zebra-scope-early-route-queue-cleanup-to-the-matchin.patch`, `lab/frr-lab-addr-route-race.sh` |
 | dev-scripts | **PR OPEN** — https://github.com/openshift-metal3/dev-scripts/pull/1929 (`ENABLE_BGP_TOR`, live-validated) | dev-scripts repo |
 
