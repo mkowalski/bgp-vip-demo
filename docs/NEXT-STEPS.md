@@ -346,6 +346,13 @@ vs the existing `baremetalds/e2e/ovn/bgp` step-registry lane
   CNO Unmanaged — fights our rendered resources).
 - Gating: optional/on-demand until the four feature PRs merge (lane needs
   them anyway, like the base bgp-vip lane).
+- **Dry run PASSED on the run26 cluster (2026-08-04, ledger row coex-1)**:
+  masters' static frr-k8s merged the ovnk-generated FRRConfigurations (5/5
+  Established at the RR, pod subnets advertised), VIP acceptance unaffected,
+  pod datapath over BGP-imported route works. Friction #1 resolved;
+  friction #2 (bridge/IP) a non-issue (.1 host-net ToR vs .3 bridge-net RR).
+  One lane bug found+fixed: RouteAdvertisements CRD race (0edc8226b98 on
+  the PR).
 
 
 ## Jira subtask mapping + PR tracker (OPNET-595 children)
