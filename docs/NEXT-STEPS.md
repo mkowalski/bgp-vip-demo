@@ -367,6 +367,11 @@ vs the existing `baremetalds/e2e/ovn/bgp` step-registry lane
   FRRConfiguration producers coexisting** (bgp-vip + ovnk-generated-* +
   metallb-*). PUSHED to release#82912 (2026-08-05, commits 510141d/d8ae4f1/
   0a73976 after review autosquash); PR retitled to cover both lanes.
+- **Fallback source switched to openshift/metallb-operator@release-5.0**
+  (2026-08-05, 98a7aa6): tracks OCP, downstream API shape; SCC grant must
+  stay (fork bin manifest has the same uid-65534 webhook-server; only the
+  OLM/CSV path avoids it via --external-metallb-webhook-server).
+  Re-validated live, all three verifies green.
 - **Third lane added (2026-08-05, 0e23322)**:
   `e2e-metal-ipi-bgp-vip-ovn-bgp-metallb` — all three producers on one
   cluster; pure composition of the existing refs (matches the dry-run
