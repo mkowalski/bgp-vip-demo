@@ -365,8 +365,8 @@ vs the existing `baremetalds/e2e/ovn/bgp` step-registry lane
   paths at the ToR (~15-20s convergence), sessions 5→5 (same-neighbor
   merge), datapath green, VIP + RA verifies still green → **three
   FRRConfiguration producers coexisting** (bgp-vip + ovnk-generated-* +
-  metallb-*). Commits staged locally on `bgp-vip-ovn-bgp-lane` (1fd7252,
-  088971d, 7263363), push to release#82912 pending user approval.
+  metallb-*). PUSHED to release#82912 (2026-08-05, commits 510141d/d8ae4f1/
+  0a73976 after review autosquash); PR retitled to cover both lanes.
 
 
 ## Jira subtask mapping + PR tracker (OPNET-595 children)
