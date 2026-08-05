@@ -353,6 +353,20 @@ vs the existing `baremetalds/e2e/ovn/bgp` step-registry lane
   friction #2 (bridge/IP) a non-issue (.1 host-net ToR vs .3 bridge-net RR).
   One lane bug found+fixed: RouteAdvertisements CRD race (0edc8226b98 on
   the PR).
+- **MetalLB lane implemented** per spec
+  `2026-08-05-bgp-vip-metallb-lane-design.md`: workflow
+  `baremetalds-e2e-bgp-vip-metallb` (+pre/+verify refs, optional installer
+  presubmit `e2e-metal-ipi-bgp-vip-metallb`). **Dry run PASSED on the run26
+  cluster (2026-08-05, ledger row coex-2)**: day-2 MetalLB via upstream
+  manifests SHA 194f9719 (no packagemanifest → fallback path; SCC grant
+  nonroot-v2 for SA controller; DEPLOY_SERVICEMONITORS=true required to
+  unblock cert secrets — upstream bug candidate), CR frr-k8s-external →
+  openshift-frr-k8s, lb-echo LB IP 192.168.111.30 advertised as /32 with 5
+  paths at the ToR (~15-20s convergence), sessions 5→5 (same-neighbor
+  merge), datapath green, VIP + RA verifies still green → **three
+  FRRConfiguration producers coexisting** (bgp-vip + ovnk-generated-* +
+  metallb-*). Commits staged locally on `bgp-vip-ovn-bgp-lane` (1fd7252,
+  088971d, 7263363), push to release#82912 pending user approval.
 
 
 ## Jira subtask mapping + PR tracker (OPNET-595 children)
