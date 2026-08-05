@@ -34,7 +34,7 @@ Upstream state:
 Full tracker: [docs/NEXT-STEPS.md](docs/NEXT-STEPS.md) (Jira subtask
 mapping + PR tracker).
 
-How the work landed over time — every PR across the eleven repositories,
+How the work landed over time — every PR across the twelve repositories,
 from the June demo build-up through the July upstreaming and vendor waves
 to the CI lane:
 
