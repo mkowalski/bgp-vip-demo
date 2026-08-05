@@ -57,11 +57,14 @@ Runs on the hypervisor via ssh (`from: dev-scripts`, house pattern).
    (`channel: stable`, `source: redhat-operators`,
    `installPlanApproval: Automatic`), poll CSV `Succeeded` with a bounded
    deadline.
-2. **Fallback path** (no packagemanifest, or CSV never succeeds within the
-   deadline): deploy upstream metallb-operator manifests pinned to the
+2. **Fallback path** (only when no packagemanifest exists): deploy
+   upstream metallb-operator manifests pinned to the
    release branch matching the cluster minor
    (`oc apply -k github.com/metallb/metallb-operator/config/default?ref=<branch>`
    or equivalent pinned manifest apply). Log loudly which path was taken.
+   On CSV timeout the step fails loudly by design (a broken catalog
+   operator must surface, not be masked by the fallback). *(Amended
+   2026-08-05 post-review.)*
 3. **MetalLB CR** in frr-k8s mode targeting the existing
    `openshift-frr-k8s` instance (the frr-k8s-cno integration MetalLB's own
    lanes use). Exact CR fields (`bgpBackend`/external-frr-k8s knob) differ
