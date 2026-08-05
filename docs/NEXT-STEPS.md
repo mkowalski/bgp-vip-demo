@@ -372,6 +372,12 @@ vs the existing `baremetalds/e2e/ovn/bgp` step-registry lane
   stay (fork bin manifest has the same uid-65534 webhook-server; only the
   OLM/CSV path avoids it via --external-metallb-webhook-server).
   Re-validated live, all three verifies green.
+- **Review round 2 (2026-08-05, a8b7143)**: CodeRabbit findings fixed —
+  response bodies dropped from datapath curls (No-Sensitive-Data-In-Logs),
+  jq schema fallback (.ipv4Unicast.peers // .peers), per-node pod-subnet
+  count guard, pool moved to .70-.90 (old .30-.50 overlapped dev-scripts
+  DHCP .20-.60 — nodes leased .56-.60!), datapath gated on lb-echo
+  readiness. Re-validated live (LB now .70, all verifies green).
 - **Third lane added (2026-08-05, 0e23322)**:
   `e2e-metal-ipi-bgp-vip-ovn-bgp-metallb` — all three producers on one
   cluster; pure composition of the existing refs (matches the dry-run
