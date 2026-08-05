@@ -367,6 +367,10 @@ vs the existing `baremetalds/e2e/ovn/bgp` step-registry lane
   FRRConfiguration producers coexisting** (bgp-vip + ovnk-generated-* +
   metallb-*). PUSHED to release#82912 (2026-08-05, commits 510141d/d8ae4f1/
   0a73976 after review autosquash); PR retitled to cover both lanes.
+- **Third lane added (2026-08-05, 0e23322)**:
+  `e2e-metal-ipi-bgp-vip-ovn-bgp-metallb` — all three producers on one
+  cluster; pure composition of the existing refs (matches the dry-run
+  cluster state exactly). PR now carries three jobs.
 
 
 ## Jira subtask mapping + PR tracker (OPNET-595 children)
