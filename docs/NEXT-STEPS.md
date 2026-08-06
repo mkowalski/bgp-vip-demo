@@ -90,8 +90,14 @@ closed as superseded).
    dev-scripts#1929 into an openshift/release lane; 5+ gate-tagged tests
    (install, failover, dual-stack) per graduation criteria.
 3. Known-gap burndown that doesn't need the TP API: dual-stack validation
-   (D4), strict L3 / off-subnet VIPs (D10), BFD/multi-rack exercises (D11),
-   CEL VAP for per-node state writes (D3).
+   (D4 — **dry run DONE 2026-08-05, ledger run28**: config plumbing fully
+   dual-stack, v4 acceptance verbatim-green on a v4v6 cluster, v6 sessions
+   up; three findings = stale-ToR env issue [fixed], kube-vip single
+   `address` leaves v6 VIPs unmanaged [needs MCO per-family instances],
+   and a NEW zebra bug candidate: ipv6 table-direct routes never imported
+   from table 198 [needs lab repro + upstream issue]), strict L3 /
+   off-subnet VIPs (D10), BFD/multi-rack exercises (D11), CEL VAP for
+   per-node state writes (D3).
 
 ### Phase 3 — TechPreview
 
