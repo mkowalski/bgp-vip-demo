@@ -156,14 +156,19 @@ reference:
    FRR-only (no controller/status/metrics — the EP's static pod sketch
    includes them).
 
-### A2. EP second findings pass — TODO
+### A2. EP second findings pass — DONE (2026-08-05, 5c5386c4)
 
-PR 1982 predates the worker-ingress scope extension. DONE: BGPVIPStatus
-dropped (6d527fe4, rationale kept inline). Still to incorporate:
-ingress pod runs on ALL nodes via templates/common (keepalived parity), the
-FRRConfiguration is cluster-wide (no node selector), the second zebra bug
-(FRRouting/frr#22654, addr/route netlink batch race) + kube-vip level-triggered
-re-assertion as mitigation, and the kube-vip restart kubeconfig/TLS gap (D13).
+All items incorporated in one commit, together with the responses to
+fedepaol's review 4853101609 (per user instruction: NO replies posted on
+the PR — the text speaks for itself): worker-ingress scope
+(templates/common), cluster-wide bgp-vip CR, second zebra bug #22654
+(fixed upstream via #22676; re-assert demoted to optional hardening), D13
+restart gap (Risks table), ip import-table removed everywhere, rawConfig
+framed interim → #469/#470 target, file-form FRRConfiguration named as
+pre-GA direction, MetalLB coexistence goal + GC contract with coex-1/2
+evidence, OVN-K section rewritten (no VIP awareness needed), Test Plan CI
+lanes, Implementation Experience refresh (27 installs + merged work).
+Earlier history: BGPVIPStatus dropped (6d527fe4).
 
 ## B. Upstream contributions
 
