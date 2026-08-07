@@ -80,16 +80,14 @@ the secrets unconditionally while the Service rendering is guarded by
 - Not applicable to OLM installs whose CSV sets the env (which may be why
   this survives: the manifest path is presumably only exercised in dev/CI)
 
-## Related observation (possibly a second issue — can file separately)
+## Related issue (filed separately)
 
-The manifest statically sets `METALLB_BGP_TYPE=native` on the
-`metallb-operator-webhook-server` Deployment, and the operator does not
-reconcile it from the `MetalLB` CR's `bgpBackend`. With
-`bgpBackend: frr-k8s-external`, the validation webhook then rejects IPv6
-pools/advertisements with `native bgp mode does not support ipv6`, even
-though the deployed mode fully supports IPv6. Workaround:
-`oc set env deploy/metallb-operator-webhook-server -n metallb-system METALLB_BGP_TYPE=frr-k8s`.
-Expected: the webhook's BGP-type knowledge follows the CR's `bgpBackend`.
+The same manifest install path has a second, independent bug: the webhook
+server's `METALLB_BGP_TYPE` is a static manifest value never reconciled
+from the `MetalLB` CR's `bgpBackend`, so validation rejects IPv6 resources
+in frr-k8s mode. See
+docs/metallb-operator-webhook-bgptype-bug-draft.md (cross-reference the
+issue numbers when filing).
 
 ---
 This report was drafted with AI assistance. Please verify before posting.
