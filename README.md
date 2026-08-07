@@ -26,7 +26,11 @@ Upstream state:
   via #22676.
 - **Open (review-gated, code complete)**: installer#10718 (OPNET-781),
   MCO#6326 (OPNET-782), CNO#3047 + #3046 (OPNET-783),
-  baremetal-runtimecfg#395 (OPNET-785), ocp-build-data#11838 (OPNET-779).
+  baremetal-runtimecfg#395 (OPNET-785), ocp-build-data#11838 (OPNET-779),
+  release#82912 (coexistence + dual-stack CI lanes, OPNET-803),
+  kube-vip#1671 + #1675 (settled-restart health check; vip_skipdad for
+  ECMP anycast VIPs), dev-scripts#1945 (dual-stack v6 ToR peer),
+  metallb/frr-k8s#470 (redistribution API design).
 - First combined multi-PR CI run executed (ledger row `ci-1`); sole blocker
   for a green lane is the kube-vip istag missing from the ocp/5.0
   integration stream (DPTP escalation on release#81957).
