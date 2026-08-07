@@ -101,9 +101,31 @@ closed as superseded).
 
 ### Phase 3 — TechPreview
 
-1. Structured BGP API per EP: preferred Infra.spec.platformSpec.baremetal.bgp
-   (fallback dedicated CRD) + passwordSecretRef (D15) + NodeDisruptionPolicy
-   for peer-file changes (D6).
+1. Structured BGP API per EP — **IMPLEMENTED** (2026-08-07): dedicated
+   `BGPVIPConfig` CRD (Option B selected; EP amended on PR 1982). Branches
+   `bgpvipconfig-crd` in all four repos, live-validated on the dual-stack
+   cluster (ledger row api-1: parity byte-identical, day-2 edit ~45s with
+   zero disruption via the peers-file NodeDisruptionPolicy (D6), Dev
+   Preview ConfigMap deleted = dead code, all three verifies green):
+   - openshift-api `15e15a151453889482ea844ada57480b17f2d42a`
+   - installer `a436c029a32132c7d0ba6b932bc020a740ad8ea8`
+   - machine-config-operator `e776f417e111aa0e00ccb6d5b22a856602f9f92a`
+   - cluster-network-operator `26e115d72526407373efb3523bf5c934e04d4b02`
+
+   **Pushes to the open PRs pending user approval.** passwordSecretRef
+   (D15) deliberately deferred: password stays inline for TP (MetalLB
+   precedent), secretRef arrives pre-GA as a discriminated union.
+   Follow-ups from the implementation ledger:
+   - CNO: `SessionsConfigured` is render-level, not post-apply — move
+     post-apply or amend the API doc before v1alpha1 graduation; also
+     reorder the CR read before the FRR-provider check so provider
+     failure writes a condition.
+   - api: communities pattern lacks the per-segment numeric-range CEL
+     (<=4294967295) — address before API promotion; api-approved marker
+     still carries the XXXX placeholder — replace at upstream PR time.
+   - payload: any payload build must ship kube-vip >= upstream #1671 +
+     #1675 (api-1 finding 5: older vintages break the v6 API VIP
+     secondary via the ::1 cert loop and lack vip_skipdad).
 2. PrometheusRule alerts on the run22 metrics; optionally move frr-status to
    the companion (shrinks node-bootstrapper RBAC).
 3. Gate DevPreviewNoUpgrade → TechPreviewNoUpgrade; CI 7x/week.
