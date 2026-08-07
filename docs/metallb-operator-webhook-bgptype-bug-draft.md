@@ -1,7 +1,7 @@
 # Bug draft: metallb-operator — webhook server's `METALLB_BGP_TYPE` is static and ignores the `MetalLB` CR's `bgpBackend`
 
-Target: github.com/metallb/metallb-operator issue (not yet filed).
-Status: DRAFT — do not post without review.
+Status: **FILED as https://redhat.atlassian.net/browse/OCPBUGS-105395** (2026-08-07).
+Kept for reference; originally drafted for a metallb/metallb-operator upstream issue.
 Source: BGP VIP management CI work, ledger row coex-3
 (mkowalski/bgp-vip-demo), found 2026-08-06 on a dual-stack OpenShift
 cluster. Companion draft (same install path, different bug):

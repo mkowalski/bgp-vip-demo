@@ -1,7 +1,7 @@
 # Bug draft: metallb-operator — controller/speaker deadlock on missing cert secrets when `DEPLOY_SERVICEMONITORS` is unset (OpenShift)
 
-Target: github.com/metallb/metallb-operator issue (not yet filed).
-Status: DRAFT — do not post without review.
+Status: **FILED as https://redhat.atlassian.net/browse/OCPBUGS-105394** (2026-08-07).
+Kept for reference; originally drafted for a metallb/metallb-operator upstream issue.
 Source: BGP VIP management CI work, ledger rows coex-2/coex-3
 (mkowalski/bgp-vip-demo), reproduced 2026-08-05 and again on a second
 cluster 2026-08-06.
