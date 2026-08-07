@@ -23,7 +23,7 @@ conditions) the Tech Preview graduation criteria require.
 | API group | `machineconfiguration.openshift.io` | MCO is the primary renderer (peers file, static pods); the group already carries node-config CRDs. CNO watching an mcfg CRD is unusual but harmless |
 | Version | `v1alpha1` | openshift/api convention for gated, still-maturing CRDs; promoted with the feature |
 | Scope/name | Cluster-scoped singleton, `metadata.name == "cluster"` (CEL) | Matches config-object convention; one BGP VIP config per cluster |
-| Password | **Inline `password` field only** (no secret support now) | User decision: BGP TCP-MD5 password is not treated as a security issue at this time; may change later. MetalLB's `BGPPeer` CRD has the same inline field (precedent for API review). The field is optional and independent, so an optional `passwordSecretRef` can be added later without breaking compatibility. **This amends the EP's TP criterion text** ("including passwordSecretRef") — secretRef becomes a pre-GA follow-up |
+| Password | **Inline `password` field only** (no secret support now) | User decision: BGP TCP-MD5 password is not treated as a security issue at this time; may change later. MetalLB's `BGPPeer` CRD has the same inline field (precedent for API review). Future secret support must honor the "only one phrasing for each idea" convention: it arrives as a discriminated union (e.g. `authentication.type: Inline\|SecretReference`) that deprecates the inline field — not as a parallel optional field. **This amends the EP's TP criterion text** ("including passwordSecretRef") — secretRef becomes a pre-GA follow-up |
 | VIPs | **Not in the CRD** | `apiVIPs`/`ingressVIPs` duplication from the Dev Preview JSON is dropped; consumers read VIPs from the Infrastructure CR (single source of truth) |
 | Dev Preview path | **Deleted outright in the same change-set** | The gate is NoUpgrade in both Dev and Tech Preview; no migration needed. The EP's "GA removes the ConfigMap path" line moves up to TP |
 
@@ -95,7 +95,7 @@ type BGPVIPHostPeers struct {
 type BGPVIPPeer struct {
     // peerAddress is the IP of the BGP neighbor (IPv4 or IPv6; the
     // session's address family follows it).
-    // CEL: isIP(self)
+    // CEL: isIP(self); +kubebuilder:validation:MaxLength=45
     // +required
     PeerAddress string `json:"peerAddress"`
 
@@ -112,28 +112,46 @@ type BGPVIPPeer struct {
     // +optional
     Password string `json:"password,omitempty"`
 
+    // port is the BGP session port. When omitted, 179 is used; this
+    // default is applied by the consumers (configuration-API convention:
+    // defaults live in the controller, not the schema) and is subject to
+    // change.
     // +kubebuilder:validation:Minimum=1
     // +kubebuilder:validation:Maximum=65535
-    // +kubebuilder:default=179
     // +optional
     Port int32 `json:"port,omitempty"`
 
-    // bfdEnabled enables BFD-backed failover for this session.
-    // (Real boolean — fixes the Dev Preview "true"/"false" strings.)
+    // bfd determines whether the session is backed by BFD fast failure
+    // detection. Allowed values are "Enabled", "Disabled" and omitted.
+    // When omitted, BFD is disabled; this default is subject to change.
+    // (Enum, not boolean: openshift/api conventions forbid boolean fields.)
+    // +kubebuilder:validation:Enum:=Enabled;Disabled;""
     // +optional
-    BFDEnabled *bool `json:"bfdEnabled,omitempty"`
+    BFD BFDMode `json:"bfd,omitempty"`
 
+    // ebgpMultiHop determines whether the session may cross multiple hops.
+    // Allowed values are "Enabled", "Disabled" and omitted (= Disabled,
+    // subject to change).
+    // +kubebuilder:validation:Enum:=Enabled;Disabled;""
     // +optional
-    EBGPMultiHop *bool `json:"ebgpMultiHop,omitempty"`
+    EBGPMultiHop EBGPMultiHopMode `json:"ebgpMultiHop,omitempty"`
 
-    // holdTime/keepaliveTime use typed durations (fixes the Dev Preview
-    // free-form strings). Struct-level CEL: when both are set,
-    // holdTime >= 3 * keepaliveTime.
+    // holdTimeSeconds/keepaliveTimeSeconds use integer seconds with the
+    // unit in the name (Kubernetes API convention for durations; BGP
+    // timers are wire-format uint16 seconds, RFC 4271). 0 means "use the
+    // FRR default". Struct-level CEL: when both are set and non-zero,
+    // holdTimeSeconds >= 3 * keepaliveTimeSeconds.
+    // +kubebuilder:validation:Minimum=0
+    // +kubebuilder:validation:Maximum=65535
     // +optional
-    HoldTime *metav1.Duration `json:"holdTime,omitempty"`
+    HoldTimeSeconds int32 `json:"holdTimeSeconds,omitempty"`
+    // +kubebuilder:validation:Minimum=0
+    // +kubebuilder:validation:Maximum=65535
     // +optional
-    KeepaliveTime *metav1.Duration `json:"keepaliveTime,omitempty"`
+    KeepaliveTimeSeconds int32 `json:"keepaliveTimeSeconds,omitempty"`
 }
+
+// BFDMode and EBGPMultiHopMode are string enums ("Enabled" | "Disabled").
 
 type BGPVIPConfigStatus struct {
     // observedGeneration of the spec last processed by MCO.
@@ -155,9 +173,35 @@ type BGPVIPConfigStatus struct {
 
 No immutability rules beyond the singleton name: day-2 peer editing is the
 feature. Validation summary: singleton-name CEL, ASN/port ranges, IP-typed
-peer addresses, community format, list-map uniqueness (peers by address,
-overrides by hostname), duration relation, size caps (16 peers per set, 256
-overrides, 8 communities).
+peer addresses (MaxLength 45 + isIP CEL), community format, list-map
+uniqueness (peers by address, overrides by hostname), timer relation, size
+caps (16 peers per set, 256 overrides, 8 communities).
+
+### openshift/api conventions cross-check (dev-guide/api-conventions.md)
+
+Applied to this design:
+
+- **No boolean fields** (explicitly forbidden): `bfd`/`ebgpMultiHop` are
+  `Enabled|Disabled` enums (precedent: `RouteAdvertisementsEnablement`).
+- **No pointers for optional fields** in CRD-based APIs: no `*bool`,
+  no `*metav1.Duration` anywhere.
+- **Durations as integer + unit suffix**: `holdTimeSeconds`/
+  `keepaliveTimeSeconds int32` (also matches BGP's uint16-seconds wire
+  format), not `metav1.Duration`.
+- **Configuration APIs default in the controller, not the schema**: no
+  `+kubebuilder:default`; omitted-value behavior documented in godoc as
+  subject to change (port 179, BFD/multihop Disabled, FRR timer defaults).
+- **ASN as int64**: int32 cannot hold 4294967295; documented in godoc.
+- **Godoc style**: every field's godoc starts with the JSON field name and
+  states omitted behavior (generator/linter-enforced in openshift/api).
+- **Discriminated union reserved** for future password secret support (see
+  Decisions).
+- **Tech Preview tooling**: the api repo's feature-gated manifest
+  generation (Makefile targets per group + `+openshift:enable:FeatureGate`
+  markers) produces the gated CRD manifests; the machineconfiguration
+  group already has these targets (used by BGPVIPPeersJSON).
+- **kubebuilder-only validation + CEL**, no webhook: matches the "no
+  functions/annotation APIs" guidance and keeps validation in-schema.
 
 ## Producers and consumers
 
@@ -167,7 +211,9 @@ overrides, 8 communities).
   `hosts[].bgpPeers`) and their validation stay exactly as reviewed on
   openshift/installer#10718 — the user-facing install surface does not
   change. Type conversion: `bfdEnabled`/`ebgpMultiHop` strings →
-  `*bool`, `holdTime`/`keepaliveTime` strings → `metav1.Duration`.
+  `Enabled|Disabled` enums, `holdTime`/`keepaliveTime` duration strings →
+  integer seconds (`time.ParseDuration` → `.Seconds()`, validated whole
+  seconds 0–65535 at install-config level).
 - The `bgpvipconfig` manifest asset renders a `BGPVIPConfig` manifest
   instead of the ConfigMap. The bootstrap node keeps the file-based path:
   the manifest file in the asset directory is read directly during
