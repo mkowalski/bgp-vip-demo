@@ -107,7 +107,7 @@ closed as superseded).
    cluster (ledger row api-1: parity byte-identical, day-2 edit ~45s with
    zero disruption via the peers-file NodeDisruptionPolicy (D6), Dev
    Preview ConfigMap deleted = dead code, all three verifies green):
-   - openshift-api `15e15a151453889482ea844ada57480b17f2d42a`
+   - openshift-api `c9bceca2390546709a6245f2fac1a9d246ef6166`
    - installer `a436c029a32132c7d0ba6b932bc020a740ad8ea8`
    - machine-config-operator `e776f417e111aa0e00ccb6d5b22a856602f9f92a`
    - cluster-network-operator `26e115d72526407373efb3523bf5c934e04d4b02`
@@ -121,8 +121,14 @@ closed as superseded).
      reorder the CR read before the FRR-provider check so provider
      failure writes a condition.
    - api: communities pattern lacks the per-segment numeric-range CEL
-     (<=4294967295) — address before API promotion; api-approved marker
-     still carries the XXXX placeholder — replace at upstream PR time.
+     (<=4294967295) — DONE (c9bceca23, per-item CEL + integration tests);
+     api-approved marker still carries the XXXX placeholder — replace at
+     upstream PR time.
+   - CNO: absent-CR degradation post-bootstrap — the implementation
+     logs-and-skips an absent CR (bootstrap-window rationale); degrade
+     when the CR goes absent on a settled cluster.
+   - SSA condition-writer unit tests (MCO+CNO).
+   - cross-repo duration normalization test (1m30s->90s).
    - payload: any payload build must ship kube-vip >= upstream #1671 +
      #1675 (api-1 finding 5: older vintages break the v6 API VIP
      secondary via the ::1 cert loop and lack vip_skipdad).

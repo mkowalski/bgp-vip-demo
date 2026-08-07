@@ -265,11 +265,22 @@ path, no migration.
 
 | Scenario | Behavior |
 |---|---|
-| CRD instance absent on a BGP cluster | MCO Degraded (holds last good ControllerConfig); CNO leaves last FRRConfiguration, Degraded |
+| CRD instance absent on a BGP cluster | MCO Degraded (holds last good ControllerConfig); CNO logs-and-skips, leaving the last FRRConfiguration (see deviation note below) |
 | Gate off, CR present | Consumers ignore it (gate check precedes informer handling); admission rejects writes when the gate is off (gated CRD not installed) |
 | Invalid edit | Rejected at admission (CEL); no consumer ever sees invalid state — removes the Dev Preview "validate in every consumer" duplication |
 | hostOverrides names unknown host | Rendered but unused (same as Dev Preview); runtimecfg falls back to defaultPeers for unmatched hostnames |
 | Peer edit day-2 | MCO re-renders peers file without node disruption (NodeDisruptionPolicy); CNO re-renders FRRConfiguration; frr-k8s reloads sessions. VIP advertisement continuity governed by the existing gated-redistribution design |
+
+### Implementation deviations (validated live)
+
+- **CNO absent-CR behavior**: the spec originally promised Degraded when the
+  CR is absent on a BGP cluster. The implementation deliberately
+  logs-and-skips instead, leaving the last FRRConfiguration in place:
+  during install the CR does not exist yet when CNO first renders
+  (bootstrap window), so degrading on absence would degrade every install.
+  Degrading on a *post-bootstrap* absent CR is a tracked follow-up (see
+  NEXT-STEPS Phase 3 follow-ups). MCO behaves as specified (Degraded,
+  holding the last good ControllerConfig).
 
 ## Sequencing and repositories
 
