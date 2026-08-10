@@ -1,7 +1,6 @@
 # Bug draft: frr-k8s — validation webhook rejects merged neighbors that mix `passwordSecret` and inline `password`, even when the actual passwords match
 
-Target: github.com/metallb/frr-k8s issue (not yet filed).
-Status: DRAFT — do not post without review.
+Status: **FILED as https://github.com/metallb/frr-k8s/issues/484** (2026-08-10). Kept for reference.
 Source: BGP VIP management structured-API work, ledger row api-2
 (mkowalski/bgp-vip-demo), found 2026-08-10 on a live OpenShift dual-stack
 cluster; root cause confirmed against frr-k8s source.
