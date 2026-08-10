@@ -112,7 +112,7 @@ closed as superseded).
    - machine-config-operator `e776f417e111aa0e00ccb6d5b22a856602f9f92a`
    - cluster-network-operator `26e115d72526407373efb3523bf5c934e04d4b02`
 
-   **Pushes to the open PRs pending user approval.** passwordSecretRef
+   ****api PR OPEN (draft): openshift/api#2972** (single squashed commit 9a4d0b2e4, api-approved URL filled, suite 84/84). Consumer pushes/PRs pending user approval; consumers re-vendor + drop fork replaces once #2972 merges.** passwordSecretRef
    (D15) deliberately deferred: password stays inline for TP (MetalLB
    precedent), secretRef arrives pre-GA as a discriminated union.
    Follow-ups from the implementation ledger:
