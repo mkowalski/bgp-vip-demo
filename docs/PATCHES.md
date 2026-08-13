@@ -123,7 +123,7 @@ unknown cluster-wide (proven in run6).
 
 Upstreamable: both kubeconfig commits are generic fixes.
 
-## 6. openshift/baremetal-runtimecfg — branch `OPNET-595-bgp-vip-management`
+## 6. openshift/baremetal-runtimecfg — branch `OPNET-595-bgp-vip-management` — **PR #395 MERGED 2026-08-13** (with the FRRPeer `port` field + bare-seconds timer contract, 38a7b106)
 
 | Commit | What | Why |
 |--------|------|-----|

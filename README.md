@@ -5,7 +5,7 @@ Working demo and upstreaming workspace of
 (OPNET-595/OPNET-773): BGP-based VIP management for on-premise OpenShift —
 kube-vip (routing-table mode) + frr-k8s static pods replacing keepalived.
 
-**Status (2026-08-05): PoC COMPLETE, upstreaming in flight.**
+**Status (2026-08-13): PoC COMPLETE, upstreaming in flight.**
 All six demo criteria proven across 27 install runs (see
 [docs/demo-results.md](docs/demo-results.md), [docs/RUN-LEDGER.md](docs/RUN-LEDGER.md)):
 API + Ingress VIPs advertised via BGP from bootstrap through steady state,
@@ -17,20 +17,28 @@ script.
 Upstream state:
 
 - **Merged**: openshift/api#2923 (gate + `vipManagement` + `BGPVIPPeersJSON`),
-  the vendor wave (MCO#6334, CNO#3089, installer 1.36 rebase #10713),
-  CNO#3070 (frr-k8s CRD asn fix), openshift/release#81957 (kube-vip CI
-  promotion) + #82698 (`e2e-metal-ipi-bgp-vip` CI lane),
-  dev-scripts#1929 (BGP ToR) + #1939 (`BGP_VIP_MANAGEMENT` knob),
-  kube-vip/kube-vip#1627 + #1636 (re-assert + realm) and the
+  **baremetal-runtimecfg#395** (OPNET-785, FRR peer-file rendering,
+  2026-08-13), the vendor wave (MCO#6334, CNO#3089, installer 1.36 rebase
+  #10713), CNO#3070 (frr-k8s CRD asn fix), openshift/release#81957
+  (kube-vip CI promotion) + #82698 (`e2e-metal-ipi-bgp-vip` CI lane) +
+  **#82912** (coexistence + dual-stack lanes incl. the FRR runtime-state
+  verify, OPNET-803, 2026-08-13), dev-scripts#1929 (BGP ToR) + #1939
+  (`BGP_VIP_MANAGEMENT` knob), the full upstream kube-vip series
+  kube-vip/kube-vip#1627 + #1636 + **#1671 + #1675** (kubeconfig,
+  re-assert, backend health-check addr, vip_skipdad) and the
   openshift/kube-vip build PRs #2/#3/#4; FRRouting/frr#22654 fixed upstream
-  via #22676.
+  via #22676. openshift/kube-vip#6 (route re-assertion) closed unmerged —
+  the FRR fix suffices.
 - **Open (review-gated, code complete)**: installer#10718 (OPNET-781),
   MCO#6326 (OPNET-782), CNO#3047 + #3046 (OPNET-783),
-  baremetal-runtimecfg#395 (OPNET-785), ocp-build-data#11838 (OPNET-779),
-  release#82912 (coexistence + dual-stack CI lanes, OPNET-803),
-  kube-vip#1671 + #1675 (settled-restart health check; vip_skipdad for
-  ECMP anycast VIPs), dev-scripts#1945 (dual-stack v6 ToR peer),
-  metallb/frr-k8s#470 (redistribution API design).
+  ocp-build-data#11838 (OPNET-779), api#2972 (draft — TP `BGPVIPConfig`
+  CRD), dev-scripts#1945 (dual-stack v6 ToR peer + full optional-field
+  e2e coverage), metallb/frr-k8s#470 (redistribution API design).
+  2026-08-12/13 review wave: cybertron's installer#10718 findings (FRR
+  timers take bare seconds; peer `port` was dead code) fixed across all
+  four repos, and the MCO e2e-openstack permafail root-caused to a
+  bootstrap-vs-in-cluster image-source asymmetry (frr-k8s image from the
+  payload vs the images ConfigMap) and fixed with parity regression tests.
 - First combined multi-PR CI run executed (ledger row `ci-1`); sole blocker
   for a green lane is the kube-vip istag missing from the ocp/5.0
   integration stream (DPTP escalation on release#81957).
@@ -63,7 +71,7 @@ to the CI lane:
 | Path | What |
 |------|------|
 | `bgp-tor.sh`, `tor/` | FRR ToR container helper for the hypervisor (up/down/status); superseded in dev-scripts by `ENABLE_BGP_TOR` (#1929) |
-| `patches/` | git-am-able patch series for the four repos with **open PRs** (installer, MCO, CNO, runtimecfg) — historical form; the open PRs are the canonical carriers. Everything merged (api, dev-scripts, FRR, the whole kube-vip series, vendor patches) removed; recoverable from git history |
+| `patches/` | git-am-able patch series for the three repos with **open PRs** (installer, MCO, CNO) — historical form; the open PRs are the canonical carriers. Everything merged (api, runtimecfg#395, dev-scripts, FRR, the whole kube-vip series, vendor patches) removed; recoverable from git history |
 | `build/` | Dockerfiles used for the demo image builds + FRR build script |
 | `lab/` | Standalone FRR reproduction labs that isolated both zebra bugs without a cluster |
 
@@ -101,10 +109,10 @@ replace paths).
 | installer | `opnet-781-bgp-vip` (#10718) | `OPNET-595-bgp-vip-management-vendored` |
 | machine-config-operator | `OPNET-595-mco-pr` (#6326) | `OPNET-595-bgp-vip-management-dev` |
 | cluster-network-operator | `bgp-vip-management` (#3047) | `OPNET-595-bgp-vip-management-vendored` (carries a now-redundant DEMO-CARRY; refresh on next demo rebuild) |
-| baremetal-runtimecfg | `bgp-frr-peer-rendering` (#395) | `OPNET-595-bgp-vip-management` |
-| kube-vip | upstream #1627 + #1636 merged; downstream #2/#3/#4 merged | `OPNET-595-bgp-vip-management` |
+| baremetal-runtimecfg | merged (#395) | `OPNET-595-bgp-vip-management` |
+| kube-vip | upstream #1627 #1636 #1671 #1675 merged; downstream #2/#3/#4 merged, #6 closed | `OPNET-595-bgp-vip-management` |
 | dev-scripts | merged (#1929, #1939) | — |
-| openshift/release | merged (#81957, #82698) | — |
+| openshift/release | merged (#81957, #82698, #82912) | — |
 
 Images: `quay.io/mkowalski/{machine-config-operator,cluster-network-operator,baremetal-runtimecfg,kube-vip,cluster-config-api,metallb-frr}:bgp-demo`,
 payload `quay.io/mkowalski/ocp-release:bgp-vip-demo` (base
@@ -122,3 +130,8 @@ the ToR, console 200 pinned to the ingress VIP). Optional on-demand
 presubmit on openshift/installer; combined-stack runs via multi-PR testing
 (`/testwith openshift/installer/main/e2e-metal-ipi-bgp-vip <PR refs...>`).
 Red until the open PRs and the kube-vip istag land — by design.
+Coexistence + dual-stack lanes (release#82912, merged): OVN-K route
+advertisements, day-2 MetalLB, and the all-three-producers job, plus a
+verify step asserting FRR runtime state at the ToR (sessions Established,
+negotiated timers 90/30, BFD Up) against the optional peer fields the
+dev-scripts knob now sets (#1945).

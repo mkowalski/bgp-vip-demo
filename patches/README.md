@@ -23,6 +23,8 @@ Removed as merged (2026-08) — recover with
 - vendor patches (installer 0005, MCO 0011/0013, CNO 0003) — the api bump
   is merged everywhere (MCO#6334, CNO#3089, installer rebase wave);
   re-vendor from upstream openshift/api instead
+- `baremetal-runtimecfg/` — openshift/baremetal-runtimecfg#395 (merged
+  2026-08-13, incl. the FRRPeer `port` field + bare-seconds timers)
 
 ## Bases
 
@@ -31,7 +33,6 @@ Removed as merged (2026-08) — recover with
 | `installer/` | github.com/openshift/installer | `7746340202` (master, 2026-06) | openshift/installer#10718 (OPNET-781) |
 | `machine-config-operator/` | github.com/openshift/machine-config-operator | `6a2c5c654` (master, 2026-06) | openshift/machine-config-operator#6326 (OPNET-782) |
 | `cluster-network-operator/` | github.com/openshift/cluster-network-operator | `6dc18040e` (master, 2026-06) | openshift/cluster-network-operator#3047 + #3046 (OPNET-783) |
-| `baremetal-runtimecfg/` | github.com/openshift/baremetal-runtimecfg | `2f969c7` (master) | openshift/baremetal-runtimecfg#395 (OPNET-785) |
 
 ```bash
 cd <repo> && git checkout -b bgp-vip <base-sha> && git am -3 <this-repo>/patches/<dir>/*.patch
