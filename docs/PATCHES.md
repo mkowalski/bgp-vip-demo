@@ -66,7 +66,7 @@ the CRD schema + featuregate manifests MUST land here first or
 `vipManagement` gets pruned from the live Infrastructure CR and the gate is
 unknown cluster-wide (proven in run6).
 
-## 2. openshift/installer — branch `OPNET-595-bgp-vip-management(-vendored)`
+## 2. openshift/installer — branch `OPNET-595-bgp-vip-management(-vendored)` — **PR #10718 MERGED 2026-08-17**
 
 | Commit | What | Why |
 |--------|------|-----|

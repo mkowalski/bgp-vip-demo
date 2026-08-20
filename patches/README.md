@@ -25,12 +25,12 @@ Removed as merged (2026-08) — recover with
   re-vendor from upstream openshift/api instead
 - `baremetal-runtimecfg/` — openshift/baremetal-runtimecfg#395 (merged
   2026-08-13, incl. the FRRPeer `port` field + bare-seconds timers)
+- `installer/` — openshift/installer#10718 (merged 2026-08-17)
 
 ## Bases
 
 | Directory | Repository | Apply onto (base SHA) | Open PR |
 |---|---|---|---|
-| `installer/` | github.com/openshift/installer | `7746340202` (master, 2026-06) | openshift/installer#10718 (OPNET-781) |
 | `machine-config-operator/` | github.com/openshift/machine-config-operator | `6a2c5c654` (master, 2026-06) | openshift/machine-config-operator#6326 (OPNET-782) |
 | `cluster-network-operator/` | github.com/openshift/cluster-network-operator | `6dc18040e` (master, 2026-06) | openshift/cluster-network-operator#3047 + #3046 (OPNET-783) |
 

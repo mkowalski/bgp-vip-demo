@@ -6,9 +6,9 @@ Dates from:  gh api repos/<org>/<repo>/pulls/<n> --jq '[.created_at,.merged_at,.
 """
 import datetime as dt
 
-TODAY = dt.date(2026, 8, 13)
+TODAY = dt.date(2026, 8, 20)
 START = dt.date(2026, 6, 20)
-END = dt.date(2026, 8, 15)
+END = dt.date(2026, 8, 22)
 
 X0, X1 = 216, 950          # plot area
 Y0 = 100                   # first row
@@ -24,6 +24,8 @@ PRS = [
     ("openshift/kube-vip", "#2 #3 go/Makefile CI — fork build fixes", "2026-06-24", "2026-06-24", "merged", "r"),
     (None, "#4 Dockerfile.openshift", "2026-06-26", "2026-06-26", "merged", "r"),
     (None, "#6 route re-assert — closed: FRR fix suffices", "2026-07-14", None, "closed", "r"),
+    (None, "#12 upstream sync (incl. #1671/#1675)", "2026-08-10", "2026-08-17", "merged", "l"),
+    (None, "#15 release-5.0 sync", "2026-08-17", None, "open", "l"),
     ("kube-vip/kube-vip", "#1627 kubeconfig", "2026-07-09", "2026-07-14", "merged", "r"),
     (None, "#1636 re-assert + realm", "2026-07-15", "2026-07-21", "merged", "r"),
     (None, "#1671 backend health-check addr", "2026-08-06", "2026-08-08", "merged", "l"),
@@ -43,11 +45,11 @@ PRS = [
     (None, "#3070 frr-k8s CRD align", "2026-07-20", "2026-07-22", "merged", "r"),
     (None, "#3089 api vendor bump", "2026-07-24", "2026-07-29", "merged", "l"),
     ("baremetal-runtimecfg", "#395 FRR peer-file rendering", "2026-07-10", "2026-08-13", "merged", "l"),
-    ("ocp-build-data", "#11838 ose-kube-vip onboarding", "2026-07-15", None, "open", "l"),
+    ("ocp-build-data", "#11838 ose-kube-vip payload member", "2026-07-15", "2026-08-14", "merged", "l"),
     ("machine-config-operator", "#6326 BGP VIP static pods", "2026-07-22", None, "open", "l"),
     (None, "#6334 api vendor bump", "2026-07-24", "2026-07-27", "merged", "l"),
     ("openshift/installer", "#10713 rebase/vendor wave", "2026-07-24", "2026-07-28", "merged", "l"),
-    (None, "#10718 BGP VIP support", "2026-07-28", None, "open", "l"),
+    (None, "#10718 BGP VIP support", "2026-07-28", "2026-08-17", "merged", "l"),
 ]
 
 PHASES = [
@@ -57,6 +59,7 @@ PHASES = [
     ("CI lanes", "2026-07-30", "2026-08-01"),
     ("coexistence + dual-stack", "2026-08-04", "2026-08-07"),
     ("TP API + review chase", "2026-08-08", "2026-08-13"),
+    ("payload + merges", "2026-08-14", "2026-08-20"),
 ]
 
 COLORS = {

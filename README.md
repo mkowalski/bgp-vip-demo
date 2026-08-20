@@ -5,7 +5,7 @@ Working demo and upstreaming workspace of
 (OPNET-595/OPNET-773): BGP-based VIP management for on-premise OpenShift —
 kube-vip (routing-table mode) + frr-k8s static pods replacing keepalived.
 
-**Status (2026-08-13): PoC COMPLETE, upstreaming in flight.**
+**Status (2026-08-20): PoC COMPLETE, upstreaming nearly done — installer merged, kube-vip in the payload.**
 All six demo criteria proven across 27 install runs (see
 [docs/demo-results.md](docs/demo-results.md), [docs/RUN-LEDGER.md](docs/RUN-LEDGER.md)):
 API + Ingress VIPs advertised via BGP from bootstrap through steady state,
@@ -16,32 +16,31 @@ script.
 
 Upstream state:
 
-- **Merged**: openshift/api#2923 (gate + `vipManagement` + `BGPVIPPeersJSON`),
-  **baremetal-runtimecfg#395** (OPNET-785, FRR peer-file rendering,
-  2026-08-13), the vendor wave (MCO#6334, CNO#3089, installer 1.36 rebase
-  #10713), CNO#3070 (frr-k8s CRD asn fix), openshift/release#81957
-  (kube-vip CI promotion) + #82698 (`e2e-metal-ipi-bgp-vip` CI lane) +
-  **#82912** (coexistence + dual-stack lanes incl. the FRR runtime-state
-  verify, OPNET-803, 2026-08-13), dev-scripts#1929 (BGP ToR) + #1939
-  (`BGP_VIP_MANAGEMENT` knob), the full upstream kube-vip series
-  kube-vip/kube-vip#1627 + #1636 + **#1671 + #1675** (kubeconfig,
-  re-assert, backend health-check addr, vip_skipdad) and the
-  openshift/kube-vip build PRs #2/#3/#4; FRRouting/frr#22654 fixed upstream
-  via #22676. openshift/kube-vip#6 (route re-assertion) closed unmerged —
-  the FRR fix suffices.
-- **Open (review-gated, code complete)**: installer#10718 (OPNET-781),
-  MCO#6326 (OPNET-782), CNO#3047 + #3046 (OPNET-783),
-  ocp-build-data#11838 (OPNET-779), api#2972 (draft — TP `BGPVIPConfig`
-  CRD), dev-scripts#1945 (dual-stack v6 ToR peer + full optional-field
-  e2e coverage), metallb/frr-k8s#470 (redistribution API design).
-  2026-08-12/13 review wave: cybertron's installer#10718 findings (FRR
-  timers take bare seconds; peer `port` was dead code) fixed across all
-  four repos, and the MCO e2e-openstack permafail root-caused to a
-  bootstrap-vs-in-cluster image-source asymmetry (frr-k8s image from the
-  payload vs the images ConfigMap) and fixed with parity regression tests.
-- First combined multi-PR CI run executed (ledger row `ci-1`); sole blocker
-  for a green lane is the kube-vip istag missing from the ocp/5.0
-  integration stream (DPTP escalation on release#81957).
+- **Merged**: **installer#10718 (OPNET-781, 2026-08-17)** — the feature's
+  biggest PR; openshift/api#2923 (gate + `vipManagement` +
+  `BGPVIPPeersJSON`), baremetal-runtimecfg#395 (OPNET-785),
+  **ocp-build-data#11838 (OPNET-779)** — and since 2026-08-20 the
+  **kube-vip image is in the 5.0 nightly + CI payloads** (the unblocker
+  was the `io.openshift.release.operator=true` image label, kube-vip#17);
+  the vendor wave (MCO#6334, CNO#3089, installer 1.36 rebase #10713),
+  CNO#3070, openshift/release#81957 + #82698 (`e2e-metal-ipi-bgp-vip`) +
+  #82912 (coexistence + dual-stack lanes + FRR runtime-state verify),
+  dev-scripts#1929 + #1939, the full upstream kube-vip series (#1627,
+  #1636, #1671, #1675), the downstream kube-vip sync #12 (main past
+  #1671/#1675), and the openshift/kube-vip build PRs #2/#3/#4;
+  FRRouting/frr#22654 fixed upstream via #22676.
+- **Open (review-gated, code complete)**: MCO#6326 (OPNET-782 — parity
+  fix live-confirmed in CI, kube-vip payload consumption restored;
+  auto-held by the merge-bot after retest rounds, needs hold-cancel +
+  lgtm/approve), CNO#3047 (rebased, awaiting re-lgtm) + #3046 (OPNET-783),
+  openshift/kube-vip#15 (release-5.0 sync — needed so the payload image
+  gains the dual-stack fixes), api#2972 (draft — TP `BGPVIPConfig` CRD),
+  dev-scripts#1945 (dual-stack v6 ToR peer + full optional-field e2e
+  coverage), metallb/frr-k8s#470 (redistribution API design).
+- Path to a green `e2e-metal-ipi-bgp-vip` lane: merge MCO#6326 + CNO#3047,
+  then `/testwith` needs no extra refs (installer + runtimecfg + payload
+  image all merged); dual-stack additionally wants kube-vip#15 + the next
+  ART build.
 
 Full tracker: [docs/NEXT-STEPS.md](docs/NEXT-STEPS.md) (Jira subtask
 mapping + PR tracker).
@@ -71,7 +70,7 @@ to the CI lane:
 | Path | What |
 |------|------|
 | `bgp-tor.sh`, `tor/` | FRR ToR container helper for the hypervisor (up/down/status); superseded in dev-scripts by `ENABLE_BGP_TOR` (#1929) |
-| `patches/` | git-am-able patch series for the three repos with **open PRs** (installer, MCO, CNO) — historical form; the open PRs are the canonical carriers. Everything merged (api, runtimecfg#395, dev-scripts, FRR, the whole kube-vip series, vendor patches) removed; recoverable from git history |
+| `patches/` | git-am-able patch series for the two repos with **open PRs** (MCO, CNO) — historical form; the open PRs are the canonical carriers. Everything merged (api, installer#10718, runtimecfg#395, dev-scripts, FRR, the whole kube-vip series, vendor patches) removed; recoverable from git history |
 | `build/` | Dockerfiles used for the demo image builds + FRR build script |
 | `lab/` | Standalone FRR reproduction labs that isolated both zebra bugs without a cluster |
 
@@ -106,11 +105,11 @@ replace paths).
 | Repo | PR branch (canonical) | Dev/demo branch |
 |---|---|---|
 | openshift/api | merged (#2923) | `OPNET-595-bgp-vip-management` |
-| installer | `opnet-781-bgp-vip` (#10718) | `OPNET-595-bgp-vip-management-vendored` |
+| installer | merged (#10718) | `OPNET-595-bgp-vip-management-vendored` |
 | machine-config-operator | `OPNET-595-mco-pr` (#6326) | `OPNET-595-bgp-vip-management-dev` |
 | cluster-network-operator | `bgp-vip-management` (#3047) | `OPNET-595-bgp-vip-management-vendored` (carries a now-redundant DEMO-CARRY; refresh on next demo rebuild) |
 | baremetal-runtimecfg | merged (#395) | `OPNET-595-bgp-vip-management` |
-| kube-vip | upstream #1627 #1636 #1671 #1675 merged; downstream #2/#3/#4 merged, #6 closed | `OPNET-595-bgp-vip-management` |
+| kube-vip | upstream #1627 #1636 #1671 #1675 merged; downstream #2/#3/#4/#12 merged, #6 closed, #15 open (release-5.0) | `OPNET-595-bgp-vip-management` |
 | dev-scripts | merged (#1929, #1939) | — |
 | openshift/release | merged (#81957, #82698, #82912) | — |
 
