@@ -30,6 +30,11 @@ TechPreview, EP 066d3556).
    upstream #1604/#1627/#1636/#1671/#1675; openshift/kube-vip#15 carries
    the same to release-5.0 (approved+verified, needs lgtm).
 4. Jira hygiene: target version 5.0.0 on OPNET-784 and OPNET-779/783.
+   DONE 2026-08-26: epic audit — OPNET-785 and OPNET-781 closed (PRs merged);
+   borderline flagged to Mat: OPNET-779 (payload track complete, kube-vip#15
+   is OPNET-784's), OPNET-621 (lanes merged, first green run pending
+   MCO/CNO), OPNET-805 (re-scope or close — coexistence went via lanes +
+   OCPBUGS-105394/105395).
 5. DONE: MCO PR **OPENED: openshift/machine-config-operator#6326**
    (OPNET-782, 2026-07-22) from branch OPNET-595-mco-pr, 4 commits
    (vendor api via mkowalski fork pseudo-version pin — one-commit swap on
@@ -118,18 +123,17 @@ closed as superseded).
    - machine-config-operator `e776f417e111aa0e00ccb6d5b22a856602f9f92a`
    - cluster-network-operator `26e115d72526407373efb3523bf5c934e04d4b02`
 
-   **api PR OPEN (draft): openshift/api#2972** (single squashed commit 22af5b1d9 after CodeRabbit round 1 — classic communities now enforce 16-bit segments per RFC 1997, suite 89/89; api-approved URL filled; REVISED 2026-08-10: peer auth is passwordSecret-only — openshift-config basic-auth Secret reference mirroring frr-k8s, no inline password). CONSUMER REWORK DONE (2026-08-10: installer 1864ea3844, MCO 56ab76d64, CNO 2566dc602; live-proven except the frr-k8s same-neighbor mixed-password merge bug — ledger api-2; RESOLVED via CNO inline fallback a5680c393 for metallb/frr-k8s#484, FULL CHAIN GREEN incl. 3-producer shared MD5 + negative test — ledger api-3; revert to passwordSecret rendering when #484 ships). NEW follow-ups from api-3: multi-producer password-rotation deadlock (frr-k8s#484 scope or documented ordered procedure); SessionsConfigured post-apply semantics now outage-grade (webhook denials invisible). Original plan was: installer generates the Secret manifest + reference (bootstrap keeps plaintext from install-config), MCO resolves the Secret into the internal JSON (+ secret informer, degrade on missing), CNO maps to frr-k8s neighbor passwordSecret (copy openshift-config -> openshift-frr-k8s) - consumers currently implement the inline revision and vendor 15e15a151. Consumer pushes/PRs pending user approval; consumers re-vendor + drop fork replaces once #2972 merges.** passwordSecretRef
+   **api PR OPEN (draft): openshift/api#2972** (single squashed commit, head d41a6db51 after the 2026-08-25/26 review wave; REVISED 2026-08-10: peer auth is passwordSecret-only — openshift-config basic-auth Secret reference mirroring frr-k8s, no inline password). REVIEW WAVE 2026-08-25/26 (deep-review panel + CodeRabbit round 2 + Copilot, all findings addressed): SessionsConfigured docs fixed to render-level semantics (webhook denials were invisible behind a healthy condition); community pattern forbids leading zeros; peerAddress requires ip.isCanonical (non-canonical IPv6 spellings defeated listMapKey uniqueness); holdTimeSeconds RFC 4271 floor (0 or >=3); hostname/Secret-name label limit 63 chars **enforced via the regex, NOT split().all() CEL — that blows the apiserver CEL cost budget at nesting depth (2.6x), caught by the integration suite**; operator-managed label marker; observedGeneration scoped to MCO (CNO progress on the condition) + Minimum=1; kube-api-linter clean (15 findings: omitzero, omitempty on required, MinProperties, timers now ***int32** — consumer branches need mechanical adaptation, also enums no longer accept ""); suite grown 15→44 cases / 118 specs incl. onUpdate + status-subresource writes; PR description rewritten with mermaid flow diagram + examples. CONSUMER REWORK DONE (2026-08-10: installer 1864ea3844, MCO 56ab76d64, CNO 2566dc602; live-proven except the frr-k8s same-neighbor mixed-password merge bug — ledger api-2; RESOLVED via CNO inline fallback a5680c393 for metallb/frr-k8s#484, FULL CHAIN GREEN incl. 3-producer shared MD5 + negative test — ledger api-3; revert to passwordSecret rendering when #484 ships). NEW follow-ups from api-3: multi-producer password-rotation deadlock (frr-k8s#484 scope or documented ordered procedure); SessionsConfigured post-apply semantics now outage-grade (webhook denials invisible). Original plan was: installer generates the Secret manifest + reference (bootstrap keeps plaintext from install-config), MCO resolves the Secret into the internal JSON (+ secret informer, degrade on missing), CNO maps to frr-k8s neighbor passwordSecret (copy openshift-config -> openshift-frr-k8s) - consumers currently implement the inline revision and vendor 15e15a151. Consumer pushes/PRs pending user approval; consumers re-vendor + drop fork replaces once #2972 merges — tracked as Jira stories **OPNET-810 (installer) / OPNET-811 (MCO) / OPNET-812 (CNO)** (created 2026-08-26, blocked by OPNET-809, descriptions carry the full rework scope incl. the *int32/enum adaptation).** passwordSecretRef
    (D15) deliberately deferred: password stays inline for TP (MetalLB
    precedent), secretRef arrives pre-GA as a discriminated union.
    Follow-ups from the implementation ledger:
-   - CNO: `SessionsConfigured` is render-level, not post-apply — move
-     post-apply or amend the API doc before v1alpha1 graduation; also
-     reorder the CR read before the FRR-provider check so provider
-     failure writes a condition.
-   - api: communities pattern lacks the per-segment numeric-range CEL
-     (<=4294967295) — DONE (c9bceca23, per-item CEL + integration tests);
-     api-approved marker still carries the XXXX placeholder — replace at
-     upstream PR time.
+   - CNO: `SessionsConfigured` is render-level, not post-apply — API doc
+     AMENDED to render-level semantics (2026-08-25, in #2972); moving CNO
+     to post-apply remains a pre-v1 follow-up; also reorder the CR read
+     before the FRR-provider check so provider failure writes a
+     condition.
+   - api: communities per-segment numeric-range CEL — DONE; api-approved
+     marker filled with the real PR URL — DONE (verified 2026-08-25).
    - CNO: absent-CR degradation post-bootstrap — the implementation
      logs-and-skips an absent CR (bootstrap-window rationale); degrade
      when the CR goes absent on a settled cluster.
@@ -137,7 +141,13 @@ closed as superseded).
    - cross-repo duration normalization test (1m30s->90s).
    - payload: any payload build must ship kube-vip >= upstream #1671 +
      #1675 (api-1 finding 5: older vintages break the v6 API VIP
-     secondary via the ::1 cert loop and lack vip_skipdad).
+     secondary via the ::1 cert loop and lack vip_skipdad) — the current
+     payload image (f60a498, since 2026-08-20) predates them; fixed by
+     openshift/kube-vip#15 + the next ART build.
+   - consumer branches: mechanical adaptation to the final API shape
+     (holdTimeSeconds/keepaliveTimeSeconds now *int32, enums without "",
+     canonical-IP + community validation tightened) — scoped in
+     OPNET-810/811/812.
 2. PrometheusRule alerts on the run22 metrics; optionally move frr-status to
    the companion (shrinks node-bootstrapper RBAC).
 3. Gate DevPreviewNoUpgrade → TechPreviewNoUpgrade; CI 7x/week.
