@@ -98,6 +98,23 @@ contract (see RUNBOOK "kube-vip↔FRR relationship"). FRR daemons come from
 the FDP `frr10` RPM inside the `metallb-frr` image built from
 github.com/openshift/frr (see RUNBOOK "FRR provenance").
 
+## The API in two pictures — Dev Preview vs Tech Preview
+
+Every object each phase creates (CRs, ConfigMaps, Secrets, MachineConfigs,
+static pods) and who reads it. Dev Preview: the installer writes the
+`bgp-vip-config` ConfigMap and both operators consume it — no admission
+validation, no status, inline password:
+
+<img src="drawings/bgp-vip-dp-objects.svg" alt="Dev Preview objects and configuration flow" style="width: 95%; max-width: 1000px;">
+
+Tech Preview (`BGPVIPConfig` CRD, openshift/api#2972): the ConfigMap is
+gone — the installer generates the admission-validated, day-2-editable CR
+plus a basic-auth Secret; the operators watch the CR and report progress
+through status conditions. Everything below the MCO-internal transport is
+byte-identical to Dev Preview — the node-side contract never moves:
+
+<img src="drawings/bgp-vip-tp-objects.svg" alt="Tech Preview objects and configuration flow" style="width: 95%; max-width: 1000px;">
+
 ## Where the code lives
 
 Canonical carriers: **the open upstream PRs** (see tracker). Development

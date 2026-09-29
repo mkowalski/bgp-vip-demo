@@ -1,0 +1,128 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="720" viewBox="0 0 1000 720" font-family="Inter, Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto">
+      <path d="M0,0 L8,3 L0,6 z" fill="#475569"/>
+    </marker>
+    <marker id="arrowlight" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto">
+      <path d="M0,0 L8,3 L0,6 z" fill="#94a3b8"/>
+    </marker>
+  </defs>
+
+  <text x="500" y="26" text-anchor="middle" font-size="17" font-weight="700" fill="#1e293b">Dev Preview — every object and who reads it (ConfigMap transport)</text>
+
+  <!-- ===== user input ===== -->
+  <rect x="30" y="52" width="200" height="96" rx="8" fill="#fee2e2" stroke="#dc2626" stroke-width="1.5"/>
+  <text x="130" y="74" text-anchor="middle" font-size="13" font-weight="600" fill="#991b1b">install-config.yaml</text>
+  <text x="130" y="92" text-anchor="middle" font-size="10" fill="#991b1b">platform.baremetal.bgpVIPConfig</text>
+  <text x="130" y="106" text-anchor="middle" font-size="10" fill="#991b1b">localASN, peers[], communities</text>
+  <text x="130" y="120" text-anchor="middle" font-size="10" fill="#991b1b">hosts[].bgpPeers (overrides)</text>
+  <text x="130" y="134" text-anchor="middle" font-size="10" fill="#991b1b">peer password INLINE (DP limitation)</text>
+
+  <!-- installer -->
+  <rect x="290" y="52" width="170" height="96" rx="8" fill="#fef3c7" stroke="#d97706" stroke-width="1.5"/>
+  <text x="375" y="80" text-anchor="middle" font-size="13" font-weight="600" fill="#92400e">installer</text>
+  <text x="375" y="98" text-anchor="middle" font-size="10" fill="#92400e">validates (canonical IPs,</text>
+  <text x="375" y="112" text-anchor="middle" font-size="10" fill="#92400e">ASN/timer/community ranges),</text>
+  <text x="375" y="126" text-anchor="middle" font-size="10" fill="#92400e">generates manifests</text>
+  <line x1="230" y1="100" x2="285" y2="100" stroke="#475569" stroke-width="2" marker-end="url(#arrow)"/>
+
+  <!-- ===== API objects created by the installer ===== -->
+  <rect x="520" y="42" width="210" height="58" rx="8" fill="#e0e7ff" stroke="#4f46e5" stroke-width="1.5"/>
+  <text x="625" y="64" text-anchor="middle" font-size="12" font-weight="600" fill="#3730a3">Infrastructure "cluster"</text>
+  <text x="625" y="80" text-anchor="middle" font-size="10" fill="#3730a3">status: vipManagement: BGP</text>
+  <text x="625" y="93" text-anchor="middle" font-size="10" fill="#3730a3">apiServerInternalIPs, ingressIPs</text>
+
+  <rect x="520" y="112" width="210" height="96" rx="8" fill="#e0e7ff" stroke="#4f46e5" stroke-width="1.5"/>
+  <text x="625" y="132" text-anchor="middle" font-size="12" font-weight="600" fill="#3730a3">bgp-vip-config ConfigMap</text>
+  <text x="625" y="147" text-anchor="middle" font-size="10" fill="#3730a3">ns openshift-network-operator</text>
+  <text x="625" y="161" text-anchor="middle" font-size="10" fill="#3730a3">config.json (FRRPeerMapping):</text>
+  <text x="625" y="175" text-anchor="middle" font-size="10" fill="#3730a3">defaultPeers / hostOverrides / VIPs,</text>
+  <text x="625" y="189" text-anchor="middle" font-size="10" fill="#3730a3">bfdEnabled+ebgpMultiHop strings,</text>
+  <text x="625" y="202" text-anchor="middle" font-size="10" fill="#3730a3">bare-second timers, inline password</text>
+
+  <line x1="460" y1="78" x2="515" y2="70" stroke="#475569" stroke-width="2" marker-end="url(#arrow)"/>
+  <line x1="460" y1="120" x2="515" y2="150" stroke="#475569" stroke-width="2" marker-end="url(#arrow)"/>
+  <text x="488" y="145" text-anchor="middle" font-size="10" fill="#64748b">creates</text>
+
+  <!-- ===== operators ===== -->
+  <rect x="250" y="252" width="220" height="92" rx="8" fill="#fef3c7" stroke="#d97706" stroke-width="1.5"/>
+  <text x="360" y="274" text-anchor="middle" font-size="13" font-weight="600" fill="#92400e">machine-config-operator</text>
+  <text x="360" y="292" text-anchor="middle" font-size="10" fill="#92400e">bootstrap: --bgp-vip-config-file</text>
+  <text x="360" y="306" text-anchor="middle" font-size="10" fill="#92400e">day-2: ConfigMap lister sync</text>
+  <text x="360" y="320" text-anchor="middle" font-size="10" fill="#92400e">degrades if CM missing while</text>
+  <text x="360" y="333" text-anchor="middle" font-size="10" fill="#92400e">vipManagement=BGP</text>
+
+  <rect x="620" y="252" width="220" height="92" rx="8" fill="#fef3c7" stroke="#d97706" stroke-width="1.5"/>
+  <text x="730" y="274" text-anchor="middle" font-size="13" font-weight="600" fill="#92400e">cluster-network-operator</text>
+  <text x="730" y="292" text-anchor="middle" font-size="10" fill="#92400e">reads config.json,</text>
+  <text x="730" y="306" text-anchor="middle" font-size="10" fill="#92400e">renders cluster-wide session config</text>
+  <text x="730" y="320" text-anchor="middle" font-size="10" fill="#92400e">+ worker DaemonSet placement</text>
+  <text x="730" y="333" text-anchor="middle" font-size="10" fill="#92400e">+ metrics companion</text>
+
+  <line x1="580" y1="208" x2="420" y2="247" stroke="#475569" stroke-width="2" marker-end="url(#arrow)"/>
+  <line x1="670" y1="208" x2="722" y2="247" stroke="#475569" stroke-width="2" marker-end="url(#arrow)"/>
+  <text x="655" y="232" text-anchor="middle" font-size="10" fill="#64748b">consume</text>
+  <line x1="515" y1="80" x2="360" y2="247" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#arrowlight)"/>
+  <line x1="735" y1="80" x2="755" y2="247" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#arrowlight)"/>
+  <text x="452" y="170" text-anchor="middle" font-size="10" fill="#94a3b8">gate + VIPs</text>
+
+  <!-- ===== MCO-produced objects ===== -->
+  <rect x="30" y="252" width="180" height="56" rx="8" fill="#e0e7ff" stroke="#4f46e5" stroke-width="1.5" stroke-dasharray="5 3"/>
+  <text x="120" y="274" text-anchor="middle" font-size="11" font-weight="600" fill="#3730a3">ControllerConfigSpec</text>
+  <text x="120" y="289" text-anchor="middle" font-size="10" fill="#3730a3">.BGPVIPPeersJSON</text>
+  <text x="120" y="302" text-anchor="middle" font-size="10" fill="#3730a3">(MCO-internal transport)</text>
+  <line x1="250" y1="290" x2="215" y2="285" stroke="#475569" stroke-width="2" marker-end="url(#arrow)"/>
+
+  <rect x="30" y="382" width="360" height="128" rx="8" fill="#e0e7ff" stroke="#4f46e5" stroke-width="1.5"/>
+  <text x="210" y="403" text-anchor="middle" font-size="12" font-weight="600" fill="#3730a3">rendered MachineConfig (per pool)</text>
+  <text x="210" y="420" text-anchor="middle" font-size="10" fill="#3730a3">files: frr-peers.json, frr.conf.tmpl, daemons, vtysh.conf</text>
+  <text x="210" y="435" text-anchor="middle" font-size="10" fill="#3730a3">static pod manifests: 0000-frr-k8s,</text>
+  <text x="210" y="449" text-anchor="middle" font-size="10" fill="#3730a3">0010/0011-kube-vip-api, 0020/0021-kube-vip-ingress</text>
+  <text x="210" y="464" text-anchor="middle" font-size="10" fill="#3730a3">unit: frr-k8s-hostpath.service (tmpfiles + SELinux)</text>
+  <text x="210" y="481" text-anchor="middle" font-size="10" fill="#3730a3">keepalived manifest path-gated to disabled-manifests/</text>
+  <text x="210" y="495" text-anchor="middle" font-size="10" fill="#3730a3">when vipManagement=BGP</text>
+  <line x1="120" y1="308" x2="150" y2="377" stroke="#475569" stroke-width="2" marker-end="url(#arrow)"/>
+  <text x="100" y="345" text-anchor="middle" font-size="10" fill="#64748b">templates</text>
+
+  <!-- ===== CNO-produced objects ===== -->
+  <rect x="620" y="382" width="220" height="86" rx="8" fill="#e0e7ff" stroke="#4f46e5" stroke-width="1.5"/>
+  <text x="730" y="403" text-anchor="middle" font-size="12" font-weight="600" fill="#3730a3">FRRConfiguration "bgp-vip"</text>
+  <text x="730" y="419" text-anchor="middle" font-size="10" fill="#3730a3">ns openshift-frr-k8s, sessions only</text>
+  <text x="730" y="433" text-anchor="middle" font-size="10" fill="#3730a3">+ BFDProfile "vip-bfd"</text>
+  <text x="730" y="447" text-anchor="middle" font-size="10" fill="#3730a3">password copied INLINE into the CR</text>
+  <text x="730" y="461" text-anchor="middle" font-size="10" fill="#3730a3">(DP limitation)</text>
+  <line x1="730" y1="344" x2="730" y2="377" stroke="#475569" stroke-width="2" marker-end="url(#arrow)"/>
+  <text x="748" y="364" font-size="10" fill="#64748b">renders</text>
+
+  <rect x="860" y="382" width="120" height="86" rx="8" fill="#fef3c7" stroke="#d97706" stroke-width="1.2"/>
+  <text x="920" y="408" text-anchor="middle" font-size="10" font-weight="600" fill="#92400e">frr-metrics</text>
+  <text x="920" y="422" text-anchor="middle" font-size="10" fill="#92400e">companion DS</text>
+  <text x="920" y="436" text-anchor="middle" font-size="10" fill="#92400e">(masters, hostPath</text>
+  <text x="920" y="450" text-anchor="middle" font-size="10" fill="#92400e">FRR sockets)</text>
+  <line x1="800" y1="344" x2="900" y2="377" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#arrowlight)"/>
+
+  <!-- ===== node ===== -->
+  <rect x="30" y="540" width="940" height="160" rx="12" fill="none" stroke="#94a3b8" stroke-width="1.5" stroke-dasharray="6 4"/>
+  <text x="45" y="562" font-size="13" font-weight="600" fill="#64748b">node</text>
+
+  <rect x="50" y="576" width="210" height="60" rx="8" fill="#f0fdf4" stroke="#16a34a" stroke-width="1.5"/>
+  <text x="155" y="598" text-anchor="middle" font-size="11" font-weight="600" fill="#166534">baremetal-runtimecfg</text>
+  <text x="155" y="613" text-anchor="middle" font-size="10" fill="#166534">frr-peers.json + node identity</text>
+  <text x="155" y="627" text-anchor="middle" font-size="10" fill="#166534">&#8594; renders frr.conf</text>
+  <line x1="180" y1="510" x2="155" y2="571" stroke="#475569" stroke-width="2" marker-end="url(#arrow)"/>
+
+  <rect x="290" y="576" width="330" height="60" rx="8" fill="#dcfce7" stroke="#16a34a" stroke-width="1.5"/>
+  <text x="455" y="596" text-anchor="middle" font-size="11" font-weight="600" fill="#166534">static pods (masters + workers)</text>
+  <text x="455" y="612" text-anchor="middle" font-size="10" fill="#166534">frr-k8s &#183; kube-vip-api(&#215;family) &#183; kube-vip-ingress(&#215;family)</text>
+  <text x="455" y="627" text-anchor="middle" font-size="10" fill="#166534">contract: VIP routes in kernel table 198</text>
+  <line x1="260" y1="606" x2="285" y2="606" stroke="#475569" stroke-width="2" marker-end="url(#arrow)"/>
+
+  <rect x="650" y="576" width="310" height="60" rx="8" fill="#dcfce7" stroke="#16a34a" stroke-width="1.5"/>
+  <text x="805" y="596" text-anchor="middle" font-size="11" font-weight="600" fill="#166534">frr-k8s merges FRRConfiguration CRs</text>
+  <text x="805" y="612" text-anchor="middle" font-size="10" fill="#166534">static frr-k8s (masters) + CNO DaemonSet (workers)</text>
+  <text x="805" y="627" text-anchor="middle" font-size="10" fill="#166534">&#8594; eBGP sessions to the ToR, ECMP VIP /32 + /128</text>
+  <line x1="730" y1="468" x2="790" y2="571" stroke="#475569" stroke-width="2" marker-end="url(#arrow)"/>
+  <text x="785" y="520" text-anchor="middle" font-size="10" fill="#64748b">day-2 handover</text>
+
+  <text x="500" y="675" text-anchor="middle" font-size="10" fill="#64748b">user surface: install-config only &#8212; day-2 peer changes mean editing the ConfigMap by hand (no admission validation, no status)</text>
+</svg>
