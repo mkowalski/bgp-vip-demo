@@ -6,9 +6,9 @@ Dates from:  gh api repos/<org>/<repo>/pulls/<n> --jq '[.created_at,.merged_at,.
 """
 import datetime as dt
 
-TODAY = dt.date(2026, 8, 20)
+TODAY = dt.date(2026, 9, 29)
 START = dt.date(2026, 6, 20)
-END = dt.date(2026, 8, 22)
+END = dt.date(2026, 10, 1)
 
 X0, X1 = 216, 950          # plot area
 Y0 = 100                   # first row
@@ -25,13 +25,13 @@ PRS = [
     (None, "#4 Dockerfile.openshift", "2026-06-26", "2026-06-26", "merged", "r"),
     (None, "#6 route re-assert — closed: FRR fix suffices", "2026-07-14", None, "closed", "r"),
     (None, "#12 upstream sync (incl. #1671/#1675)", "2026-08-10", "2026-08-17", "merged", "l"),
-    (None, "#15 release-5.0 sync", "2026-08-17", None, "open", "l"),
+    (None, "#15 release-5.0 sync (in payload 09-28)", "2026-08-17", "2026-09-02", "merged", "l"),
     ("kube-vip/kube-vip", "#1627 kubeconfig", "2026-07-09", "2026-07-14", "merged", "r"),
     (None, "#1636 re-assert + realm", "2026-07-15", "2026-07-21", "merged", "r"),
     (None, "#1671 backend health-check addr", "2026-08-06", "2026-08-08", "merged", "l"),
     (None, "#1675 vip_skipdad (DAD skip)", "2026-08-07", "2026-08-08", "merged", "l"),
     ("openshift/api", "#2923 gate + vipManagement", "2026-07-09", "2026-07-24", "merged", "l"),
-    (None, "#2972 BGPVIPConfig CRD (TP API, draft)", "2026-08-10", None, "open", "l"),
+    (None, "#2972 BGPVIPConfig CRD (TP API, api-review round addressed)", "2026-08-10", None, "open", "l"),
     ("dev-scripts", "#1929 BGP ToR", "2026-07-09", "2026-07-23", "merged", "r"),
     (None, "#1939 BGP_VIP_MANAGEMENT knob", "2026-07-30", "2026-07-31", "merged", "l"),
     (None, "#1945 dual-stack v6 ToR peer + e2e optional fields", "2026-08-06", None, "open", "l"),
@@ -50,6 +50,7 @@ PRS = [
     (None, "#6334 api vendor bump", "2026-07-24", "2026-07-27", "merged", "l"),
     ("openshift/installer", "#10713 rebase/vendor wave", "2026-07-24", "2026-07-28", "merged", "l"),
     (None, "#10718 BGP VIP support", "2026-07-28", "2026-08-17", "merged", "l"),
+    (None, "#10931 install-config aligned with the CRD", "2026-09-29", None, "open", "l"),
 ]
 
 PHASES = [
@@ -60,6 +61,7 @@ PHASES = [
     ("coexistence + dual-stack", "2026-08-04", "2026-08-07"),
     ("TP API + review chase", "2026-08-08", "2026-08-13"),
     ("payload + merges", "2026-08-14", "2026-08-20"),
+    ("TP API review + consumer prep", "2026-09-08", "2026-09-29"),
 ]
 
 COLORS = {

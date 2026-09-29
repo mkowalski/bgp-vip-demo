@@ -5,7 +5,7 @@ Working demo and upstreaming workspace of
 (OPNET-595/OPNET-773): BGP-based VIP management for on-premise OpenShift —
 kube-vip (routing-table mode) + frr-k8s static pods replacing keepalived.
 
-**Status (2026-08-20): PoC COMPLETE, upstreaming nearly done — installer merged, kube-vip in the payload.**
+**Status (2026-09-29): DevPreview two merges away (MCO, CNO); TP structured API through human api-review; dual-stack payload prerequisite complete.**
 All six demo criteria proven across 27 install runs (see
 [docs/demo-results.md](docs/demo-results.md), [docs/RUN-LEDGER.md](docs/RUN-LEDGER.md)):
 API + Ingress VIPs advertised via BGP from bootstrap through steady state,
@@ -26,21 +26,25 @@ Upstream state:
   CNO#3070, openshift/release#81957 + #82698 (`e2e-metal-ipi-bgp-vip`) +
   #82912 (coexistence + dual-stack lanes + FRR runtime-state verify),
   dev-scripts#1929 + #1939, the full upstream kube-vip series (#1627,
-  #1636, #1671, #1675), the downstream kube-vip sync #12 (main past
-  #1671/#1675), and the openshift/kube-vip build PRs #2/#3/#4;
-  FRRouting/frr#22654 fixed upstream via #22676.
-- **Open (review-gated, code complete)**: MCO#6326 (OPNET-782 — parity
-  fix live-confirmed in CI, kube-vip payload consumption restored;
-  auto-held by the merge-bot after retest rounds, needs hold-cancel +
-  lgtm/approve), CNO#3047 (rebased, awaiting re-lgtm) + #3046 (OPNET-783),
-  openshift/kube-vip#15 (release-5.0 sync — needed so the payload image
-  gains the dual-stack fixes), api#2972 (draft — TP `BGPVIPConfig` CRD),
-  dev-scripts#1945 (dual-stack v6 ToR peer + full optional-field e2e
-  coverage), metallb/frr-k8s#470 (redistribution API design).
+  #1636, #1671, #1675), the downstream kube-vip syncs #12 + **#15
+  (release-5.0, merged 2026-09-02 — in the payload since the 2026-09-28
+  nightly: the dual-stack kube-vip prerequisite is complete)**, and the
+  openshift/kube-vip build PRs #2/#3/#4; FRRouting/frr#22654 fixed
+  upstream via #22676; metallb/frr-k8s#484 (passwordSecret
+  merge-validation bug) fixed upstream.
+- **Open (review-gated, code complete)**: MCO#6326 (OPNET-782 — rebased
+  2026-09-29 onto main, range-diff clean; needs lgtm/approve), CNO#3047
+  (awaiting re-lgtm) + #3046 (OPNET-783), api#2972 (TP `BGPVIPConfig`
+  CRD — undrafted; everettraven's api-review pass fully addressed and
+  re-squashed to a single commit), **installer#10931** (OPNET-810 —
+  install-config peer fields aligned with the CRD shape; the generated
+  ConfigMap transport contract deliberately unchanged via a dedicated
+  frrPeerJSON type), dev-scripts#1945 (dual-stack v6 ToR peer +
+  optional-field e2e — now ordered after installer#10931),
+  metallb/frr-k8s#470 (redistribution API design).
 - Path to a green `e2e-metal-ipi-bgp-vip` lane: merge MCO#6326 + CNO#3047,
-  then `/testwith` needs no extra refs (installer + runtimecfg + payload
-  image all merged); dual-stack additionally wants kube-vip#15 + the next
-  ART build.
+  then `/testwith` needs no extra refs — installer, runtimecfg, and the
+  payload image (incl. the dual-stack kube-vip fixes) are all merged.
 
 Full tracker: [docs/NEXT-STEPS.md](docs/NEXT-STEPS.md) (Jira subtask
 mapping + PR tracker).
