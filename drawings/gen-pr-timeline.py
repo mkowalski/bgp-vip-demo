@@ -6,9 +6,9 @@ Dates from:  gh api repos/<org>/<repo>/pulls/<n> --jq '[.created_at,.merged_at,.
 """
 import datetime as dt
 
-TODAY = dt.date(2026, 9, 29)
+TODAY = dt.date(2026, 10, 2)
 START = dt.date(2026, 6, 20)
-END = dt.date(2026, 10, 1)
+END = dt.date(2026, 10, 4)
 
 X0, X1 = 216, 950          # plot area
 Y0 = 100                   # first row
@@ -31,7 +31,7 @@ PRS = [
     (None, "#1671 backend health-check addr", "2026-08-06", "2026-08-08", "merged", "l"),
     (None, "#1675 vip_skipdad (DAD skip)", "2026-08-07", "2026-08-08", "merged", "l"),
     ("openshift/api", "#2923 gate + vipManagement", "2026-07-09", "2026-07-24", "merged", "l"),
-    (None, "#2972 BGPVIPConfig CRD (TP API, api-review round addressed)", "2026-08-10", None, "open", "l"),
+    (None, "#2972 BGPVIPConfig CRD (lgtm+approved, needs verified)", "2026-08-10", None, "open", "l"),
     ("dev-scripts", "#1929 BGP ToR", "2026-07-09", "2026-07-23", "merged", "r"),
     (None, "#1939 BGP_VIP_MANAGEMENT knob", "2026-07-30", "2026-07-31", "merged", "l"),
     (None, "#1945 dual-stack v6 ToR peer + e2e optional fields", "2026-08-06", None, "open", "l"),
@@ -46,7 +46,7 @@ PRS = [
     (None, "#3089 api vendor bump", "2026-07-24", "2026-07-29", "merged", "l"),
     ("baremetal-runtimecfg", "#395 FRR peer-file rendering", "2026-07-10", "2026-08-13", "merged", "l"),
     ("ocp-build-data", "#11838 ose-kube-vip payload member", "2026-07-15", "2026-08-14", "merged", "l"),
-    ("machine-config-operator", "#6326 BGP VIP static pods", "2026-07-22", None, "open", "l"),
+    ("machine-config-operator", "#6326 BGP VIP static pods", "2026-07-22", "2026-10-02", "merged", "l"),
     (None, "#6334 api vendor bump", "2026-07-24", "2026-07-27", "merged", "l"),
     ("openshift/installer", "#10713 rebase/vendor wave", "2026-07-24", "2026-07-28", "merged", "l"),
     (None, "#10718 BGP VIP support", "2026-07-28", "2026-08-17", "merged", "l"),
@@ -62,6 +62,7 @@ PHASES = [
     ("TP API + review chase", "2026-08-08", "2026-08-13"),
     ("payload + merges", "2026-08-14", "2026-08-20"),
     ("TP API review + consumer prep", "2026-09-08", "2026-09-29"),
+    ("MCO merge", "2026-10-01", "2026-10-02"),
 ]
 
 COLORS = {

@@ -75,7 +75,7 @@ unknown cluster-wide (proven in run6).
 | 91ad587234 | `additionalRoutingCapabilities.providers=[FRR]` on the operator Network CR when bgpVIPConfig set | CNO deploys frr-k8s CRDs/namespace; without it CNO degrades forever |
 | 9dea799e48 | Negative test (no bgpVIPConfig → no CR) | Regression guard for every existing baremetal install |
 
-## 3. openshift/machine-config-operator — branch `OPNET-595-bgp-vip-management-dev`
+## 3. openshift/machine-config-operator — branch `OPNET-595-bgp-vip-management-dev` — **PR #6326 MERGED 2026-10-02**
 
 | Commit | What | Why |
 |--------|------|-----|

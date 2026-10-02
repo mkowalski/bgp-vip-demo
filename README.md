@@ -5,7 +5,7 @@ Working demo and upstreaming workspace of
 (OPNET-595/OPNET-773): BGP-based VIP management for on-premise OpenShift —
 kube-vip (routing-table mode) + frr-k8s static pods replacing keepalived.
 
-**Status (2026-10-02): DevPreview two merges away (MCO, CNO); TP structured API through human api-review; frr-k8s redistribution design in maintainer review round 2; dual-stack payload prerequisite complete.**
+**Status (2026-10-02): MCO merged — DevPreview is one merge away (CNO#3047, re-lgtm pending); TP structured API lgtm+approved, needs `verified`; frr-k8s redistribution design in maintainer review round 2.**
 All six demo criteria proven across 27 install runs (see
 [docs/demo-results.md](docs/demo-results.md), [docs/RUN-LEDGER.md](docs/RUN-LEDGER.md)):
 API + Ingress VIPs advertised via BGP from bootstrap through steady state,
@@ -16,8 +16,9 @@ script.
 
 Upstream state:
 
-- **Merged**: **installer#10718 (OPNET-781, 2026-08-17)** — the feature's
-  biggest PR; openshift/api#2923 (gate + `vipManagement` +
+- **Merged**: **MCO#6326 (OPNET-782, 2026-10-02)** — BGP VIP static pods,
+  bootstrap/day-2 ingestion, kube-vip payload consumption;
+  **installer#10718 (OPNET-781, 2026-08-17)** — the feature's biggest PR; openshift/api#2923 (gate + `vipManagement` +
   `BGPVIPPeersJSON`), baremetal-runtimecfg#395 (OPNET-785),
   **ocp-build-data#11838 (OPNET-779)** — and since 2026-08-20 the
   **kube-vip image is in the 5.0 nightly + CI payloads** (the unblocker
@@ -32,19 +33,21 @@ Upstream state:
   openshift/kube-vip build PRs #2/#3/#4; FRRouting/frr#22654 fixed
   upstream via #22676; metallb/frr-k8s#484 (passwordSecret
   merge-validation bug) fixed upstream.
-- **Open (review-gated, code complete)**: MCO#6326 (OPNET-782 — rebased
-  2026-09-29 onto main, range-diff clean; needs lgtm/approve), CNO#3047
-  (awaiting re-lgtm) + #3046 (OPNET-783), api#2972 (TP `BGPVIPConfig`
-  CRD — undrafted; everettraven's api-review pass fully addressed and
-  re-squashed to a single commit), **installer#10931** (OPNET-810 —
+- **Open (review-gated, code complete)**: CNO#3047 (OPNET-783 — had
+  lgtm+approved; a rebase-artifact lint fix on 2026-10-02 dropped them,
+  re-lgtm requested) + #3046 (cybertron review rounds addressed, awaiting
+  re-review), api#2972 (TP `BGPVIPConfig` CRD — **lgtm + approved by
+  everettraven 2026-10-02**, blocked only on the `verified` label),
+  **installer#10931** (OPNET-810 —
   install-config peer fields aligned with the CRD shape; the generated
   ConfigMap transport contract deliberately unchanged via a dedicated
   frrPeerJSON type), dev-scripts#1945 (dual-stack v6 ToR peer +
   optional-field e2e — now ordered after installer#10931),
   metallb/frr-k8s#470 (redistribution API design).
-- Path to a green `e2e-metal-ipi-bgp-vip` lane: merge MCO#6326 + CNO#3047,
-  then `/testwith` needs no extra refs — installer, runtimecfg, and the
-  payload image (incl. the dual-stack kube-vip fixes) are all merged.
+- Path to a green `e2e-metal-ipi-bgp-vip` lane: merge CNO#3047 (the last
+  one), then `/testwith` needs no extra refs — installer, MCO, runtimecfg,
+  and the payload image (incl. the dual-stack kube-vip fixes) are all
+  merged.
 
 Full tracker: [docs/NEXT-STEPS.md](docs/NEXT-STEPS.md) (Jira subtask
 mapping + PR tracker).
@@ -74,7 +77,7 @@ to the CI lane:
 | Path | What |
 |------|------|
 | `bgp-tor.sh`, `tor/` | FRR ToR container helper for the hypervisor (up/down/status); superseded in dev-scripts by `ENABLE_BGP_TOR` (#1929) |
-| `patches/` | git-am-able patch series for the two repos with **open PRs** (MCO, CNO) — historical form; the open PRs are the canonical carriers. Everything merged (api, installer#10718, runtimecfg#395, dev-scripts, FRR, the whole kube-vip series, vendor patches) removed; recoverable from git history |
+| `patches/` | git-am-able patch series for the one repo with an **open PR** (CNO) — historical form; the open PR is the canonical carrier. Everything merged (api, installer#10718, MCO#6326, runtimecfg#395, dev-scripts, FRR, the whole kube-vip series, vendor patches) removed; recoverable from git history |
 | `build/` | Dockerfiles used for the demo image builds + FRR build script |
 | `lab/` | Standalone FRR reproduction labs that isolated both zebra bugs without a cluster |
 
@@ -127,7 +130,7 @@ replace paths).
 |---|---|---|
 | openshift/api | merged (#2923) | `OPNET-595-bgp-vip-management` |
 | installer | merged (#10718) | `OPNET-595-bgp-vip-management-vendored` |
-| machine-config-operator | `OPNET-595-mco-pr` (#6326) | `OPNET-595-bgp-vip-management-dev` |
+| machine-config-operator | merged (#6326) | `OPNET-595-bgp-vip-management-dev` |
 | cluster-network-operator | `bgp-vip-management` (#3047) | `OPNET-595-bgp-vip-management-vendored` (carries a now-redundant DEMO-CARRY; refresh on next demo rebuild) |
 | baremetal-runtimecfg | merged (#395) | `OPNET-595-bgp-vip-management` |
 | kube-vip | upstream #1627 #1636 #1671 #1675 merged; downstream #2/#3/#4/#12 merged, #6 closed, #15 open (release-5.0) | `OPNET-595-bgp-vip-management` |
