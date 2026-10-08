@@ -1,0 +1,13 @@
+flowchart LR
+    subgraph L3[evpn-l3: Layer3 CUDN, IP-VRF]
+        C3[CUDN evpn-layer3<br/>topology Layer3, transport EVPN<br/>evpn.ipVRF.vni 100<br/>subnets 10.100.0.0/16 hostSubnet 24<br/>+ fd00:10:100::/60 on dual-stack]
+        R3[RouteAdvertisements<br/>targetVRF evpn-layer3<br/>PodNetwork]
+        E3[external: VRF evpn-l3, VNI 100<br/>SVI 10.250.0.1/24<br/>type-5 prefix routes both ways]
+        C3 --- R3 --- E3
+    end
+    subgraph L2[evpn-l2: Layer2 CUDN, MAC-VRF + IP-VRF]
+        C2[CUDN evpn-layer2<br/>topology Layer2, transport EVPN<br/>evpn.macVRF.vni 20000 + ipVRF.vni 100<br/>subnet 10.100.0.0/16, excludeSubnets .0.250/32]
+        R2[RouteAdvertisements<br/>targetVRF evpn-layer2<br/>PodNetwork]
+        E2[external: access port VNI 20000<br/>agnhost 10.100.0.250 on the segment<br/>type-2 MAC/IP routes for pods<br/>SVI in evpn-l3 for north-south]
+        C2 --- R2 --- E2
+    end

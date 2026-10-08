@@ -474,6 +474,58 @@ vs the existing `baremetalds/e2e/ovn/bgp` step-registry lane
   cluster state exactly). PR now carries three jobs.
 
 
+### E2. EVPN coexistence lanes — PR OPEN (2026-10-08; Jira: OPNET-815)
+
+**OPEN: https://github.com/openshift/release/pull/86746** (branch
+`opnet-815-bgp-vip-evpn-lanes` on mkowalski/openshift-release): two
+installer presubmits `e2e-metal-ipi-bgp-vip-ovn-bgp-evpn-l3` / `-l2`
+(optional, not always_run) on workflows
+`baremetalds-e2e-bgp-vip-ovn-bgp-evpn-l3|l2`, composed from the merged
+`bgp-vip-ovn-bgp` flow plus two new refs under our OWNERS:
+`baremetalds-e2e-bgp-vip-ovn-bgp-evpn-pre` (turns the ovn-bgp route
+reflector into an EVPN peer: `l2vpn evpn` AF + `advertise-all-vni`,
+vxlan SVD VTEP + bridge, external IP-VRF/SVI + agnhost, Layer2 access
+port, drops `disableMP` from `receive-filtered`, VTEP CR unmanaged over
+the v4 node CIDR) and `baremetalds-e2e-bgp-vip-ovn-bgp-evpn-verify`
+(EVPN CUDN + RA, agnhost pods pinned to one master and one worker, VNI
+in both FRRConfigurations, `l2vpn evpn` session Established from the
+master's **static pod** and the worker's DS pod, RR type-3 from both
+VTEPs + type-5/type-2 for the CUDN, v4 datapath in all four directions,
+then a BGP-VIP regression guard with EVPN live). Diagrams:
+`drawings/bgp-vip-evpn-{lane-flow,topology,l3-vs-l2}.svg` (+ `.mmd`
+sources; the same Mermaid is in the PR body).
+
+Research basis (2026-10-08): the only EVPN test in OCP CI is the
+perfscale kube-burner workload (`openshift-qe-bgp-setup-evpn` /
+`openshift-qe-evpn`) on the QE lab bastion — not reusable (fixed
+bastion, perfscale image + ES creds, CVO scaled to 0, forced frr image).
+ovn-kubernetes `test/e2e/evpn.go` is KIND-only (infraprovider has only
+`kind`). dev-scripts has zero EVPN/VXLAN/VTEP support on any branch. The
+payload `metallb-frr` already installs `frr10`, so no image override is
+needed; the EVPN feature gate is on in DevPreviewNoUpgrade and CNO
+renders VTEP CRD + `--enable-evpn` whenever `routeAdvertisements:
+Enabled` — our existing ovn-bgp lanes were already EVPN-capable, unused.
+
+Scope decisions (Mat, 2026-10-08): no kube-burner workload; both L3
+(IP-VRF) and L2 (MAC-VRF + IP-VRF) as separate lanes; installer
+presubmits only (CNO later); **IPv4 VXLAN underlay only** — the cluster
+is v4v6 and the CUDNs carry both families, but the VTEP CR lists only
+the v4 node CIDR; v6 EVPN routes are logged, not asserted.
+
+Expected from rehearsal (requested on the PR): master-side assertions
+depend on CNO#3047 (same gap the existing `bgp-vip-ovn-bgp` lane has
+today); open unknowns only a run can answer — `vnifilter`/SVD VXLAN on
+the equinix host kernel (pre step probes and fails loudly), whether
+dropping `disableMP` alone suffices for the RR's EVPN AF, Primary-role
+dual-stack CUDN with a v4-only VTEP (fallback `Secondary` only after
+checking with Mat — it changes what is tested).
+
+Local checks: shellcheck clean; `make jobs` (incl. checkconfig) green;
+`ci-operator-configresolver --validate-only` loads config + registry
+clean. Note: the repo's `make validate-step-registry` target passes a
+`--prow-config` flag the current resolver image no longer accepts —
+pre-existing, unrelated.
+
 ## Jira subtask mapping + PR tracker (OPNET-595 children)
 
 | Subtask | Repo | PR |
@@ -488,5 +540,6 @@ vs the existing `baremetalds/e2e/ovn/bgp` step-registry lane
 | OPNET-781 | installer | **MERGED: openshift/installer#10718** (2026-08-17) (opened 2026-07-28 after the 1.36 rebase #10713 merged; 7 feature commits, zero vendoring. Two CodeRabbit+Copilot rounds addressed: OVN-only validation, host nil-guard + override rejection, port/duration/community validation, 16-peer ceiling on overrides, typed VIPManagement constant, gosec nolint for the RFC 2385 password field; declines verified by the bots — Load() sibling pattern, password-in-ConfigMap DevPreview limitation. Presubmit CI green after gofmt/codegen fixes. Human review round 1 (cybertron, 2026-08-12) addressed 2026-08-13 in 8632e2e52b: both findings valid — timers are now converted install-config durations → whole-second decimal strings in the peer data (FRR takes bare seconds; validation requires whole seconds 0-65535s and the holdTime/keepaliveTime pair together), and the dead `port` field was wired end to end (runtimecfg#395 38a7b106, MCO 4b0d26808, CNO e6c26833a render it; CNO converts the bare seconds back to metav1.Duration for the FRRConfiguration CR); merged with cybertron's approval). History: our stopgap vendor PR #10710 (api + k8s-0.35 pins) was superseded and closed in favor of the installer team's full 1.36 rebase **#10713 (MERGED)** which vendored api@18550f1a + bumped the lagging upi/libvirt/openstack CI Dockerfiles to go 1.26 |
 | OPNET-782 | mco | **PR OPEN: openshift/machine-config-operator#6326** — now a clean 2-commit series (template + operator): the api vendor commit collapsed after the standalone vendor bump **#6334 MERGED** (2026-07-27; bot-held on a flaky upgrade job, triaged + unheld), and the obsolete ConfigMap Role/RoleBinding was dropped when the day-2 read moved to the cluster-wide lister. Commit messages + PR description rewritten to match (incl. the review-round hardening: frr drop-ALL exception, DAC_OVERRIDE, limits, grace 0→10, VIP-COMMUNITY attach, 0600 peers file, ingress-VIPs gate, bootstrap empty-config rejection). image-references commit still withheld pending OPNET-779/ART-21663. 2026-08-13: e2e-openstack permafail root-caused and fixed (143650b06) — bootstrap discovered the frr-k8s image from the payload (`metallb-frr`) while the in-cluster operator reads the machine-config-operator-images ConfigMap, which lacked `frrK8sImage` → frr-k8s pod file content differed → rendered-MC hash mismatch → every master degraded with "bootstrap MC does not match" on ALL on-prem platforms. Fix: frrK8sImage in the images ConfigMap + metallb-frr in image-references (CVO channel, permanent); bootstrap kube-vip payload lookup dropped until the payload ships kube-vip (parity invariant; TestInstallImagesConfigMapCoversControllerConfigImages enforces the ConfigMap↔ControllerConfigImages mapping with kubeVipImage as an explicit tracked exception); TestE2EBootstrapOpenStackParity extends the bootstrap-vs-controller parity suite to an on-prem platform (was platform-None only). Also 4b0d26808: peer `port` rendering + bare-seconds timers in the FRR templates (installer#10718 review); e2e-openstack install confirmed green in CI after the parity fix. 5d6d72602 (2026-08-20): kube-vip payload consumption restored (image-references + images ConfigMap + bootstrap lookup, parity-test exception dropped) — unblocked by the payload landing. 8558c52b1: comment cleanup (review feedback, -37 lines). Rebased 2026-09-29 onto main (178 commits, range-diff clean). **MERGED 2026-10-02 (4eea7aa46)** with lgtm+approved+verified; `okd-scos-images` overridden (8/12 red repo-wide that week, OKD image build untouched by the change). **OPNET-782 complete** — close at next Jira pass. Payload: not yet in a nightly at merge time (latest 5.0.0-0.nightly-2026-10-02-022009 predates it) |
 | OPNET-786 | FRR | downstream RPM backport filed: **RHEL-193997** (frr10, el9); upstream stable/10.4 backport request still pending; new zebra bug filed: **FRRouting/frr#22654 — CLOSED, fixed upstream** via FRRouting/frr#22676 (merged to master 2026-07; maintainer implemented from our root-cause pointer — our fork fix 8989c33 no longer needs submitting). NOT in any shipped release yet (10.7.0 predates it) — first release with #22676 (10.8 or a 10.7.x backport) removes the need for the kube-vip realm-toggle workaround; keep the workaround deployed until then. With 10.7 (SELECTED-flag fix) + a #22676-containing release, ALL our FRR needs are met by stock releases — if FDP ships recent FRR frequently, no downstream patches/backports needed (RHEL-193997 obsolete once FDP ≥10.7). Provenance confirmed 2026-08-05: payload `metallb-frr` = github.com/openshift/frr (midstream frr-k8s tree) building frr-k8s binaries + installing the FDP `frr10` RPM for the daemons — the FDP package is the single lever for FRR versions in-cluster (see RUNBOOK "FRR provenance") |
+| OPNET-815 | openshift/release | **PR OPEN: openshift/release#86746** (2026-10-08) — BGP VIP x EVPN coexistence lanes `e2e-metal-ipi-bgp-vip-ovn-bgp-evpn-l3|l2`; rehearsals requested; see E2 |
 | OPNET-778 | PoC | github.com/mkowalski/bgp-vip-demo (complete) |
 | OPNET-621/622/623 | testing/CI | **STARTED 2026-07-30**: (a) dev-scripts one-click knob **MERGED: openshift-metal3/dev-scripts#1939** (2026-07-31) (`BGP_VIP_MANAGEMENT=true` renders bgpVIPConfig into the install-config; hard-fail validation without ENABLE_BGP_TOR or a DevPreview FEATURE_SET; render+guardrails validated on metal-u15; **full install validated 2026-07-31** — knob-deployed cluster passes the CI verify script verbatim, see RUN-LEDGER row 27); (b) CI lane **MERGED: openshift/release#82698** (2026-07-31) (`baremetalds-e2e-bgp-vip` workflow: install + `baremetalds-e2e-bgp-vip-verify` acceptance step — vipManagement=BGP, static pods/no keepalived, ToR path counts per VIP via vtysh, console 200; verify script validated verbatim against the live run26 cluster; optional on-demand presubmit `e2e-metal-ipi-bgp-vip` on openshift/installer, red-by-design until the feature PRs merge, `/pj-rehearse ack` posted). **First combined run executed 2026-08-04** via multi-PR testing (`/testwith openshift/installer/main/e2e-metal-ipi-bgp-vip` + MCO#6326 + CNO#3047 + runtimecfg#395, commented on installer#10718): all four PRs merged into one payload, the dev-scripts knob + guardrails executed in CI, the installer rendered bgpVIPConfig, and MCO selected the BGP path — failing exactly at the designed D1 fail-fast: `kube-vip ("") image is missing from the release payload` (frr-k8s resolved fine from the metallb-frr tag). Sole blocker for a green lane: the ocp/5.0 integration stream never received the kube-vip istag despite the successful 2026-07-29 promotion (quay push confirmed in the postsubmit log) — **DPTP question posted on release#81957**; once the tag materializes, restore MCO's image-references commit (kept ready as cherry-pick 6894c3065-equivalent) and rerun the /testwith. Note: CNO#3047 needed a rebase for the multi-PR merge (upstream added bootstrapResult/TLS plumbing to renderAdditionalRoutingCapabilities; merged signatures). Follow-ups once green: extend presubmit to MCO/CNO, conformance variant, dualstack variant, nightly periodic |

@@ -1,0 +1,39 @@
+flowchart LR
+    classDef hv fill:#fff4e6,stroke:#d08
+    classDef master fill:#e6f0ff,stroke:#36c
+    classDef worker fill:#e6ffe6,stroke:#393
+    classDef ext fill:#f6f6f6,stroke:#999
+
+    subgraph HV[CI hypervisor - equinix host, ostestbm bridge 192.168.111.0/24]
+        TOR[bgp-tor<br/>FRR 9.1 eBGP AS 64513<br/>VIP speaker]:::hv
+        RR[frr route reflector<br/>FRR 10.4 iBGP AS 64512<br/>ipv4/ipv6 unicast + l2vpn evpn<br/>advertise-all-vni]:::hv
+        subgraph EXT[EVPN fabric emulation on 'frr' - NEW]
+            VX[vxlan-evpn SVD<br/>local 192.168.111.3<br/>vnifilter]:::ext
+            BR[br-evpn<br/>vlan_filtering]:::ext
+            VRF[IP-VRF evpn-l3<br/>VNI 100, SVI 10.250.0.1<br/>agnhost 10.250.0.2:8000]:::ext
+            L2P[Layer2 only: access port<br/>VNI 20000<br/>agnhost 10.100.0.250:8001]:::ext
+            VX --- BR --- VRF
+            BR --- L2P
+        end
+    end
+
+    subgraph M[control plane node]
+        KV[kube-vip]:::master
+        SP[frr-k8s STATIC POD<br/>MCO-rendered]:::master
+        OVNM[ovnkube-node<br/>VTEP = node IP]:::master
+        PM[agnhost pod<br/>pinned, EVPN CUDN]:::master
+    end
+    subgraph W[worker node]
+        DS[frr-k8s DaemonSet pod<br/>CNO-rendered]:::worker
+        OVNW[ovnkube-node<br/>VTEP = node IP]:::worker
+        PW[agnhost pod<br/>pinned, EVPN CUDN]:::worker
+    end
+
+    SP == eBGP VIP /32s, BFD ==> TOR
+    SP -. iBGP unicast + l2vpn evpn .-> RR
+    DS -. iBGP unicast + l2vpn evpn .-> RR
+    OVNM -- VXLAN 4789 --- VX
+    OVNW -- VXLAN 4789 --- VX
+    OVNM -- VXLAN 4789 --- OVNW
+    PM -.-> OVNM
+    PW -.-> OVNW

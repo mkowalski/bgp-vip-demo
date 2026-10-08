@@ -135,7 +135,7 @@ replace paths).
 | baremetal-runtimecfg | merged (#395) | `OPNET-595-bgp-vip-management` |
 | kube-vip | upstream #1627 #1636 #1671 #1675 merged; downstream #2/#3/#4/#12 merged, #6 closed, #15 open (release-5.0) | `OPNET-595-bgp-vip-management` |
 | dev-scripts | merged (#1929, #1939) | — |
-| openshift/release | merged (#81957, #82698, #82912) | — |
+| openshift/release | merged (#81957, #82698, #82912); open #86746 (EVPN lanes) | — |
 
 Images: `quay.io/mkowalski/{machine-config-operator,cluster-network-operator,baremetal-runtimecfg,kube-vip,cluster-config-api,metallb-frr}:bgp-demo`,
 payload `quay.io/mkowalski/ocp-release:bgp-vip-demo` (base
@@ -158,3 +158,16 @@ advertisements, day-2 MetalLB, and the all-three-producers job, plus a
 verify step asserting FRR runtime state at the ToR (sessions Established,
 negotiated timers 90/30, BFD Up) against the optional peer fields the
 dev-scripts knob now sets (#1945).
+
+EVPN coexistence lanes (release#86746, **open**, OPNET-815): two more
+installer presubmits, `e2e-metal-ipi-bgp-vip-ovn-bgp-evpn-l3` (Layer3
+IP-VRF) and `-l2` (Layer2 MAC-VRF + IP-VRF), composing the ovn-bgp flow
+with an EVPN pre step (the route reflector becomes an EVPN peer with a
+VXLAN VTEP and an external VRF) and a verify step that pins pods to a
+master and a worker and proves the `l2vpn evpn` session and VXLAN
+datapath work from the **static-pod frr-k8s** on the control plane while
+the VIP eBGP session survives. IPv4 underlay only for now.
+
+<img src="drawings/bgp-vip-evpn-lane-flow.svg" alt="EVPN lane step flow: reused vs new steps" style="width: 95%; max-width: 1000px;">
+
+<img src="drawings/bgp-vip-evpn-topology.svg" alt="EVPN lane topology: ToR, route reflector with EVPN fabric emulation, master static pod, worker DaemonSet pod" style="width: 95%; max-width: 1000px;">
