@@ -159,15 +159,16 @@ verify step asserting FRR runtime state at the ToR (sessions Established,
 negotiated timers 90/30, BFD Up) against the optional peer fields the
 dev-scripts knob now sets (#1945).
 
-EVPN coexistence lanes (release#86746, **open**, OPNET-815): two more
-installer presubmits, `e2e-metal-ipi-bgp-vip-ovn-bgp-evpn-l3` (Layer3
-IP-VRF) and `-l2` (Layer2 MAC-VRF + IP-VRF), composing the ovn-bgp flow
-with an EVPN pre step (the route reflector becomes an EVPN peer with a
-VXLAN VTEP and an external VRF) and a verify step that pins pods to a
-master and a worker and proves the `l2vpn evpn` session and VXLAN
-datapath work from the **static-pod frr-k8s** on the control plane while
-the VIP eBGP session survives. IPv4 underlay only for now.
+EVPN coexistence lane (release#86746, **open**, OPNET-815): installer
+presubmit `e2e-metal-ipi-bgp-vip-ovn-bgp-evpn` composing the ovn-bgp flow
+with the local-gateway migration and the **ovn-kubernetes OTE suite**
+(43 EVPN tests via its baremetal infraprovider against the same route
+reflector — the suite `e2e-metal-ipi-core-networking-dualstack-bgp-lgw-ote`
+runs) plus a small verify step for the one thing that suite cannot cover:
+the EVPN FRRConfiguration merged by the **static-pod frr-k8s** on a master,
+its `l2vpn evpn` session, and a BGP-VIP regression guard with EVPN live.
+IPv4 underlay only for now.
 
 <img src="drawings/bgp-vip-evpn-lane-flow.svg" alt="EVPN lane step flow: reused vs new steps" style="width: 95%; max-width: 1000px;">
 
-<img src="drawings/bgp-vip-evpn-topology.svg" alt="EVPN lane topology: ToR, route reflector with EVPN fabric emulation, master static pod, worker DaemonSet pod" style="width: 95%; max-width: 1000px;">
+<img src="drawings/bgp-vip-evpn-topology.svg" alt="EVPN lane topology: ToR, route reflector with per-test EVPN fabrics, master static pod, worker DaemonSet pod" style="width: 95%; max-width: 1000px;">

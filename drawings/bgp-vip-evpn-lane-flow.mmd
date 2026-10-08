@@ -1,25 +1,23 @@
 flowchart TD
     classDef reused fill:#eef,stroke:#88a
     classDef new fill:#efe,stroke:#4a4,stroke-width:2px
-    classDef loc fill:none,stroke:none,color:#666,font-style:italic
 
     subgraph PRE[pre]
         A[baremetalds-devscripts-conf-featureset<br/>FEATURE_SET=DevPreviewNoUpgrade]:::reused
         B[chain baremetalds-ofcir-pre<br/>dev-scripts install: IP_STACK=v4v6, NUM_WORKERS=2,<br/>ENABLE_BGP_TOR=true, BGP_VIP_MANAGEMENT=true]:::reused
+        L[ovn-shared-to-local-gateway-mode-migration<br/>routingViaHost=true - EVPN precondition]:::reused
         C[baremetalds-e2e-ovn-bgp-pre<br/>external FRR route reflector 'frr' 192.168.111.3 AS 64512,<br/>routeAdvertisements=Enabled, FRRConfiguration receive-filtered]:::reused
-        D[baremetalds-e2e-bgp-vip-ovn-bgp-evpn-pre  NEW<br/>l2vpn-evpn AF + advertise-all-vni on 'frr',<br/>vxlan SVD VTEP + bridge, external IP-VRF/SVI + agnhost,<br/>Layer2: MAC-VRF access port, drop disableMP, VTEP CR unmanaged v4]:::new
-        A --> B --> C --> D
+        A --> B --> L --> C
     end
     subgraph TEST[test]
         E[baremetalds-e2e-bgp-vip-verify<br/>VIP acceptance: static pods, ToR sessions, VIP paths, console]:::reused
         F[baremetalds-e2e-bgp-vip-ovn-bgp-verify<br/>RA coexistence: both FRRConfigurations, RR sessions, pod subnets]:::reused
-        G[baremetalds-e2e-bgp-vip-ovn-bgp-evpn-verify  NEW<br/>EVPN CUDN + RA, master+worker pods, VNI in FRRConfigurations,<br/>l2vpn session in static pod and DS pod, RR type-3/5/2,<br/>v4 datapath x4, BGP VIP regression guard]:::new
-        H[chain baremetalds-ipi-test<br/>conformance]:::reused
+        G[baremetalds-e2e-bgp-vip-ovn-bgp-evpn-verify  NEW<br/>l2vpn-evpn AF on RR, throw-away L3 EVPN CUDN + VTEP,<br/>pod pinned to a master: FRRConfiguration merged by the STATIC POD,<br/>l2vpn session Established, RR type-3 from master;<br/>BGP VIP regression guard; cleanup]:::new
+        H[chain baremetalds-ipi-test<br/>TEST_SUITE=ovn-kubernetes/conformance/parallel<br/>OTE extension from the payload's ovn-kubernetes image:<br/>43 EVPN tests via the baremetal infraprovider<br/>driving the same 'frr' container over SSH]:::reused
         E --> F --> G --> H
     end
     subgraph POST[post]
         I[chain baremetalds-ofcir-post]:::reused
     end
-    D --> E
+    C --> E
     H --> I
-    L1[all new steps: CI pod -> ssh -> hypervisor -> oc / podman exec]:::loc

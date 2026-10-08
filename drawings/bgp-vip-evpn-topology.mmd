@@ -7,26 +7,24 @@ flowchart LR
     subgraph HV[CI hypervisor - equinix host, ostestbm bridge 192.168.111.0/24]
         TOR[bgp-tor<br/>FRR 9.1 eBGP AS 64513<br/>VIP speaker]:::hv
         RR[frr route reflector<br/>FRR 10.4 iBGP AS 64512<br/>ipv4/ipv6 unicast + l2vpn evpn<br/>advertise-all-vni]:::hv
-        subgraph EXT[EVPN fabric emulation on 'frr' - NEW]
-            VX[vxlan-evpn SVD<br/>local 192.168.111.3<br/>vnifilter]:::ext
-            BR[br-evpn<br/>vlan_filtering]:::ext
-            VRF[IP-VRF evpn-l3<br/>VNI 100, SVI 10.250.0.1<br/>agnhost 10.250.0.2:8000]:::ext
-            L2P[Layer2 only: access port<br/>VNI 20000<br/>agnhost 10.100.0.250:8001]:::ext
+        subgraph EXT[EVPN fabric emulation on 'frr' - built per test by the OTE suite]
+            VX[vxevpn-xxxx SVD VTEP<br/>local 192.168.111.3]:::ext
+            BR[brevpn-xxxx<br/>vlan_filtering]:::ext
+            VRF[IP-VRF / MAC-VRF<br/>agnhost endpoints]:::ext
             VX --- BR --- VRF
-            BR --- L2P
         end
     end
 
     subgraph M[control plane node]
         KV[kube-vip]:::master
         SP[frr-k8s STATIC POD<br/>MCO-rendered]:::master
-        OVNM[ovnkube-node<br/>VTEP = node IP]:::master
-        PM[agnhost pod<br/>pinned, EVPN CUDN]:::master
+        OVNM[ovnkube-node<br/>VTEP = node IP, LGW]:::master
+        PM[agnhost pod<br/>pinned by evpn-verify]:::master
     end
     subgraph W[worker node]
         DS[frr-k8s DaemonSet pod<br/>CNO-rendered]:::worker
-        OVNW[ovnkube-node<br/>VTEP = node IP]:::worker
-        PW[agnhost pod<br/>pinned, EVPN CUDN]:::worker
+        OVNW[ovnkube-node<br/>VTEP = node IP, LGW]:::worker
+        PW[OTE test pods]:::worker
     end
 
     SP == eBGP VIP /32s, BFD ==> TOR

@@ -40,7 +40,7 @@ PRS = [
     ("openshift/release", "#81957 kube-vip CI images", "2026-07-15", "2026-07-27", "merged", "l"),
     (None, "#82698 e2e-metal-ipi-bgp-vip lane", "2026-07-30", "2026-07-31", "merged", "l"),
     (None, "#82912 coexistence lanes + FRR-state verify", "2026-08-04", "2026-08-13", "merged", "l"),
-    (None, "#86746 EVPN coexistence lanes L3/L2 (OPNET-815)", "2026-10-08", None, "open", "l"),
+    (None, "#86746 EVPN coexistence lane, OTE+LGW (OPNET-815)", "2026-10-08", None, "open", "l"),
     ("cluster-network-operator", "#3046 statusmanager fix", "2026-07-10", None, "open", "l"),
     (None, "#3047 BGP VIP support", "2026-07-10", None, "open", "l"),
     (None, "#3070 frr-k8s CRD align", "2026-07-20", "2026-07-22", "merged", "r"),

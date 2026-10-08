@@ -1,0 +1,13 @@
+flowchart LR
+    subgraph OURS[baremetalds-e2e-bgp-vip-ovn-bgp-evpn-verify - this PR]
+        O1[EVPN FRRConfiguration for a master<br/>merged by the frr-k8s STATIC POD]
+        O2[static pod l2vpn-evpn session Established<br/>RR sees type-3 from the master VTEP]
+        O3[regression guard with EVPN live:<br/>ToR eBGP sessions, VIP /32s, API readyz]
+    end
+    subgraph OTE[ovn-kubernetes OTE suite - reused]
+        T1[Layer3 CUDN EVPN IP-VRF<br/>random + shared VTEP]
+        T2[Layer2 CUDN EVPN MAC-VRF + IP-VRF<br/>random + shared VTEP]
+        T3[reach external / reached by external /<br/>isolation / KAPI / other-network isolation]
+        T4[VTEP API validations]
+    end
+    OURS --> OTE
