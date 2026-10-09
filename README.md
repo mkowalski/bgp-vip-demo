@@ -26,13 +26,16 @@ Upstream state:
   the vendor wave (MCO#6334, CNO#3089, installer 1.36 rebase #10713),
   CNO#3070, openshift/release#81957 + #82698 (`e2e-metal-ipi-bgp-vip`) +
   #82912 (coexistence + dual-stack lanes + FRR runtime-state verify),
-  dev-scripts#1929 + #1939, the full upstream kube-vip series (#1627,
-  #1636, #1671, #1675), the downstream kube-vip syncs #12 + **#15
+  dev-scripts#1929 + #1939, the full upstream kube-vip series (#1604,
+  #1627, #1636, #1671, #1675), the downstream kube-vip syncs #12 + **#15
   (release-5.0, merged 2026-09-02 — in the payload since the 2026-09-28
   nightly: the dual-stack kube-vip prerequisite is complete)**, and the
-  openshift/kube-vip build PRs #2/#3/#4; FRRouting/frr#22654 fixed
+  openshift/kube-vip build PRs #2/#3/#4, openshift/release#80926 + #81065
+  (kube-vip onboarding + rebasebot); FRRouting/frr#22654 fixed
   upstream via #22676; metallb/frr-k8s#484 (passwordSecret
-  merge-validation bug) fixed upstream.
+  merge-validation bug) fixed upstream. Closed/superseded along the way:
+  installer#10710 (by #10713), CNO#3080 (dup of #3070), kube-vip#6 (FRR
+  fix sufficed), kube-vip#14 (by #12).
 - **Open (review-gated, code complete)**: CNO#3047 (OPNET-783 — had
   lgtm+approved; a rebase-artifact lint fix on 2026-10-02 dropped them,
   re-lgtm requested) + #3046 (cybertron review rounds addressed, awaiting
@@ -43,7 +46,11 @@ Upstream state:
   ConfigMap transport contract deliberately unchanged via a dedicated
   frrPeerJSON type), dev-scripts#1945 (dual-stack v6 ToR peer +
   optional-field e2e — now ordered after installer#10931),
-  metallb/frr-k8s#470 (redistribution API design).
+  metallb/frr-k8s#470 (redistribution API design), **MCO#6643**
+  (OPNET-815 finding B — static-pod reloader writable `/tmp` +
+  `/var/log/frr`; without it masters never apply day-2 FRRConfigurations),
+  openshift/release#86746 (OPNET-815 EVPN coexistence lane), and the
+  enhancement itself, openshift/enhancements#1982.
 - Path to a green `e2e-metal-ipi-bgp-vip` lane: merge CNO#3047 (the last
   one), then `/testwith` needs no extra refs — installer, MCO, runtimecfg,
   and the payload image (incl. the dual-stack kube-vip fixes) are all
@@ -130,14 +137,18 @@ replace paths).
 |---|---|---|
 | openshift/api | merged (#2923) | `OPNET-595-bgp-vip-management` |
 | installer | merged (#10718) | `OPNET-595-bgp-vip-management-vendored` |
-| machine-config-operator | merged (#6326) | `OPNET-595-bgp-vip-management-dev` |
+| machine-config-operator | merged (#6326); open #6643 (reloader mounts) | `OPNET-595-bgp-vip-management-dev` |
 | cluster-network-operator | `bgp-vip-management` (#3047) | `OPNET-595-bgp-vip-management-vendored` (carries a now-redundant DEMO-CARRY; refresh on next demo rebuild) |
 | baremetal-runtimecfg | merged (#395) | `OPNET-595-bgp-vip-management` |
-| kube-vip | upstream #1627 #1636 #1671 #1675 merged; downstream #2/#3/#4/#12 merged, #6 closed, #15 open (release-5.0) | `OPNET-595-bgp-vip-management` |
-| dev-scripts | merged (#1929, #1939) | — |
-| openshift/release | merged (#81957, #82698, #82912); open #86746 (EVPN lanes) | — |
+| kube-vip | upstream #1604 #1627 #1636 #1671 #1675 merged; downstream #2/#3/#4/#12/#15 merged, #6/#14 closed | `OPNET-595-bgp-vip-management` |
+| dev-scripts | merged (#1929, #1939); open #1945 | — |
+| openshift/release | merged (#80926, #81065, #81957, #82698, #82912); open #86746 (EVPN lane) | — |
 
-Images: `quay.io/mkowalski/{machine-config-operator,cluster-network-operator,baremetal-runtimecfg,kube-vip,cluster-config-api,metallb-frr}:bgp-demo`,
+Images: current run (5.1-evpn) uses `quay.io/mkowalski/ocp-release:bgp-vip-5.1`
+(base 5.1.0-0.nightly-2026-10-06-091356 + only
+`quay.io/mkowalski/cluster-network-operator:bgp-5.1` = CNO#3047+#3046;
+everything else stock — MCO#6326 and installer#10718 are in the nightly).
+Historical demo set: `quay.io/mkowalski/{machine-config-operator,cluster-network-operator,baremetal-runtimecfg,kube-vip,cluster-config-api,metallb-frr}:bgp-demo`,
 payload `quay.io/mkowalski/ocp-release:bgp-vip-demo` (base
 5.0.0-0.nightly-2026-07-20-081439).
 

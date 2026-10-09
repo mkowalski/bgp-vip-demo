@@ -6,9 +6,9 @@ Dates from:  gh api repos/<org>/<repo>/pulls/<n> --jq '[.created_at,.merged_at,.
 """
 import datetime as dt
 
-TODAY = dt.date(2026, 10, 8)
+TODAY = dt.date(2026, 10, 9)
 START = dt.date(2026, 6, 20)
-END = dt.date(2026, 10, 10)
+END = dt.date(2026, 10, 11)
 
 X0, X1 = 216, 950          # plot area
 Y0 = 100                   # first row
@@ -25,31 +25,39 @@ PRS = [
     (None, "#4 Dockerfile.openshift", "2026-06-26", "2026-06-26", "merged", "r"),
     (None, "#6 route re-assert — closed: FRR fix suffices", "2026-07-14", None, "closed", "r"),
     (None, "#12 upstream sync (incl. #1671/#1675)", "2026-08-10", "2026-08-17", "merged", "l"),
+    (None, "#14 merge upstream/main — closed: #12 superseded", "2026-08-17", None, "closed", "l"),
     (None, "#15 release-5.0 sync (in payload 09-28)", "2026-08-17", "2026-09-02", "merged", "l"),
-    ("kube-vip/kube-vip", "#1627 kubeconfig", "2026-07-09", "2026-07-14", "merged", "r"),
+    ("kube-vip/kube-vip", "#1604 HTTP health check in routing-table mode", "2026-06-18", "2026-06-25", "merged", "r"),
+    (None, "#1627 kubeconfig", "2026-07-09", "2026-07-14", "merged", "r"),
     (None, "#1636 re-assert + realm", "2026-07-15", "2026-07-21", "merged", "r"),
     (None, "#1671 backend health-check addr", "2026-08-06", "2026-08-08", "merged", "l"),
     (None, "#1675 vip_skipdad (DAD skip)", "2026-08-07", "2026-08-08", "merged", "l"),
+    ("openshift/enhancements", "#1982 BGP-based VIP management EP", "2026-04-23", None, "open", "r"),
     ("openshift/api", "#2923 gate + vipManagement", "2026-07-09", "2026-07-24", "merged", "l"),
     (None, "#2972 BGPVIPConfig CRD (lgtm+approved, needs verified)", "2026-08-10", None, "open", "l"),
     ("dev-scripts", "#1929 BGP ToR", "2026-07-09", "2026-07-23", "merged", "r"),
     (None, "#1939 BGP_VIP_MANAGEMENT knob", "2026-07-30", "2026-07-31", "merged", "l"),
-    (None, "#1945 dual-stack v6 ToR peer + e2e optional fields", "2026-08-06", None, "open", "l"),
+    (None, "#1945 v6 ToR peer + e2e fields + multihop BFD", "2026-08-06", None, "open", "l"),
     ("FRRouting/frr", "#22676 zebra table-scoped fix", "2026-07-15", "2026-07-21", "merged", "r"),
     ("metallb/frr-k8s", "#470 redistribute design", "2026-07-15", None, "open", "l"),
-    ("openshift/release", "#81957 kube-vip CI images", "2026-07-15", "2026-07-27", "merged", "l"),
+    ("openshift/release", "#80926 kube-vip project onboarding", "2026-06-23", "2026-06-24", "merged", "r"),
+    (None, "#81065 kube-vip rebasebot periodic", "2026-06-25", "2026-07-15", "merged", "r"),
+    (None, "#81957 kube-vip CI images", "2026-07-15", "2026-07-27", "merged", "l"),
     (None, "#82698 e2e-metal-ipi-bgp-vip lane", "2026-07-30", "2026-07-31", "merged", "l"),
     (None, "#82912 coexistence lanes + FRR-state verify", "2026-08-04", "2026-08-13", "merged", "l"),
     (None, "#86746 EVPN coexistence lane, OTE+LGW (OPNET-815)", "2026-10-08", None, "open", "l"),
     ("cluster-network-operator", "#3046 statusmanager fix", "2026-07-10", None, "open", "l"),
     (None, "#3047 BGP VIP support", "2026-07-10", None, "open", "l"),
     (None, "#3070 frr-k8s CRD align", "2026-07-20", "2026-07-22", "merged", "r"),
+    (None, "#3080 frr-k8s asn format — closed: dup of #3070", "2026-07-21", None, "closed", "r"),
     (None, "#3089 api vendor bump", "2026-07-24", "2026-07-29", "merged", "l"),
     ("baremetal-runtimecfg", "#395 FRR peer-file rendering", "2026-07-10", "2026-08-13", "merged", "l"),
     ("ocp-build-data", "#11838 ose-kube-vip payload member", "2026-07-15", "2026-08-14", "merged", "l"),
     ("machine-config-operator", "#6326 BGP VIP static pods", "2026-07-22", "2026-10-02", "merged", "l"),
     (None, "#6334 api vendor bump", "2026-07-24", "2026-07-27", "merged", "l"),
-    ("openshift/installer", "#10713 rebase/vendor wave", "2026-07-24", "2026-07-28", "merged", "l"),
+    (None, "#6643 static-pod reloader writable /tmp + /var/log/frr (OPNET-815)", "2026-10-09", None, "open", "l"),
+    ("openshift/installer", "#10710 api/k8s vendor pin — closed: #10713 superseded", "2026-07-24", None, "closed", "l"),
+    (None, "#10713 rebase/vendor wave", "2026-07-24", "2026-07-28", "merged", "l"),
     (None, "#10718 BGP VIP support", "2026-07-28", "2026-08-17", "merged", "l"),
     (None, "#10931 install-config aligned with the CRD", "2026-09-29", None, "open", "l"),
 ]
@@ -64,6 +72,7 @@ PHASES = [
     ("payload + merges", "2026-08-14", "2026-08-20"),
     ("TP API review + consumer prep", "2026-09-08", "2026-09-29"),
     ("MCO merge", "2026-10-01", "2026-10-02"),
+    ("EVPN lane + 5.1 run", "2026-10-08", "2026-10-09"),
 ]
 
 COLORS = {
@@ -105,9 +114,13 @@ body = []
 y = Y0
 for repo, label, opened, merged, state, side in PRS:
     fill, stroke, tcol = COLORS[state]
-    xo = x(dt.date.fromisoformat(opened))
+    opened_d = dt.date.fromisoformat(opened)
+    clipped = opened_d < START           # opened before the chart window
+    xo = x(max(opened_d, START))
     xe = x(dt.date.fromisoformat(merged)) if merged else x(TODAY)
     w = max(xe - xo, 10)
+    if clipped:
+        label = f"{label} (opened {opened})"
     if repo:
         body.append(f'<text x="{LABEL_X}" y="{y+12}" text-anchor="end" font-size="12" font-weight="600" fill="#334155">{repo}</text>')
     body.append(f'<rect x="{xo:.0f}" y="{y}" width="{w:.0f}" height="16" rx="4" fill="{fill}" stroke="{stroke}" stroke-width="1.2"/>')

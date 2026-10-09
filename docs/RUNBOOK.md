@@ -120,6 +120,33 @@ tmux new-session -d -s bgprun "make ocp_run 2>&1 | tee /tmp/ocp-run.log"
 Install takes 60–75 min. First host provisioning: `make requirements configure`
 (target is `configure`, not `host`).
 
+### 5.1 cycle (run 5.1-evpn, 2026-10-08) — what changed vs the above
+
+- `config_root.sh` on metal-u15: `OPENSHIFT_RELEASE_IMAGE=quay.io/mkowalski/ocp-release:bgp-vip-5.1`,
+  **no** `KNI_INSTALL_FROM_GIT`/`OPENSHIFT_INSTALL_PATH` (the stock installer
+  in the 5.1 nightly has #10718). Backup: `config_root.sh.pre-5.1-20261008`.
+- `/root/dev-scripts` is branch `bgp-5.1-run` = upstream/master e06c536 +
+  the two field-compatible #1945 commits + the ToR multihop-BFD fix
+  (420499a). The dnsVIP strip is no longer needed with a stock payload.
+- After `make ocp_cleanup` the libvirt nets/dnsmasq are gone: run
+  `make configure` before `make install_config` or `get_vips` fails on
+  `network_ip` (empty DNS server).
+- Payload assembly needs a **5.1 `oc`** (`/tmp/opencode/oc-5.1`, extracted
+  from the nightly's cli image); the host `/usr/local/bin/oc` is 5.0.
+- `registry.ci.openshift.org` auth: merge `oc registry login --to=` output
+  into `/root/dev-scripts/pull_secret.json` (the console pull secret does
+  NOT carry it).
+- karpenter CO never goes Available on BareMetal in this nightly
+  ("unsupported platform type: BareMetal") — `openshift-install` never
+  reports completion; ignore, the cluster is fully usable.
+- Post-install replay of the CI lane phases: `/tmp/opencode/local-steps/run.sh
+  {bgpvip|lgw|ovnbgppre|ovnbgpverify|evpn|ote ...}` (step bodies extracted
+  from the heredocs; logs under `/mnt/nvme0n1p1/dev-scripts/opnet-815-local/`).
+- OTE extension locally: `ovn-kubernetes-tests-ext run-test -o json "<name>"`
+  one name per call with `</dev/null` (it re-execs and reads stdin), env
+  `SHARED_DIR` (file `server-ip` = 192.168.111.1) + `CLUSTER_PROFILE_DIR`
+  (`packet-ssh-key` authorized for root@localhost).
+
 ## Current image-tag state (2026-07-14; provenance updated 2026-08-05)
 
 `quay.io/mkowalski/metallb-frr:bgp-demo` = 10.4.3 + SELECTED-flag patch ONLY
