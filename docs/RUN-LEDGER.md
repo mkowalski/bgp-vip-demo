@@ -81,6 +81,44 @@ Payload `quay.io/mkowalski/ocp-release:bgp-vip-5.1` = `5.1.0-0.nightly-2026-10-0
 
 Step fixes pushed to release#86746 (e549806a83): namespace labels at creation (`k8s.ovn.org/primary-user-defined-network` is admission-locked), RA `targetVRF: auto`, selector `network=default`, VNI from rawConfig, type-5 next hop, new [4/5] VTEP-IP assertion. `disableMP` is deprecated/ignored by frr-k8s now. Kernel: CentOS Stream 9 `5.14.0-697.el9` supports SVD vxlan `vnifilter` (same as equinix hosts). OTE gotcha: `run-test` re-execs and reads stdin - use `</dev/null`, one name per invocation. Disposition (Mat, 2026-10-09): A → dev-scripts #1945 commit 420499a; B → MCO#6643; C → OCPBUGS-130338 (filed 2026-10-09 after the IPv6 verification widened it to every on-prem VIP mechanism on v6). Cluster LEFT RUNNING with the master manifests hot-patched (orig at `/tmp/0000-frr-k8s.yaml.orig` on each master); `/tmp/opencode/local-steps/run.sh` replays each phase.
 
+## run 5.1-evpn-fix (2026-10-09 pm): OCPBUGS-130338 fix validated live
+
+Branch `ocpbugs-130338-vtep-primary-ifaddr` on mkowalski/ovn-kubernetes (2 commits
+on payload commit `00e4e2b2a`; `git am` clean on main `117e2a41c`): (1)
+`nodePrimaryIP()` + preference for `k8s.ovn.org/node-primary-ifaddr` in
+`pickVTEPIP()` before the lowest-address sort; (2) `resolveVTEPIP()` re-picks
+when a VIP was annotated earlier and the primary is now a candidate. 5 new
+Ginkgo specs; `discoverUnmanagedVTEPIPs` 15/15. (The informer-based
+`Describe`s in that package fail identically on pristine base in this sandbox
+— `error in syncing cache for *v1.NetworkAttachmentDefinition informer` —
+not ours.)
+
+Image: the repo Dockerfile's runtime stage needs CI-internal RHEL repos
+(`*.ocp.svc`) → built the Go stage only and overlaid the 7 binaries on the
+**payload's** ovn-kubernetes image: `quay.io/mkowalski/ovn-kubernetes:ocpbugs-130338`
+(label `ocpbugs-130338=vtep-primary-ifaddr a4f432d7b over payload 00e4e2b2a`).
+Swapped with CNO `Unmanaged` + `oc set image` on all 7 ovn-k containers of
+`ds/ovnkube-node` (6 + init `kubecfg-setup`) and `deploy/ovnkube-control-plane`.
+
+| Check | Before | After |
+|---|---|---|
+| OTE shared VTEP annotation | masters node IP (post-flap), **workers `.4`** | all 5 nodes = node IP; worker-0 log `Selecting node primary address 192.168.111.59` on first reconcile (commit-2 path) |
+| IPv6 VTEP `fd2e:…::/120` | all masters `::5`, workers `::4` | `::1c/::20/::34/::38/::3c` (node IPs) |
+| OTE 5 failing shared-VTEP×cross-node tests | 240 s timeouts | **pass** 42–62 s; 3 controls (1 shared, 2 random) still pass |
+| `evpn-verify` (release#86746) | [4/5] FAIL | **5/5 PASS** |
+| `bgp-vip-verify` | 6/6 | 6/6 |
+
+Found en route: (a) the verify step read `k8s.ovn.org/node-vteps` — the real
+annotation is `k8s.ovn.org/vteps`; fixed in release#86746. (b) the OTE suite
+leaves its shared VTEP behind; a second VTEP on the same CIDR is rejected
+`CIDROverlap` — delete the leftover before re-running our step on a cluster
+the OTE suite has touched. **Cluster LEFT RUNNING with the fix (Mat's call):
+CNO `Unmanaged`, ovn-k = `quay.io/mkowalski/ovn-kubernetes:ocpbugs-130338`.**
+Revert = `oc set image` back to `…@sha256:a2c829e2b4…` on all 8 containers +
+`managementState: Managed`. Jira: fix comment + inline diff on
+OCPBUGS-130338 (attachments not permitted for this account; patches kept in
+`patches/ovn-kubernetes/`). Upstream PR pending.
+
 ## Meta-lessons for whoever continues
 
 1. **The render pipeline was where all the bugs were** — hacking around it

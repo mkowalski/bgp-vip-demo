@@ -1,0 +1,127 @@
+From a4f432d7b2bff1ec4180fa9cb83fb0670d512067 Mon Sep 17 00:00:00 2001
+From: Mat Kowalski <mko@redhat.com>
+Date: Fri, 9 Oct 2026 18:34:43 +0200
+Subject: [PATCH 2/2] evpn: re-pick the VTEP IP when the node's primary address
+ becomes a candidate
+
+resolveVTEPIP keeps a previously annotated VTEP IP for as long as it is
+still a valid candidate. With the primary-address preference that means
+a node that annotated a VIP earlier - before this preference existed, or
+while the primary address was briefly absent - stays on the VIP until
+the VIP leaves the node. Converge to the primary address instead when it
+is among the candidates; everything else keeps the sticky behaviour.
+
+Assisted-By: Claude Fable 5
+Signed-off-by: Mat Kowalski <mko@redhat.com>
+---
+ .../controllers/evpn/evpn_node_controller.go  | 24 +++++++---
+ .../evpn/evpn_node_controller_test.go         | 47 +++++++++++++++++++
+ 2 files changed, 64 insertions(+), 7 deletions(-)
+
+diff --git a/go-controller/pkg/node/controllers/evpn/evpn_node_controller.go b/go-controller/pkg/node/controllers/evpn/evpn_node_controller.go
+index 5f8e02430..324a40147 100644
+--- a/go-controller/pkg/node/controllers/evpn/evpn_node_controller.go
++++ b/go-controller/pkg/node/controllers/evpn/evpn_node_controller.go
+@@ -797,24 +797,34 @@ func (c *Controller) discoverUnmanagedVTEPIPs(vtep *vtepv1.VTEP) (net.IP, net.IP
+ 
+ // resolveVTEPIP returns the IP to use for a given family. If the VTEP IP
+ // is still present among the node IPs and within the VTEP's CIDRs, it is
+-// returned. Otherwise, a new IP is selected from matching node IPs.
++// returned, unless the node's primary address is a better candidate that
++// was not available when the VTEP IP was chosen. Otherwise, a new IP is
++// selected from matching node IPs.
+ func (c *Controller) resolveVTEPIP(family int, vtepCIDRs []*net.IPNet, nodeIPs []net.IP, vtepIP net.IP) (net.IP, error) {
+ 	if len(vtepCIDRs) == 0 {
+ 		return nil, nil
+ 	}
+ 
+-	equalsVTEPIP := func(ip net.IP) bool { return ip.Equal(vtepIP) }
+-	if vtepIP != nil && slices.ContainsFunc(nodeIPs, equalsVTEPIP) && util.IsIPContainedInAnyCIDR(vtepIP, vtepCIDRs...) {
+-		return vtepIP, nil
+-	}
+-
+-	// Select a new IP from node addresses matching the CIDRs.
+ 	var matches []net.IP
+ 	for _, nodeIP := range nodeIPs {
+ 		if util.IsIPContainedInAnyCIDR(nodeIP, vtepCIDRs...) {
+ 			matches = append(matches, nodeIP)
+ 		}
+ 	}
++
++	equalsVTEPIP := func(ip net.IP) bool { return ip.Equal(vtepIP) }
++	if vtepIP != nil && slices.ContainsFunc(matches, equalsVTEPIP) {
++		// A VIP may have been annotated before the primary address was
++		// available (or before this preference existed); converge to the
++		// primary address once it is a candidate instead of staying on the
++		// VIP until it moves away.
++		primary := c.nodePrimaryIP(family)
++		if primary == nil || primary.Equal(vtepIP) ||
++			!slices.ContainsFunc(matches, func(ip net.IP) bool { return ip.Equal(primary) }) {
++			return vtepIP, nil
++		}
++	}
++
+ 	return c.pickVTEPIP(matches, family)
+ }
+ 
+diff --git a/go-controller/pkg/node/controllers/evpn/evpn_node_controller_test.go b/go-controller/pkg/node/controllers/evpn/evpn_node_controller_test.go
+index 7f419b307..6bd9e2a81 100644
+--- a/go-controller/pkg/node/controllers/evpn/evpn_node_controller_test.go
++++ b/go-controller/pkg/node/controllers/evpn/evpn_node_controller_test.go
+@@ -1570,6 +1570,53 @@ var _ = Describe("discoverUnmanagedVTEPIPs", func() {
+ 		Expect(v4.Equal(net.ParseIP("100.64.0.2"))).To(BeTrue())
+ 	})
+ 
++	It("re-picks the node primary address when a VIP was annotated earlier", func() {
++		tc := newTestController(
++			[]net.IP{net.ParseIP("100.64.0.5"), net.ParseIP("100.64.0.53")},
++			map[string]string{
++				util.OvnNodeIfAddr: `{"ipv4":"100.64.0.53/24"}`,
++				util.OVNNodeVTEPs:  `{"vtep1":{"ips":["100.64.0.5"]}}`,
++			},
++		)
++		vtep := &vtepv1.VTEP{
++			ObjectMeta: metav1.ObjectMeta{Name: "vtep1"},
++			Spec:       vtepv1.VTEPSpec{CIDRs: []vtepv1.CIDR{"100.64.0.0/24"}},
++		}
++		nlMock := &mocks.NetLinkOps{}
++		util.SetNetLinkOpMockInst(nlMock)
++		defer util.ResetNetLinkOpMockInst()
++		nlMock.On("AddrList", mock.Anything, netlink.FAMILY_V4).Return([]netlink.Addr{
++			{IPNet: &net.IPNet{IP: net.ParseIP("100.64.0.5"), Mask: net.CIDRMask(32, 32)}, Flags: unix.IFA_F_DEPRECATED},
++			{IPNet: &net.IPNet{IP: net.ParseIP("100.64.0.53"), Mask: net.CIDRMask(24, 32)}},
++		}, nil)
++		v4, _, err := tc.discoverUnmanagedVTEPIPs(vtep)
++		Expect(err).NotTo(HaveOccurred())
++		Expect(v4.Equal(net.ParseIP("100.64.0.53"))).To(BeTrue())
++		tc.kubeMock.AssertCalled(GinkgoT(), "SetAnnotationsOnNodeWithFieldManager", nodeName, mock.Anything, vtepAnnotationFieldManager)
++		vteps, err := util.ParseNodeVTEPs(tc.node)
++		Expect(err).NotTo(HaveOccurred())
++		Expect(vteps["vtep1"].IPs).To(ConsistOf("100.64.0.53"))
++	})
++
++	It("keeps a previously annotated IP when it is the primary address or the primary is not a candidate", func() {
++		tc := newTestController(
++			[]net.IP{net.ParseIP("100.64.0.5"), net.ParseIP("100.64.0.2")},
++			map[string]string{
++				util.OvnNodeIfAddr: `{"ipv4":"192.168.1.10/24"}`,
++				util.OVNNodeVTEPs:  `{"vtep1":{"ips":["100.64.0.5"]}}`,
++			},
++		)
++		vtep := &vtepv1.VTEP{
++			ObjectMeta: metav1.ObjectMeta{Name: "vtep1"},
++			Spec:       vtepv1.VTEPSpec{CIDRs: []vtepv1.CIDR{"100.64.0.0/24"}},
++		}
++		v4, _, err := tc.discoverUnmanagedVTEPIPs(vtep)
++		Expect(err).NotTo(HaveOccurred())
++		// sticky: the annotated .5 is kept even though .2 would sort lower
++		Expect(v4.Equal(net.ParseIP("100.64.0.5"))).To(BeTrue())
++		tc.kubeMock.AssertNotCalled(GinkgoT(), "SetAnnotationsOnNodeWithFieldManager", nodeName, mock.Anything, vtepAnnotationFieldManager)
++	})
++
+ 	It("picks the lowest IP when multiple non-VIP IPs match and annotates it", func() {
+ 		tc := newTestController([]net.IP{net.ParseIP("100.64.0.5"), net.ParseIP("100.64.0.2")}, nil)
+ 		vtep := &vtepv1.VTEP{
+-- 
+2.52.0
+
