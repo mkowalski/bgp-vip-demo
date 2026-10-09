@@ -532,7 +532,7 @@ gap as the existing bgp-vip-ovn-bgp lane). Local checks: shellcheck,
 signatures (new since #82912) — no signing key on metal-u15; Mat must
 re-sign (`git rebase --exec 'git commit --amend --no-edit -S'`).
 
-**Local 5.1 deploy DONE (2026-10-09) — see RUN-LEDGER "run 5.1-evpn".** Static-pod EVPN merge proven; BGP VIP under LGW proven; **three bugs found: C (ovn-k VTEP picks the kube-vip VIP — blocker, cross-node EVPN dead; OTE 34/39 with the 5 failures = exactly the VIP-in-CIDR cross-node cases), B (MCO static-pod reloader RO rootfs — regression of e776f417e, masters can never reload FRR day-2), A (dev-scripts ToR multihop BFD)**. Step fixes in #86746 e549806a83. NEXT: file OCPBUGS for C (ovn-kubernetes) and B (MCO) + MCO fix PR; push A to #1945; the lane's [4/5] stays red until C is fixed — that is the signal.
+**Local 5.1 deploy DONE (2026-10-09) — see RUN-LEDGER "run 5.1-evpn".** Static-pod EVPN merge proven; BGP VIP under LGW proven; **three bugs found: C (ovn-k VTEP picks the kube-vip VIP — blocker, cross-node EVPN dead; OTE 34/39 with the 5 failures = exactly the VIP-in-CIDR cross-node cases), B (MCO static-pod reloader RO rootfs — regression of e776f417e, masters can never reload FRR day-2), A (dev-scripts ToR multihop BFD)**. Step fixes in #86746 e549806a83. DECISION (Mat, 2026-10-09): **no OCPBUGS for any of them**. A → fix pushed directly to dev-scripts #1945. B → direct MCO PR (carry e776f417e). C → handled afterwards, separately. The lane's [4/5] stays red until C is fixed — that is the signal.
 
 ## Jira subtask mapping + PR tracker (OPNET-595 children)
 
