@@ -67,6 +67,20 @@ WORKER_VCPU=8 WORKER_MEMORY=16384 WORKER_DISK=60). Enabling code changes:
   cycle, alternating the inert realm attribute 1↔2 so each re-assertion is a
   real kernel change (kernel emits NO netlink event for a no-op replace).
 
+## run 5.1-evpn (2026-10-08/09): fresh 5.1 deploy, LGW, OVN-BGP, EVPN (OPNET-815)
+
+Payload `quay.io/mkowalski/ocp-release:bgp-vip-5.1` = `5.1.0-0.nightly-2026-10-06-091356` + CNO#3047/#3046 (`cluster-network-operator:bgp-5.1`); everything else stock (installer has #10718, MCO has #6326, kube-vip `b272a734`, metallb-frr frr10). dev-scripts `bgp-5.1-run` = upstream master e06c536 + the two field-compatible #1945 commits. v4v6, 3+2, ToR, `BGP_VIP_MANAGEMENT=true`, DevPreviewNoUpgrade. Install ~55 min (karpenter CO never Available on BareMetal in this nightly - "unsupported platform type: BareMetal" - installer never reports done; cluster fully usable).
+
+| # | Phase | Result | Finding / fix |
+|---|---|---|---|
+| 1 | bgp-vip-verify (merged step body) | PASS 6/6 | **A**: ToR BFD all Down - peers set `ebgpMultiHop` so FRR runs *multihop* BFD (UDP 4784); dev-scripts ToR lacked `neighbor CLUSTER ebgp-multihop` and 4784/udp in the libvirt zone. Fixed in `/root/dev-scripts/bgp/configure_bgp_tor.sh` (staged for #1945) |
+| 2 | local-gateway migration + re-verify | PASS | **first BGP VIP under LGW**: 10/10 ToR sessions, BFD Up, both API VIPs 200 |
+| 3 | ovn-bgp-pre + ovn-bgp-verify | PASS 4/4 | **B**: masters never peered with the RR - static-pod reloader has `readOnlyRootFilesystem` without writable `/tmp` + `/var/log/frr`, so `frr-reload.py` fails on EVERY reload; masters stuck on bootstrap config (regression of the api-1 fix e776f417e, never carried into merged #6326). Hot-patched manifests on 3 masters. **Needs OCPBUGS + MCO PR** |
+| 4 | evpn-verify (new step) | [0-3] PASS, **[4] FAIL**, [5] PASS | static-pod merge of the ovn-k EVPN FRRConfiguration PROVEN (rawConfig `vrf/vni` + `l2vpn evpn`, session Established from the static pod, VNI programmed). **C (BLOCKER)**: every master picked the **API VIP .5** and every worker the **ingress VIP .4** as VTEP IP (`192.168.111.5 -> 192.168.111.4 vxlan` on the wire); cross-node EVPN pod traffic 0/4. Root cause `pickVTEPIP` filters only keepalived-labelled / IFA_F_SECONDARY addrs; kube-vip's `/32 scope global deprecated` passes and sorts lowest. **Needs OCPBUGS ovn-kubernetes**. **D**: RA `frrConfigurationSelector: {}` also matched `bgp-vip` -> second EVPN CR templated on the ToR peer -> frr-k8s dropped both raw blocks; step now selects `network=default` |
+| 5 | OTE `ovn-kubernetes-tests-ext` 39 EVPN tests, serial | **34 PASS / 5 FAIL** | the 5 = shared-VTEP (CIDR = node CIDR incl. VIPs) x cross-node paths - fingerprint of C. All random-VTEP tests pass incl. cross-node |
+
+Step fixes pushed to release#86746 (e549806a83): namespace labels at creation (`k8s.ovn.org/primary-user-defined-network` is admission-locked), RA `targetVRF: auto`, selector `network=default`, VNI from rawConfig, type-5 next hop, new [4/5] VTEP-IP assertion. `disableMP` is deprecated/ignored by frr-k8s now. Kernel: CentOS Stream 9 `5.14.0-697.el9` supports SVD vxlan `vnifilter` (same as equinix hosts). OTE gotcha: `run-test` re-execs and reads stdin - use `</dev/null`, one name per invocation. Cluster LEFT RUNNING with the master manifests hot-patched (orig at `/tmp/0000-frr-k8s.yaml.orig` on each master); `/tmp/opencode/local-steps/run.sh` replays each phase.
+
 ## Meta-lessons for whoever continues
 
 1. **The render pipeline was where all the bugs were** — hacking around it

@@ -532,19 +532,7 @@ gap as the existing bgp-vip-ovn-bgp lane). Local checks: shellcheck,
 signatures (new since #82912) — no signing key on metal-u15; Mat must
 re-sign (`git rebase --exec 'git commit --amend --no-edit -S'`).
 
-**Local 5.1 deploy (in progress, blocked):** ostest torn down;
-`/root/dev-scripts` on branch `bgp-5.1-run` = upstream/master e06c536 +
-the two #1945 commits that match the stock installer field names (the
-third, 64b7476, renames to the installer#10931 surface and was dropped
-deliberately); `config_root.sh` → `quay.io/mkowalski/ocp-release:bgp-vip-5.1`
-(to be assembled from 5.1.0-0.nightly-2026-10-06-091356 + custom CNO
-#3047+#3046 only — MCO#6326 is already in that nightly), stock installer
-(KNI_INSTALL_FROM_GIT dropped). **BLOCKED: registry.ci.openshift.org
-token in pull_secret.json expired** (needs interactive SSO, RUNBOOK §1).
-Plan after unblock: build CNO, assemble payload, ocp_run, LGW migration,
-replay ovn-bgp-pre, run `ovn-kubernetes-tests-ext` locally against the
-hypervisor RR (provider needs only SHARED_DIR/server-ip + an SSH key),
-run our verify-step body.
+**Local 5.1 deploy DONE (2026-10-09) — see RUN-LEDGER "run 5.1-evpn".** Static-pod EVPN merge proven; BGP VIP under LGW proven; **three bugs found: C (ovn-k VTEP picks the kube-vip VIP — blocker, cross-node EVPN dead; OTE 34/39 with the 5 failures = exactly the VIP-in-CIDR cross-node cases), B (MCO static-pod reloader RO rootfs — regression of e776f417e, masters can never reload FRR day-2), A (dev-scripts ToR multihop BFD)**. Step fixes in #86746 e549806a83. NEXT: file OCPBUGS for C (ovn-kubernetes) and B (MCO) + MCO fix PR; push A to #1945; the lane's [4/5] stays red until C is fixed — that is the signal.
 
 ## Jira subtask mapping + PR tracker (OPNET-595 children)
 
