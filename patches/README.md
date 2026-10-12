@@ -55,4 +55,4 @@ were removed, and bases have drifted since the demo.
    squashed/clean form.
 3. Sequencing for real merges: docs/PATCHES.md "Production sequencing".
 
-| `ovn-kubernetes/` | github.com/openshift/ovn-kubernetes | `00e4e2b2a` (5.1 payload, 2026-09-28) | OCPBUGS-130338 fix — prefer node-primary-ifaddr as unmanaged VTEP IP (+ re-pick); upstream PR pending; applies clean on main |
+| `ovn-kubernetes/` | github.com/ovn-kubernetes/ovn-kubernetes | `f35bcb60d` (upstream master, 2026-10-09) | OCPBUGS-130338 fix — single squashed commit: prefer node-primary-ifaddr as unmanaged VTEP IP + re-pick; also cherry-picks clean onto openshift/ovn-kubernetes main `117e2a41c`; upstream PR pending |
