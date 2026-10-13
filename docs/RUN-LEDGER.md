@@ -67,6 +67,124 @@ WORKER_VCPU=8 WORKER_MEMORY=16384 WORKER_DISK=60). Enabling code changes:
   cycle, alternating the inert realm attribute 1↔2 so each re-assertion is a
   real kernel change (kernel emits NO netlink event for a no-op replace).
 
+## HANDOFF STATE (written 2026-10-12, for the next agent)
+
+Read this section first; the runs below are the evidence trail. Rules that
+applied to the previous agent and still apply: **never post on a PR or reply
+to a human comment without Mat's explicit go-ahead**; commits signed-off
+(`-s`), hooks disabled (`git -c core.hooksPath=/dev/null`), trailer
+`Assisted-By: Claude Fable 5` (upstream ovn-k wants `Assisted-by: … <contact>`,
+see below); PR/comment text ends with the "generated using AI" footer. Creds:
+`source /root/bash-export-api-keys` (gh, `JIRA_USERNAME`/`JIRA_API_TOKEN`).
+Jira: **reads** work with Bearer via `issues.redhat.com` (follows redirect);
+**writes** need basic auth against `https://redhat.atlassian.net/rest/api/2`.
+`gh` token cannot list signing keys; the Jira account cannot add attachments
+on OCPBUGS. The `task` subagent tool is denied by user rules — work inline.
+
+### Where things stand (PR board)
+
+| Item | State | Blocked on / next |
+|---|---|---|
+| **openshift/release#86746** OPNET-815 EVPN lane (branch `opnet-815-bgp-vip-evpn-lanes`, head `5bc63bdba`, 7 commits) | open, `jira/valid-reference` only | **`ci/prow/commits-signed` red: GitHub-verifiable signatures required; no signing key on metal-u15 → Mat must `git rebase --exec 'git commit --amend --no-edit -S'` and force-push.** Verify step is correct now (5/5 locally with the ovn-k fix). `/pj-rehearse` requested; rehearsal will show `[4/5]` red until a fixed ovn-k is in the payload — that is the intended signal |
+| **openshift/machine-config-operator#6643** finding B (reloader writable /tmp + /var/log/frr) | open, `approved`, +9/−0 | needs lgtm; red `unit` (TestOSBuildControllerLeavesSuccessfulBuildAlone — build-controller flake, unrelated to a YAML template change) + `images` (CI registry infra) → `/retest` candidates; `perfscale` optional |
+| **OCPBUGS-130338** finding C (ovn-k picks VIP as VTEP IP) | **Assigned: Martin Kennelly** | fix validated live (see run 5.1-evpn-fix) and commented on the bug with inline diff; **upstream PR not yet opened** — see "Upstream PR readiness" |
+| **ovn-kubernetes/ovn-kubernetes#7090** | open (Mat filed) | the upstream issue the PR must `Fixes:` |
+| openshift/cluster-network-operator#3047 | open, `approved,verified`, MERGEABLE, head `b8d24074a` | **needs re-lgtm** (dropped by the 10-02 lint fix + 10-08 rebase); 3 red `5.1-upgrade-from-stable-5.0-*` jobs are repo-wide (same red on #3046) |
+| openshift/cluster-network-operator#3046 | open, **lgtm+approved+verified** | same 3 repo-wide upgrade reds → `/retest-required` or override |
+| openshift/api#2972 | open, **approved+verified**, head `f2449fddb` | **needs re-lgtm** (everettraven) — dropped by the 10-07 `make update` regen after the k8s-1.37 rebase. `verified` is now present |
+| openshift-metal3/dev-scripts#1945 | open, `approved` + **Mat's hold**, head `420499a41` | finding A pushed as 420499a (lgtm dropped); ordered after installer#10931 |
+| openshift/installer#10931 | open, no labels | `golint` red is pre-existing on main (`goconst` in aws/clusterapi_machinesets.go); `okd-scos-images` flake |
+| metallb/frr-k8s#470, enhancements#1982 | open | awaiting maintainers |
+
+### Upstream PR readiness (OCPBUGS-130338 / ovn-k#7090)
+
+Branch `ocpbugs-130338-vtep-primary-ifaddr`, **one commit `12ba54a94`**, exists on
+both `mkowalski/ovn-kubernetes-upstream` (fork of ovn-kubernetes/ovn-kubernetes,
+**open the upstream PR from here**; compare view: ahead 1 / behind 0 on master
+`f35bcb60d`) and `mkowalski/ovn-kubernetes` (fork of openshift/ovn-kubernetes,
+for the downstream follow-up; cherry-picks clean on main `117e2a41c`).
+Local clone: `/root/OPNET-595-BGP/git/github.com/ovn-kubernetes` (remotes:
+`ovnorg`=upstream org, `upstream-fork`=Mat's upstream fork, `upstream`=openshift,
+`origin`=Mat's openshift fork).
+
+Contents (+334/−7, 3 files): `evpn_node_controller.go` — `nodePrimaryIP()`
+helper, preference for `k8s.ovn.org/node-primary-ifaddr` in `pickVTEPIP()`
+before the lowest-address sort, re-pick in `resolveVTEPIP()` when a VIP was
+annotated earlier; `evpn_node_controller_test.go` — 5 new Ginkgo specs
+(`discoverUnmanagedVTEPIPs` 15/15); `test/e2e/evpn_vtep_selection.go` — new
+`ginkgo.Serial` e2e that adds an unlabelled address below the node IP, deletes
+and recreates the shared node-subnet VTEP to force a fresh selection, asserts
+the primary address is annotated. **Proven to fail on the unfixed binary
+(`["192.168.111.2"]`) and pass on the fixed one (7 s)** via a locally built OTE
+extension. golangci-lint v2.10.1: 0 issues in the package; gofmt clean.
+
+Upstream rules (CONTRIBUTING.md §AI Guidelines, §Disclosure, PR template) and
+the division of remaining work agreed with Mat:
+- (a) DONE: trailer is `Assisted-by: Claude Fable 5 <noreply@anthropic.com>`,
+  `Fixes: #7090`, `Refs: OCPBUGS-130338`, DCO sign-off; subject `evpn: …` 64 chars.
+- (b) **Mat**: review/edit the commit message so it is his (AI-drafted commit
+  messages are "discouraged"); `git commit --amend` on the branch.
+- (c) DONE: upstream issue is #7090.
+- (d) DONE: e2e test (above).
+- (e) **Mat**: PR body per the template — Description, `Fixes #7090`,
+  **`release-note` block is required and this is user-visible** (VTEP IP
+  selection behaviour changes), "Additional Information for reviewers" MUST
+  carry the AI disclosure, checks, how-to-verify (the live evidence is in the
+  OCPBUGS-130338 fix comment). Reviewers must be answered by Mat personally.
+- Not in the upstream commit, needed for the **downstream** sync: the openshift
+  OTE wrapper exposes tests by allow-list `openshift/test/tests.go` plus the
+  `go generate`d `openshift/test/generated/zz_generated.annotations.go`; the
+  new spec's generated name is
+  `[Feature:EVPN][Feature:RouteAdvertisements][FeatureGate:EVPN][Serial][ovn-kubernetes-ote][sig-network] EVPN: unmanaged VTEP IP selection prefers the node primary address over an unlabelled VIP in the node subnet [Suite:ovn-kubernetes/conformance/serial]`
+  (note `[Serial]` and the `/serial` suite suffix).
+- Follow-up idea NOT done (noted on the bug): surface residual ambiguity as
+  `Accepted=False` per the CRD text; needs a node→cluster-manager signal.
+
+### Live cluster (metal-u15, `/root/dev-scripts`, kubeconfig `/root/dev-scripts/ocp/ostest/auth/kubeconfig`)
+
+Running, dual-stack 3+2, BGP VIP, **local gateway mode**, payload
+`quay.io/mkowalski/ocp-release:bgp-vip-5.1` (5.1.0-0.nightly-2026-10-06-091356
++ CNO#3047/#3046). **Deliberate drift**: CNO `managementState: Unmanaged`;
+`ds/ovnkube-node` (7 containers) + `deploy/ovnkube-control-plane` run
+`quay.io/mkowalski/ovn-kubernetes:ocpbugs-130338` (fixed binaries over the
+payload image); the three masters' `/etc/kubernetes/manifests/0000-frr-k8s.yaml`
+are hot-patched with MCO#6643's two emptyDir mounts (originals at
+`/tmp/0000-frr-k8s.yaml.orig` on each master). Route reflector `frr` (10.4.3,
+`192.168.111.3`) and `bgp-tor` containers up; the OTE shared VTEP
+`e2e-evpn-shared-vtep-node-cidr-range-do-not-use-this-name-anywhere-else`
+exists (annotations = node IPs). karpenter CO is permanently unavailable
+(BareMetal unsupported in this nightly) — ignore. Revert of the ovn-k swap:
+`oc set image` all 8 containers back to
+`quay.io/openshift-release-dev/ocp-v5.0-art-dev@sha256:a2c829e2b4ddcf658dd3c17720a9223fe47eaeecf20bddfb0f86d56a88c08815`
++ `managementState: Managed`.
+
+Tooling that exists on the host: `/tmp/opencode/local-steps/run.sh
+{bgpvip|lgw|ovnbgppre|ovnbgpverify|evpn|ote …}` replays the CI step bodies
+(logs in `/mnt/nvme0n1p1/dev-scripts/opnet-815-local/`); `/tmp/opencode/oc-5.1`;
+`/tmp/opencode/openshift-tests-5.1`; `/tmp/opencode/ovn-kubernetes-tests-ext`
+(payload build) — run `run-test -o json "<one name>" </dev/null`, one test per
+call (the multi-`-n` form strips the bracket prefix and fails "no such tests");
+env `SHARED_DIR=/tmp/opencode/ote-shared` (`server-ip`=192.168.111.1),
+`CLUSTER_PROFILE_DIR=/tmp/opencode/ote-profile` (`packet-ssh-key` authorized
+for root@localhost). The CI registry token in `/root/dev-scripts/pull_secret.json`
+expires ~24 h after Mat's `oc registry login` — expect it to be dead.
+`/tmp/opencode` is a symlink to `/root/OPNET-595-BGP/tmp-opencode` and survives.
+
+### Findings ledger (OPNET-815 EVPN work)
+
+| | Finding | Disposition |
+|---|---|---|
+| A | dev-scripts ToR lacked `ebgp-multihop` + 4784/udp → multihop BFD down | pushed to #1945 as 420499a |
+| B | MCO static-pod reloader `readOnlyRootFilesystem` without writable /tmp, /var/log/frr → every day-2 FRR reload fails on masters | MCO#6643 (approved, awaiting lgtm) |
+| C | ovn-k unmanaged VTEP discovery picks the kube-vip VIP (v4) / any VIP (v6: no labels, `IFA_F_SECONDARY==IFA_F_TEMPORARY`) | OCPBUGS-130338 (assigned M. Kennelly) + ovn-k#7090; fix on branch, validated; upstream PR pending (Mat: b, e) |
+| D | RA `frrConfigurationSelector: {}` also matched `bgp-vip` → conflicting per-node EVPN CRs → frr-k8s dropped both raw blocks | step selects `network=default`; OTE tests use `{}` but passed anyway on this cluster |
+| — | `disableMP` is deprecated/ignored by frr-k8s now | concern moot |
+| — | OTE suite leaves its shared VTEP; a second VTEP on the same CIDR is `CIDROverlap` | our step runs before OTE in the lane; locally delete the leftover first |
+| — | verify step read `k8s.ovn.org/node-vteps`; real key is `k8s.ovn.org/vteps` | fixed in #86746 |
+
+Other repos' dev branches and the historical demo set: see `docs/NEXT-STEPS.md`
+(tracker table at the bottom) and `docs/RUNBOOK.md` (deploy cycle, 5.1 deltas).
+
 ## run 5.1-evpn (2026-10-08/09): fresh 5.1 deploy, LGW, OVN-BGP, EVPN (OPNET-815)
 
 Payload `quay.io/mkowalski/ocp-release:bgp-vip-5.1` = `5.1.0-0.nightly-2026-10-06-091356` + CNO#3047/#3046 (`cluster-network-operator:bgp-5.1`); everything else stock (installer has #10718, MCO has #6326, kube-vip `b272a734`, metallb-frr frr10). dev-scripts `bgp-5.1-run` = upstream master e06c536 + the two field-compatible #1945 commits. v4v6, 3+2, ToR, `BGP_VIP_MANAGEMENT=true`, DevPreviewNoUpgrade. Install ~55 min (karpenter CO never Available on BareMetal in this nightly - "unsupported platform type: BareMetal" - installer never reports done; cluster fully usable).

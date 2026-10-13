@@ -6,9 +6,9 @@ Dates from:  gh api repos/<org>/<repo>/pulls/<n> --jq '[.created_at,.merged_at,.
 """
 import datetime as dt
 
-TODAY = dt.date(2026, 10, 9)
+TODAY = dt.date(2026, 10, 12)
 START = dt.date(2026, 6, 20)
-END = dt.date(2026, 10, 11)
+END = dt.date(2026, 10, 14)
 
 X0, X1 = 216, 950          # plot area
 Y0 = 100                   # first row
@@ -40,6 +40,7 @@ PRS = [
     (None, "#1945 v6 ToR peer + e2e fields + multihop BFD", "2026-08-06", None, "open", "l"),
     ("FRRouting/frr", "#22676 zebra table-scoped fix", "2026-07-15", "2026-07-21", "merged", "r"),
     ("metallb/frr-k8s", "#470 redistribute design", "2026-07-15", None, "open", "l"),
+    ("ovn-kubernetes", "#7090 VTEP picks VIP (issue) + fix branch, PR pending", "2026-10-09", None, "open", "l"),
     ("openshift/release", "#80926 kube-vip project onboarding", "2026-06-23", "2026-06-24", "merged", "r"),
     (None, "#81065 kube-vip rebasebot periodic", "2026-06-25", "2026-07-15", "merged", "r"),
     (None, "#81957 kube-vip CI images", "2026-07-15", "2026-07-27", "merged", "l"),
@@ -55,7 +56,7 @@ PRS = [
     ("ocp-build-data", "#11838 ose-kube-vip payload member", "2026-07-15", "2026-08-14", "merged", "l"),
     ("machine-config-operator", "#6326 BGP VIP static pods", "2026-07-22", "2026-10-02", "merged", "l"),
     (None, "#6334 api vendor bump", "2026-07-24", "2026-07-27", "merged", "l"),
-    (None, "#6643 static-pod reloader writable /tmp + /var/log/frr (OPNET-815)", "2026-10-09", None, "open", "l"),
+    (None, "#6643 static-pod reloader writable /tmp + /var/log/frr (approved)", "2026-10-09", None, "open", "l"),
     ("openshift/installer", "#10710 api/k8s vendor pin — closed: #10713 superseded", "2026-07-24", None, "closed", "l"),
     (None, "#10713 rebase/vendor wave", "2026-07-24", "2026-07-28", "merged", "l"),
     (None, "#10718 BGP VIP support", "2026-07-28", "2026-08-17", "merged", "l"),

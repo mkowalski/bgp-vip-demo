@@ -5,7 +5,7 @@ Working demo and upstreaming workspace of
 (OPNET-595/OPNET-773): BGP-based VIP management for on-premise OpenShift —
 kube-vip (routing-table mode) + frr-k8s static pods replacing keepalived.
 
-**Status (2026-10-02): MCO merged — DevPreview is one merge away (CNO#3047, re-lgtm pending); TP structured API lgtm+approved, needs `verified`; frr-k8s redistribution design in maintainer review round 2.**
+**Status (2026-10-12): MCO merged; DevPreview one merge away (CNO#3047 needs re-lgtm, #3046 lgtm+approved); TP API approved+verified, needs re-lgtm; EVPN coexistence lane (#86746) built and locally green but blocked on commit signing; ovn-k VTEP-selection bug OCPBUGS-130338 found, fix validated live, upstream PR pending (Mat: commit message + PR body). Full handoff: docs/RUN-LEDGER.md 'HANDOFF STATE'.**
 All six demo criteria proven across 27 install runs (see
 [docs/demo-results.md](docs/demo-results.md), [docs/RUN-LEDGER.md](docs/RUN-LEDGER.md)):
 API + Ingress VIPs advertised via BGP from bootstrap through steady state,
