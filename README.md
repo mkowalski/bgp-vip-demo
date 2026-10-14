@@ -36,11 +36,14 @@ Upstream state:
   merge-validation bug) fixed upstream. Closed/superseded along the way:
   installer#10710 (by #10713), CNO#3080 (dup of #3070), kube-vip#6 (FRR
   fix sufficed), kube-vip#14 (by #12).
-- **Open (review-gated, code complete)**: CNO#3047 (OPNET-783 — had
-  lgtm+approved; a rebase-artifact lint fix on 2026-10-02 dropped them,
-  re-lgtm requested) + #3046 (cybertron review rounds addressed, awaiting
-  re-review), api#2972 (TP `BGPVIPConfig` CRD — **lgtm + approved by
-  everettraven 2026-10-02**, blocked only on the `verified` label),
+- **Merged 2026-10-14: openshift/api#2972** — the Tech Preview
+  `BGPVIPConfig` CRD (8c03d1c42). Unblocks the consumer re-vendor stories
+  OPNET-810/811/812 (installer/MCO/CNO drop the fork replaces and vendor
+  the real type).
+- **Open (review-gated, code complete)**: CNO#3047 (OPNET-783 —
+  approved+verified; rebased 2026-10-13 onto the lint-overhaul main,
+  lint green, re-lgtm requested) + #3046 (lgtm+approved+verified, blocked
+  only on four repo-wide CI reds needing a maintainer override),
   **installer#10931** (OPNET-810 —
   install-config peer fields aligned with the CRD shape; the generated
   ConfigMap transport contract deliberately unchanged via a dedicated
@@ -117,7 +120,7 @@ validation, no status, inline password:
 
 <img src="drawings/bgp-vip-dp-objects.svg" alt="Dev Preview objects and configuration flow" style="width: 95%; max-width: 1000px;">
 
-Tech Preview (`BGPVIPConfig` CRD, openshift/api#2972): the ConfigMap is
+Tech Preview (`BGPVIPConfig` CRD, openshift/api#2972 — merged 2026-10-14): the ConfigMap is
 gone — the installer generates the admission-validated, day-2-editable CR
 plus a basic-auth Secret; the operators watch the CR and report progress
 through status conditions. Everything below the MCO-internal transport is

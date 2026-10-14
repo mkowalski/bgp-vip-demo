@@ -6,9 +6,9 @@ Dates from:  gh api repos/<org>/<repo>/pulls/<n> --jq '[.created_at,.merged_at,.
 """
 import datetime as dt
 
-TODAY = dt.date(2026, 10, 12)
+TODAY = dt.date(2026, 10, 14)
 START = dt.date(2026, 6, 20)
-END = dt.date(2026, 10, 14)
+END = dt.date(2026, 10, 16)
 
 X0, X1 = 216, 950          # plot area
 Y0 = 100                   # first row
@@ -34,13 +34,13 @@ PRS = [
     (None, "#1675 vip_skipdad (DAD skip)", "2026-08-07", "2026-08-08", "merged", "l"),
     ("openshift/enhancements", "#1982 BGP-based VIP management EP", "2026-04-23", None, "open", "r"),
     ("openshift/api", "#2923 gate + vipManagement", "2026-07-09", "2026-07-24", "merged", "l"),
-    (None, "#2972 BGPVIPConfig CRD (lgtm+approved, needs verified)", "2026-08-10", None, "open", "l"),
+    (None, "#2972 BGPVIPConfig CRD (TP API)", "2026-08-10", "2026-10-14", "merged", "l"),
     ("dev-scripts", "#1929 BGP ToR", "2026-07-09", "2026-07-23", "merged", "r"),
     (None, "#1939 BGP_VIP_MANAGEMENT knob", "2026-07-30", "2026-07-31", "merged", "l"),
     (None, "#1945 v6 ToR peer + e2e fields + multihop BFD", "2026-08-06", None, "open", "l"),
     ("FRRouting/frr", "#22676 zebra table-scoped fix", "2026-07-15", "2026-07-21", "merged", "r"),
     ("metallb/frr-k8s", "#470 redistribute design", "2026-07-15", None, "open", "l"),
-    ("ovn-kubernetes", "#7090 VTEP picks VIP (issue) + fix branch, PR pending", "2026-10-09", None, "open", "l"),
+    ("ovn-kubernetes", "#7099 VTEP prefers node primary addr (OCPBUGS-130338; issue #7090)", "2026-10-12", None, "open", "l"),
     ("openshift/release", "#80926 kube-vip project onboarding", "2026-06-23", "2026-06-24", "merged", "r"),
     (None, "#81065 kube-vip rebasebot periodic", "2026-06-25", "2026-07-15", "merged", "r"),
     (None, "#81957 kube-vip CI images", "2026-07-15", "2026-07-27", "merged", "l"),
@@ -48,7 +48,7 @@ PRS = [
     (None, "#82912 coexistence lanes + FRR-state verify", "2026-08-04", "2026-08-13", "merged", "l"),
     (None, "#86746 EVPN coexistence lane, OTE+LGW (OPNET-815)", "2026-10-08", None, "open", "l"),
     ("cluster-network-operator", "#3046 statusmanager fix", "2026-07-10", None, "open", "l"),
-    (None, "#3047 BGP VIP support", "2026-07-10", None, "open", "l"),
+    (None, "#3047 BGP VIP support (approved+verified, re-lgtm after 10-13 rebase)", "2026-07-10", None, "open", "l"),
     (None, "#3070 frr-k8s CRD align", "2026-07-20", "2026-07-22", "merged", "r"),
     (None, "#3080 frr-k8s asn format — closed: dup of #3070", "2026-07-21", None, "closed", "r"),
     (None, "#3089 api vendor bump", "2026-07-24", "2026-07-29", "merged", "l"),
@@ -74,6 +74,7 @@ PHASES = [
     ("TP API review + consumer prep", "2026-09-08", "2026-09-29"),
     ("MCO merge", "2026-10-01", "2026-10-02"),
     ("EVPN lane + 5.1 run", "2026-10-08", "2026-10-09"),
+    ("TP API merge", "2026-10-13", "2026-10-14"),
 ]
 
 COLORS = {
