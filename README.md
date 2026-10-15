@@ -40,11 +40,25 @@ Upstream state:
   `BGPVIPConfig` CRD (8c03d1c42). Unblocks the consumer re-vendor stories
   OPNET-810/811/812 (installer/MCO/CNO drop the fork replaces and vendor
   the real type).
+- **Consumer vendor bumps opened 2026-10-14** (api 8c03d1c42 pulls in
+  Kubernetes 1.37, so each is a full k8s bump, vendor-only): installer
+  **#10985** (OPNET-810; approved by patrickdillon within 3 h; one
+  test-helper fix for the prometheus client_golang 1.24 `Desc.String()`
+  format) and MCO **#6655** (OPNET-811; zero source changes). Both repos
+  had no 1.37 bump in flight. CNO's bump waits for CNO#3183 (the team's
+  own 1.37 PR, lgtm'd) and will be api-only on top of it.
+- **CNO#3195 "Align frr-k8s 5.1 CRDs"** (2026-10-15): `frrk8s-e2e` on
+  #3047 exposed that CNO's `001-crd.yaml` (last synced July) lacks
+  `toAdvertise.nextHop`, `allowAsIn` and the EVPN API from openshift/frr
+  release-5.1 — the API server prunes them, so the webhook never sees
+  them. Pure +386/−0 sync, separate PR so #3047 keeps its labels; no file
+  overlap, trial-merged clean in both orders.
 - **Open (review-gated, code complete)**: CNO#3047 (OPNET-783 —
-  approved+verified; rebased 2026-10-13 onto the lint-overhaul main,
-  lint green, re-lgtm requested) + #3046 (lgtm+approved+verified, blocked
-  only on four repo-wide CI reds needing a maintainer override),
-  **installer#10931** (OPNET-810 —
+  **lgtm+approved+verified**; the three required reds — metal-ipi-ovn-ipv6
+  ×2 and azure-ovn-upgrade — carry the identical 11-test fingerprint on
+  #3170/#3183/#3193 and were overridden 2026-10-15; in tide's SuccessPRs pool awaiting merge sync) + #3046
+  (lgtm+approved+verified, blocked only on repo-wide CI reds needing an
+  override), **installer#10931** (OPNET-810 —
   install-config peer fields aligned with the CRD shape; the generated
   ConfigMap transport contract deliberately unchanged via a dedicated
   frrPeerJSON type), dev-scripts#1945 (dual-stack v6 ToR peer +
@@ -55,9 +69,9 @@ Upstream state:
   openshift/release#86746 (OPNET-815 EVPN coexistence lane), and the
   enhancement itself, openshift/enhancements#1982.
 - Path to a green `e2e-metal-ipi-bgp-vip` lane: merge CNO#3047 (the last
-  one), then `/testwith` needs no extra refs — installer, MCO, runtimecfg,
-  and the payload image (incl. the dual-stack kube-vip fixes) are all
-  merged.
+  one — tide pending as of 2026-10-15), then `/testwith` needs no extra
+  refs — installer, MCO, runtimecfg, and the payload image (incl. the
+  dual-stack kube-vip fixes) are all merged.
 
 Full tracker: [docs/NEXT-STEPS.md](docs/NEXT-STEPS.md) (Jira subtask
 mapping + PR tracker).

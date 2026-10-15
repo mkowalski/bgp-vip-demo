@@ -6,9 +6,9 @@ Dates from:  gh api repos/<org>/<repo>/pulls/<n> --jq '[.created_at,.merged_at,.
 """
 import datetime as dt
 
-TODAY = dt.date(2026, 10, 14)
+TODAY = dt.date(2026, 10, 15)
 START = dt.date(2026, 6, 20)
-END = dt.date(2026, 10, 16)
+END = dt.date(2026, 10, 18)
 
 X0, X1 = 216, 950          # plot area
 Y0 = 100                   # first row
@@ -48,19 +48,22 @@ PRS = [
     (None, "#82912 coexistence lanes + FRR-state verify", "2026-08-04", "2026-08-13", "merged", "l"),
     (None, "#86746 EVPN coexistence lane, OTE+LGW (OPNET-815)", "2026-10-08", None, "open", "l"),
     ("cluster-network-operator", "#3046 statusmanager fix", "2026-07-10", None, "open", "l"),
-    (None, "#3047 BGP VIP support (approved+verified, re-lgtm after 10-13 rebase)", "2026-07-10", None, "open", "l"),
+    (None, "#3047 BGP VIP support (lgtm+approved+verified, 3 repo-wide reds overridden 10-15)", "2026-07-10", None, "open", "l"),
     (None, "#3070 frr-k8s CRD align", "2026-07-20", "2026-07-22", "merged", "r"),
     (None, "#3080 frr-k8s asn format — closed: dup of #3070", "2026-07-21", None, "closed", "r"),
     (None, "#3089 api vendor bump", "2026-07-24", "2026-07-29", "merged", "l"),
+    (None, "#3195 align frr-k8s 5.1 CRDs (nextHop/allowAsIn/EVPN; frrk8s-e2e drift)", "2026-10-15", None, "open", "l"),
     ("baremetal-runtimecfg", "#395 FRR peer-file rendering", "2026-07-10", "2026-08-13", "merged", "l"),
     ("ocp-build-data", "#11838 ose-kube-vip payload member", "2026-07-15", "2026-08-14", "merged", "l"),
     ("machine-config-operator", "#6326 BGP VIP static pods", "2026-07-22", "2026-10-02", "merged", "l"),
     (None, "#6334 api vendor bump", "2026-07-24", "2026-07-27", "merged", "l"),
     (None, "#6643 static-pod reloader writable /tmp + /var/log/frr (approved)", "2026-10-09", None, "open", "l"),
+    (None, "#6655 vendor openshift/api 8c03d1c + k8s 1.37 (OPNET-811)", "2026-10-14", None, "open", "l"),
     ("openshift/installer", "#10710 api/k8s vendor pin — closed: #10713 superseded", "2026-07-24", None, "closed", "l"),
     (None, "#10713 rebase/vendor wave", "2026-07-24", "2026-07-28", "merged", "l"),
     (None, "#10718 BGP VIP support", "2026-07-28", "2026-08-17", "merged", "l"),
     (None, "#10931 install-config aligned with the CRD", "2026-09-29", None, "open", "l"),
+    (None, "#10985 vendor openshift/api 8c03d1c + k8s 1.37 (OPNET-810, approved)", "2026-10-14", None, "open", "l"),
 ]
 
 PHASES = [
@@ -74,7 +77,7 @@ PHASES = [
     ("TP API review + consumer prep", "2026-09-08", "2026-09-29"),
     ("MCO merge", "2026-10-01", "2026-10-02"),
     ("EVPN lane + 5.1 run", "2026-10-08", "2026-10-09"),
-    ("TP API merge", "2026-10-13", "2026-10-14"),
+    ("TP API merge + consumer vendor bumps", "2026-10-13", "2026-10-15"),
 ]
 
 COLORS = {
