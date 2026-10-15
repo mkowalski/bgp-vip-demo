@@ -5,7 +5,7 @@ Working demo and upstreaming workspace of
 (OPNET-595/OPNET-773): BGP-based VIP management for on-premise OpenShift —
 kube-vip (routing-table mode) + frr-k8s static pods replacing keepalived.
 
-**Status (2026-10-12): MCO merged; DevPreview one merge away (CNO#3047 needs re-lgtm, #3046 lgtm+approved); TP API approved+verified, needs re-lgtm; EVPN coexistence lane (#86746) built and locally green but blocked on commit signing; ovn-k VTEP-selection bug OCPBUGS-130338 found, fix validated live, upstream PR pending (Mat: commit message + PR body). Full handoff: docs/RUN-LEDGER.md 'HANDOFF STATE'.**
+**Status (2026-10-15): DevPreview feature COMPLETE in-payload — CNO#3047 merged (fc66cef8b), the last of installer/MCO/CNO/runtimecfg/kube-vip; first nightly carrying it pending. TP `BGPVIPConfig` API merged (api#2972); consumer k8s-1.37 vendor bumps open (installer#10985 approved, MCO#6655). CNO#3046 rebased, needs re-lgtm; CNO#3195 CRD sync lgtm+approved same day. EVPN coexistence lane (#86746) blocked on commit signing; OCPBUGS-130338 fix at ovn-k#7099. Full handoff: docs/RUN-LEDGER.md 'HANDOFF STATE'.**
 All six demo criteria proven across 27 install runs (see
 [docs/demo-results.md](docs/demo-results.md), [docs/RUN-LEDGER.md](docs/RUN-LEDGER.md)):
 API + Ingress VIPs advertised via BGP from bootstrap through steady state,
@@ -16,7 +16,10 @@ script.
 
 Upstream state:
 
-- **Merged**: **MCO#6326 (OPNET-782, 2026-10-02)** — BGP VIP static pods,
+- **Merged**: **CNO#3047 (OPNET-783, 2026-10-15, fc66cef8b)** — FRRConfiguration
+  rendering, frr-k8s DaemonSet control-plane avoidance, static-pod RBAC +
+  metrics, peer port/timer contract: **the DevPreview path is now fully
+  merged across every repo**; **MCO#6326 (OPNET-782, 2026-10-02)** — BGP VIP static pods,
   bootstrap/day-2 ingestion, kube-vip payload consumption;
   **installer#10718 (OPNET-781, 2026-08-17)** — the feature's biggest PR; openshift/api#2923 (gate + `vipManagement` +
   `BGPVIPPeersJSON`), baremetal-runtimecfg#395 (OPNET-785),
@@ -53,12 +56,11 @@ Upstream state:
   release-5.1 — the API server prunes them, so the webhook never sees
   them. Pure +386/−0 sync, separate PR so #3047 keeps its labels; no file
   overlap, trial-merged clean in both orders.
-- **Open (review-gated, code complete)**: CNO#3047 (OPNET-783 —
-  **lgtm+approved+verified**; the three required reds — metal-ipi-ovn-ipv6
-  ×2 and azure-ovn-upgrade — carry the identical 11-test fingerprint on
-  #3170/#3183/#3193 and were overridden 2026-10-15; in tide's SuccessPRs pool awaiting merge sync) + #3046
-  (lgtm+approved+verified, blocked only on repo-wide CI reds needing an
-  override), **installer#10931** (OPNET-810 —
+- **Open (review-gated, code complete)**: CNO#3046 (statusmanager
+  zero-node DaemonSet fix — stopped compiling on main after 150 upstream
+  commits: `OPERATOR_CONFIG`→`OperatorConfig` rename + `SetFromPods(ctx)`;
+  rebased 2026-10-15, needs re-lgtm), CNO#3195 (lgtm+approved+verified,
+  CI running), **installer#10931** (OPNET-810 —
   install-config peer fields aligned with the CRD shape; the generated
   ConfigMap transport contract deliberately unchanged via a dedicated
   frrPeerJSON type), dev-scripts#1945 (dual-stack v6 ToR peer +
@@ -68,10 +70,10 @@ Upstream state:
   `/var/log/frr`; without it masters never apply day-2 FRRConfigurations),
   openshift/release#86746 (OPNET-815 EVPN coexistence lane), and the
   enhancement itself, openshift/enhancements#1982.
-- Path to a green `e2e-metal-ipi-bgp-vip` lane: merge CNO#3047 (the last
-  one — tide pending as of 2026-10-15), then `/testwith` needs no extra
-  refs — installer, MCO, runtimecfg, and the payload image (incl. the
-  dual-stack kube-vip fixes) are all merged.
+- **`e2e-metal-ipi-bgp-vip` lane**: every feature PR it depends on is
+  now merged. Next: the first 5.1 nightly after fc66cef8b (the 10-15-030023
+  nightly predates it), then run the lane against a stock payload — the
+  first end-to-end proof outside the PoC harness (Phase 2 item 1).
 
 Full tracker: [docs/NEXT-STEPS.md](docs/NEXT-STEPS.md) (Jira subtask
 mapping + PR tracker).

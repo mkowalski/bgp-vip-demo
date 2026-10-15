@@ -47,12 +47,12 @@ PRS = [
     (None, "#82698 e2e-metal-ipi-bgp-vip lane", "2026-07-30", "2026-07-31", "merged", "l"),
     (None, "#82912 coexistence lanes + FRR-state verify", "2026-08-04", "2026-08-13", "merged", "l"),
     (None, "#86746 EVPN coexistence lane, OTE+LGW (OPNET-815)", "2026-10-08", None, "open", "l"),
-    ("cluster-network-operator", "#3046 statusmanager fix", "2026-07-10", None, "open", "l"),
-    (None, "#3047 BGP VIP support (lgtm+approved+verified, 3 repo-wide reds overridden 10-15)", "2026-07-10", None, "open", "l"),
+    ("cluster-network-operator", "#3046 statusmanager fix (rebased 10-15, re-lgtm)", "2026-07-10", None, "open", "l"),
+    (None, "#3047 BGP VIP support — DevPreview complete in-payload", "2026-07-10", "2026-10-15", "merged", "l"),
     (None, "#3070 frr-k8s CRD align", "2026-07-20", "2026-07-22", "merged", "r"),
     (None, "#3080 frr-k8s asn format — closed: dup of #3070", "2026-07-21", None, "closed", "r"),
     (None, "#3089 api vendor bump", "2026-07-24", "2026-07-29", "merged", "l"),
-    (None, "#3195 align frr-k8s 5.1 CRDs (nextHop/allowAsIn/EVPN; frrk8s-e2e drift)", "2026-10-15", None, "open", "l"),
+    (None, "#3195 align frr-k8s 5.1 CRDs (lgtm+approved+verified same day)", "2026-10-15", None, "open", "l"),
     ("baremetal-runtimecfg", "#395 FRR peer-file rendering", "2026-07-10", "2026-08-13", "merged", "l"),
     ("ocp-build-data", "#11838 ose-kube-vip payload member", "2026-07-15", "2026-08-14", "merged", "l"),
     ("machine-config-operator", "#6326 BGP VIP static pods", "2026-07-22", "2026-10-02", "merged", "l"),
@@ -77,7 +77,7 @@ PHASES = [
     ("TP API review + consumer prep", "2026-09-08", "2026-09-29"),
     ("MCO merge", "2026-10-01", "2026-10-02"),
     ("EVPN lane + 5.1 run", "2026-10-08", "2026-10-09"),
-    ("TP API merge + consumer vendor bumps", "2026-10-13", "2026-10-15"),
+    ("TP API merge + vendor bumps + CNO merge", "2026-10-13", "2026-10-15"),
 ]
 
 COLORS = {
