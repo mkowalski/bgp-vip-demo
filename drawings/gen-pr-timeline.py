@@ -6,9 +6,9 @@ Dates from:  gh api repos/<org>/<repo>/pulls/<n> --jq '[.created_at,.merged_at,.
 """
 import datetime as dt
 
-TODAY = dt.date(2026, 10, 15)
+TODAY = dt.date(2026, 10, 16)
 START = dt.date(2026, 6, 20)
-END = dt.date(2026, 10, 18)
+END = dt.date(2026, 10, 19)
 
 X0, X1 = 216, 950          # plot area
 Y0 = 100                   # first row
@@ -47,6 +47,8 @@ PRS = [
     (None, "#82698 e2e-metal-ipi-bgp-vip lane", "2026-07-30", "2026-07-31", "merged", "l"),
     (None, "#82912 coexistence lanes + FRR-state verify", "2026-08-04", "2026-08-13", "merged", "l"),
     (None, "#86746 EVPN coexistence lane, OTE+LGW (OPNET-815)", "2026-10-08", None, "open", "l"),
+    (None, "#87186 nightly 5.1 periodics x3 (draft, stacked on #86746)", "2026-10-16", None, "open", "l"),
+    (None, "#87192 lane fixes: BGPPeer mirrors ToR peer, datapath poll", "2026-10-16", None, "open", "l"),
     ("cluster-network-operator", "#3046 statusmanager fix (rebased 10-15, re-lgtm)", "2026-07-10", None, "open", "l"),
     (None, "#3047 BGP VIP support — DevPreview complete in-payload", "2026-07-10", "2026-10-15", "merged", "l"),
     (None, "#3070 frr-k8s CRD align", "2026-07-20", "2026-07-22", "merged", "r"),
@@ -78,6 +80,7 @@ PHASES = [
     ("MCO merge", "2026-10-01", "2026-10-02"),
     ("EVPN lane + 5.1 run", "2026-10-08", "2026-10-09"),
     ("TP API merge + vendor bumps + CNO merge", "2026-10-13", "2026-10-15"),
+    ("stock-nightly proof", "2026-10-16", "2026-10-16"),
 ]
 
 COLORS = {
