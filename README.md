@@ -5,7 +5,7 @@ Working demo and upstreaming workspace of
 (OPNET-595/OPNET-773): BGP-based VIP management for on-premise OpenShift —
 kube-vip (routing-table mode) + frr-k8s static pods replacing keepalived.
 
-**Status (2026-10-15): DevPreview feature COMPLETE in-payload — CNO#3047 merged (fc66cef8b), the last of installer/MCO/CNO/runtimecfg/kube-vip; first nightly carrying it pending. TP `BGPVIPConfig` API merged (api#2972); consumer k8s-1.37 vendor bumps open (installer#10985 approved, MCO#6655). CNO#3046 rebased, needs re-lgtm; CNO#3195 CRD sync lgtm+approved same day. EVPN coexistence lane (#86746) blocked on commit signing; OCPBUGS-130338 fix at ovn-k#7099. Full handoff: docs/RUN-LEDGER.md 'HANDOFF STATE'.**
+**Status (2026-10-16): DevPreview PROVEN END TO END FROM A STOCK NIGHTLY — `5.1.0-0.nightly-2026-10-16-040146` (first with CNO#3047), no custom images: bgp-vip 6/6 + OVN-K RA 4/4 + MetalLB 4/4 all green on one cluster (run 5.1-stock; MCO#6643 hot-patched, two lane-script fixes found). Periodics draft release#87186 open. TP `BGPVIPConfig` API merged (api#2972); consumer k8s-1.37 vendor bumps open (installer#10985 approved, MCO#6655). CNO#3046 rebased, needs re-lgtm; CNO#3195 CRD sync lgtm+approved same day. EVPN coexistence lane (#86746) blocked on commit signing; OCPBUGS-130338 fix at ovn-k#7099. Full handoff: docs/RUN-LEDGER.md 'HANDOFF STATE'.**
 All six demo criteria proven across 27 install runs (see
 [docs/demo-results.md](docs/demo-results.md), [docs/RUN-LEDGER.md](docs/RUN-LEDGER.md)):
 API + Ingress VIPs advertised via BGP from bootstrap through steady state,

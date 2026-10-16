@@ -141,7 +141,17 @@ closed as superseded).
    harness. **UNBLOCKED 2026-08-20**: installer#10718 merged + kube-vip in
    the nightly payload; MCO#6326 merged 2026-10-02, kube-vip#15 in the
    payload since 09-28; **CNO#3047 merged 2026-10-15 — nothing remains**.
-   **NEXT ACTION**: wait for the first 5.1 nightly built after fc66cef8b
+   **DONE 2026-10-16 — run 5.1-stock (RUN-LEDGER)**: stock nightly
+   `5.1.0-0.nightly-2026-10-16-040146`, zero custom images, `make` exit 0;
+   bgp-vip verify 6/6 first poll, OVN-K RA 4/4, MetalLB 4/4 — three BGP
+   producers on one stock cluster. Findings: finding B confirmed on stock
+   and #6643's exact diff proven as the fix (3 reloads, 0 errors); **lane
+   script fixes needed (finding F)**: metallb-pre BGPPeer must mirror the
+   ToR peer's password/multihop/timers, ovn-bgp-verify datapath check must
+   poll. **Periodics: release#87186 (draft, stacked on #86746)** — bgp-vip
+   daily, ovn-bgp-metallb MWF, evpn TuTh; expected red for the latter two
+   until #6643 (+#7099 for EVPN) reach a nightly AND finding F is fixed.
+   Original plan was: wait for the first 5.1 nightly built after fc66cef8b
    (5.1.0-0.nightly-2026-10-15-030023 predates it; check
    `oc adm release info --commits <nightly> | grep cluster-network-operator`),
    then (a) deploy dev-scripts `BGP_VIP_MANAGEMENT=true` from the stock

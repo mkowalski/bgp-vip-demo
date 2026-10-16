@@ -178,6 +178,7 @@ expires ~24 h after Mat's `oc registry login` — expect it to be dead.
 | B | MCO static-pod reloader `readOnlyRootFilesystem` without writable /tmp, /var/log/frr → every day-2 FRR reload fails on masters | MCO#6643 (approved, awaiting lgtm) |
 | C | ovn-k unmanaged VTEP discovery picks the kube-vip VIP (v4) / any VIP (v6: no labels, `IFA_F_SECONDARY==IFA_F_TEMPORARY`) | OCPBUGS-130338 (assigned M. Kennelly) + ovn-k#7090; fix on branch, validated; upstream PR pending (Mat: b, e) |
 | D | RA `frrConfigurationSelector: {}` also matched `bgp-vip` → conflicting per-node EVPN CRs → frr-k8s dropped both raw blocks | step selects `network=default`; OTE tests use `{}` but passed anyway on this cluster |
+| F | **Lane drift vs dev-scripts peer attributes**: `metallb-pre` creates a bare BGPPeer, but since dev-scripts `2ab8eb3` the ToR peer carries password/ebgpMultiHop/90-30 timers → frr-k8s same-neighbor merge webhook rejects every MetalLB FRRConfiguration (`multiple passwords`, then `conflicting ebgp-multihop`); MetalLB silently produces nothing. Also `ovn-bgp-verify` [4/4] curls once, no poll — flaked once on stock | found run 5.1-stock 2026-10-16; **release lane fix pending** (mirror the `bgp-vip` FRRConfiguration neighbor attrs onto the BGPPeer; poll the datapath curl) — must land before #87186 periodics can go green |
 | E | **EgressIP cluster-manager treats host VIPs as "secondary host networks"** (`GetSecondaryHostNetworkContainingIP` = host-cidrs minus the primary-ifaddr *string*). Same root assumption as C. Common `/32` VIPs are masked by `isEgressIPAddrConflict` (verified: EIP=Ingress VIP → `EgressIPConflict`, correct); but a VIP with a real prefix (emulated `10.199.0.5/24 preferred_lft 0` on br-ex) → EIP `10.199.0.77` reported **Assigned** by CM, node programs **nothing** (no addr, no OVN NAT, no nft) and logs no error — node-side `getFilteredPrefixes` excludes DEPRECATED + `/32` and `if !found { continue }`. IPv6 node addr itself also misclassified (`::38/128` vs `::38/120`) | found 2026-10-15 by code+live probe (research after C); **draft: `docs/egressip-vip-secondary-network-bug-draft.md`**, not filed — Mat to decide; recommend separate OCPBUGS, same owner as 130338, fix = CM mirrors node-side eligibility (drop /32,/128; containment not string match) |
 | — | `disableMP` is deprecated/ignored by frr-k8s now | concern moot |
 | — | OTE suite leaves its shared VTEP; a second VTEP on the same CIDR is `CIDROverlap` | our step runs before OTE in the lane; locally delete the leftover first |
@@ -237,6 +238,34 @@ Revert = `oc set image` back to `…@sha256:a2c829e2b4…` on all 8 containers +
 `managementState: Managed`. Jira: fix comment + inline diff on
 OCPBUGS-130338 (attachments not permitted for this account; patches kept in
 `patches/ovn-kubernetes/`). Upstream PR pending.
+
+## run 5.1-stock (2026-10-16): FIRST install from a stock nightly — DevPreview proven end to end
+
+**Payload `registry.ci.openshift.org/ocp/release-5:5.1.0-0.nightly-2026-10-16-040146`**
+(first nightly carrying CNO#3047 `fc66cef8b`; also MCO `328a5db39` ⊇ #6326,
+installer#10718, runtimecfg#395, kube-vip). No custom images, no `/testwith`,
+no fork `replace`s. dev-scripts `bgp-5.1-run` + cherry-pick `420499a`
+(finding A, ToR multihop BFD). v4v6, 3+2, ToR, DevPreviewNoUpgrade,
+`BGP_VIP_MANAGEMENT=true`. Previous 5.1-evpn cluster torn down (one stale
+2-month `ironic-pod` with a dead netavark bridge aborted the first `make
+clean`; `podman pod rm -f`, second clean ok). **`make` exit 0 in ~62 min**
+(karpenter did not block this time). Logs `/mnt/nvme0n1p1/dev-scripts/opnet-stock-5.1/`.
+
+| # | Phase | Result | Notes |
+|---|---|---|---|
+| a | `baremetalds-e2e-bgp-vip-verify` (merged step body, verbatim) | **PASS 6/6, first poll** | 10/10 ToR sessions both families, BFD Up (finding A fix confirmed), API ×3 + ingress ×2 paths, console 200 both families |
+| b | stock-payload assertions | **PASS** | every image in frr-k8s/kni-infra/CNO/ovn-k namespaces is `ocp-v5.0-art-dev@sha256`; frr-k8s DaemonSet desired=2 (workers only — #3047 `node-role.kubernetes.io/master DoesNotExist` affinity); `frr-k8s-static-pod` ClusterRole/Role + bindings present; `frr-k8s-master-monitor` DS 3/3 + ServiceMonitor; CNO-rendered `bgp-vip` FRRConfiguration with both ToR neighbors |
+| B | finding B on stock | **CONFIRMED present**: master reloader `readOnlyRootFilesystem: true`, mounts only `/var/run/frr /etc/frr /etc/frr_reloader` | hot-patched all 3 masters with **exactly MCO#6643's diff** (reloader `/tmp` + `/var/log/frr` emptyDirs; rendered-manifest indentation differs from the template — patched via regex on the reloader container, YAML-validated before install; originals at `/tmp/0000-frr-k8s.yaml.orig`); static pods back 4/4, verify still 6/6 |
+| c | `ovn-bgp-pre` + `ovn-bgp-verify` | pre PASS; verify **first run FAIL [4/4]**, re-run **PASS 4/4** | [1-3] passed first time (5/5 RR sessions, pod subnets advertised). [4/4] datapath failed ONCE then passed: the step's `oc run … --attach` pod curls immediately after the RR starts advertising `172.20.0.0/16`; pinned probes on all 5 nodes were 200/200 v4/v6 a minute later. **Lane hardening candidate: wrap the datapath curl in `poll`** like checks 1-3 (the merged step tries each target once). Reloader on masters: 3 successful reloads, 0 read-only errors → **#6643 fix proven on stock** |
+| d | `metallb-pre` + `metallb-verify` (release-5.0 operator manifests, as the lane does) | pre PASS; verify **FAIL [1/4]** → after BGPPeer alignment **PASS 4/4** | MetalLB produced **no** FRRConfigurations: webhook `multiple passwords specified for 192.168.111.1`, then `conflicting ebgp-multihop`. **Root cause: dev-scripts `2ab8eb3` (Aug 12) made the ToR peer carry password + ebgpMultiHop + 90/30 timers + BFD; the merged metallb-pre step still creates a bare BGPPeer** (coex-2/3 predate 2ab8eb3). Same-neighbor merge requires every merge-relevant attribute to match. Fixed by patching `tor`/`tor-v6` BGPPeers with `password: dev-scripts-bgp, ebgpMultiHop: true, holdTime: 90s, keepaliveTime: 30s` → 5 `metallb-*` FRRConfigs, ToR sessions stay 5/5 per family (merge, not a 2nd session), LB `.70`/`::70` Paths (5 available), datapath 200 both families. **Lane fix needed in release: metallb-pre must mirror the bgp-vip neighbor's password/multihop/timers (read them from the `bgp-vip` FRRConfiguration rather than hardcoding)** |
+| — | final state | **bgp-vip 6/6 + ovn-bgp 4/4 + metallb 4/4 all green on one stock cluster**; master `frr.conf` merges 3 producers (62 neighbor/network/route-map/prefix-list lines) | EVPN (phase e) skipped: needs ovn-k#7099 |
+
+**Cluster LEFT RUNNING** (stock + 3 producers + #6643 hot-patch). Revert of the
+hot-patch: `sudo cp /tmp/0000-frr-k8s.yaml.orig /etc/kubernetes/manifests/0000-frr-k8s.yaml`
+on each master. Follow-ups filed from this run: (1) release lane hardening —
+poll the ovn-bgp datapath check; metallb-pre BGPPeer must mirror the ToR
+peer attributes; (2) #87186 periodics draft now has a local green for the
+`bgp-vip` lane and (with #6643) for `ovn-bgp-metallb`.
 
 ## Meta-lessons for whoever continues
 
