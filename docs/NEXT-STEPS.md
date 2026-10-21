@@ -14,7 +14,18 @@ TechPreview, EP 066d3556).
 
 ### Phase 0 — now, nothing blocked (parallel)
 
-1. Review-chase (updated 2026-10-21 — **merge week**): between 10-19 and
+1. Review-chase (updated 2026-10-21 pm): **MILESTONE — first fully green
+   CI run of a BGP VIP lane** (release#87192 rehearsal of
+   `e2e-metal-ipi-bgp-vip-metallb`: 6/6 + 4/4 incl. v6, masters
+   advertising → #6643 confirmed in CI; RUN-LEDGER finding H). #87192 now
+   needs only cybertron's `/lgtm`. **release#87443** (chai-bot, requested
+   via Slack, merged 12:35): shared step `baremetalds-e2e-ovn-bgp-pre`
+   `from: src` → `from: dev-scripts`, unblocking the ovn-bgp workflows as
+   periodics. **#87186 blocked on nightly skew**: dev-scripts master now
+   renders installer#10931's peer fields, so any nightly older than
+   10-20 rejects the install-config; periodics install the last *Accepted*
+   nightly (10-19-171115) → wait for an Accepted nightly ≥ 10-21-112452.
+   Earlier the same day — **merge week**: between 10-19 and
    10-21 every remaining feature-adjacent PR landed: **release#86746**
    (EVPN lane, 10-19), **CNO#3195** (CRD sync, 10-20), **installer#10931**
    (install-config ↔ CRD, 10-20), **installer#10985** (api+k8s 1.37

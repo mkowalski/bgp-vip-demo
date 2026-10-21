@@ -5,7 +5,7 @@ Working demo and upstreaming workspace of
 (OPNET-595/OPNET-773): BGP-based VIP management for on-premise OpenShift —
 kube-vip (routing-table mode) + frr-k8s static pods replacing keepalived.
 
-**Status (2026-10-21): merge week done — every DevPreview PR plus the CI-lane dependencies are merged: CNO#3047/#3046/#3195, installer#10931/#10985 (OPNET-810 complete), dev-scripts#1945 (full ToR peer in CI), MCO#6643 (finding B fix). TP `BGPVIPConfig` API merged (api#2972). DevPreview proven end to end from a stock nightly (run 5.1-stock). Remaining: release#87192 (lanes read expectations from the bgp-vip CR; approved, signed, rehearsing) → release#87186 (nightly periodics, draft, signed, rehearsing); OPNET-811 via the MCO team's #6661; OPNET-812 CNO vendor after CNO#3183; ovn-k#7099 (finding C) parked. Full handoff: docs/RUN-LEDGER.md 'HANDOFF STATE'.**
+**Status (2026-10-21): merge week done — every DevPreview PR plus the CI-lane dependencies are merged: CNO#3047/#3046/#3195, installer#10931/#10985 (OPNET-810 complete), dev-scripts#1945 (full ToR peer in CI), MCO#6643 (finding B fix). TP `BGPVIPConfig` API merged (api#2972). DevPreview proven end to end from a stock nightly (run 5.1-stock). **First fully green CI run of a BGP VIP lane (10-21, #87192 rehearsal: 6/6 + MetalLB 4/4 both families).** Remaining: release#87192 (lanes read expectations from the bgp-vip CR; approved, signed, rehearsal green — needs lgtm) → release#87186 (nightly periodics, draft, signed, rehearsing); OPNET-811 via the MCO team's #6661; OPNET-812 CNO vendor after CNO#3183; ovn-k#7099 (finding C) parked. Full handoff: docs/RUN-LEDGER.md 'HANDOFF STATE'.**
 All six demo criteria proven across 27 install runs (see
 [docs/demo-results.md](docs/demo-results.md), [docs/RUN-LEDGER.md](docs/RUN-LEDGER.md)):
 API + Ingress VIPs advertised via BGP from bootstrap through steady state,
@@ -59,7 +59,10 @@ Upstream state:
   rehearsals of the lanes running against an integration stream that now
   has #6643 and #1945. **release#87186** — nightly 5.1 periodics for the
   three lanes (bgp-vip daily, ovn-bgp-metallb MWF, evpn TuTh), draft,
-  signed, rehearsing; merges after #87192. **ovn-k#7099** (OCPBUGS-130338,
+  signed; its `pipeline:src` blocker was fixed by **release#87443**
+  (chai-bot, merged 10-21), and it now waits for an *Accepted* nightly
+  carrying installer#10931 (dev-scripts master renders the new peer
+  fields) plus #87192; merges after #87192. **ovn-k#7099** (OCPBUGS-130338,
   finding C: VTEP picks the VIP) — draft, parked. metallb/frr-k8s#470
   (redistribution design) and openshift/enhancements#1982 await reviewers.
 
