@@ -67,7 +67,7 @@ WORKER_VCPU=8 WORKER_MEMORY=16384 WORKER_DISK=60). Enabling code changes:
   cycle, alternating the inert realm attribute 1↔2 so each re-assertion is a
   real kernel change (kernel emits NO netlink event for a no-op replace).
 
-## HANDOFF STATE (written 2026-10-12, board refreshed 2026-10-21, for the next agent)
+## HANDOFF STATE (written 2026-10-12, board refreshed 2026-10-22, for the next agent)
 
 Read this section first; the runs below are the evidence trail. Rules that
 applied to the previous agent and still apply: **never post on a PR or reply
@@ -77,11 +77,14 @@ to a human comment without Mat's explicit go-ahead**; commits signed-off
 see below); PR/comment text ends with the "generated using AI" footer. Creds:
 `source /root/bash-export-api-keys` (gh, `JIRA_USERNAME`/`JIRA_API_TOKEN`).
 Jira: **reads** work with Bearer via `issues.redhat.com` (follows redirect);
-**writes** need basic auth against `https://redhat.atlassian.net/rest/api/2`.
+**writes** need basic auth against `https://redhat.atlassian.net/rest/api/2`
+(call that host directly: `issues.redhat.com` answers a POST with a 301 and
+urllib re-issues it as GET → 405; story creation = `issuetype: Story`,
+`parent: {key: OPNET-595}`, `reporter`/`assignee` by accountId).
 `gh` token cannot list signing keys; the Jira account cannot add attachments
 on OCPBUGS. The `task` subagent tool is denied by user rules — work inline.
 
-### Where things stand (PR board — refreshed 2026-10-21 10:00 UTC)
+### Where things stand (PR board — refreshed 2026-10-22 09:40 UTC)
 
 Everything feature-related is merged; see README "Upstream state" for the
 full list. What is still open:
@@ -89,10 +92,10 @@ full list. What is still open:
 | Item | State | Blocked on / next |
 |---|---|---|
 | **openshift/release#87192** lanes read expectations from the `bgp-vip` FRRConfiguration | **MERGED 2026-10-22 08:53 UTC (squash `ca63f202628d`; lgtm emy 08:33)** — both lane rehearsals had been green on our steps (H, I) | — |
-| **openshift/release#87522** follow-up: lane's `lb-echo` test workload → `bgp-vip-e2e` namespace (finding I; #87192 merged before the commit could ride it) | open 2026-10-22, head `69251648349f` **unsigned** | **Mat: sign + force-push `fork bgp-vip-lb-echo-namespace`**, then lgtm (cybertron/emy). Optional `/pj-rehearse` of `e2e-metal-ipi-bgp-vip-metallb` for proof |
-| **openshift/machine-config-operator#6673** OPNET-818 — frr-k8s + kube-vip static pods: no limits, management annotation, kube-vip in `openshift-kni-infra` (findings I, J) | open 2026-10-22, head `09c251915` | review (MCO approvers); CI proof after merge: sig-arch limits test on `ovn-bgp-metallb` + kube-vip mirror pods visible |
-| **openshift/cluster-network-operator#3202** OPNET-819 — `frr-k8s-master-monitor`: `system-cluster-critical`, management annotation, no limits (finding I) | open 2026-10-22, head `83a7c19d3` | review; real `/approve` from root OWNERS needed (jcaamano/knobunc), as for #3046 |
-| **openshift/release#87186** nightly 5.1 periodics ×3 (bgp-vip daily, ovn-bgp-metallb MWF, evpn TuTh) | **draft**, `do-not-merge/work-in-progress`, signed head `854f30d7f`; 10-21 rehearsals all red for *known, external* reasons | (1) `pipeline:src` dependency — **fixed on main by release#87443 (chai-bot, merged 12:35)**, re-rehearse picks it up; (2) nightly skew — periodics install `nightly/latest` (last Accepted = 10-19-171115, installer pre-#10931) while dev-scripts master renders the new peer fields → `unknown field "failureDetection"`; **wait for an Accepted nightly ≥ 10-21-112452**, then `/pj-rehearse`; expect `bgp-vip` green, `ovn-bgp-metallb` red until a nightly carries MCO#6643, `evpn` red until ovn-k#7099. Refresh description, undraft after #87192 merges |
+| **openshift/release#87522** follow-up: lane's `lb-echo` test workload → `bgp-vip-e2e` namespace (finding I; #87192 merged before the commit could ride it) | open 2026-10-22, **signed head `5ef5c26c3`**, `approved` (OWNERS), `/pj-rehearse pull-ci-openshift-installer-main-e2e-metal-ipi-bgp-vip-metallb` requested 09:20 | rehearsal result (expect metallb-pre creating `bgp-vip-e2e`, 4/4), then lgtm (cybertron/emy) |
+| **openshift/machine-config-operator#6673** OPNET-818 — frr-k8s + kube-vip static pods: no limits, management annotation, kube-vip in `openshift-kni-infra` (findings I, J) | open 2026-10-22, head `09c251915`; first CI pass: `unit` red on `TestOSBuildControllerLeavesSuccessfulBuildAlone` (on-cluster-layering build controller timeout — flaky, same red on #6661; nothing near on-prem templates) | `/retest` the unit flake; review (MCO approvers); CI proof after merge: sig-arch limits test on `ovn-bgp-metallb` + kube-vip mirror pods in `openshift-kni-infra` |
+| **openshift/cluster-network-operator#3202** OPNET-819 — `frr-k8s-master-monitor`: `system-cluster-critical`, management annotation, no limits (finding I) | open 2026-10-22, head `83a7c19d3`; first CI pass: only `5.1-upgrade-from-stable-5.0-e2e-azure-ovn-upgrade` red (Azure upgrade, cannot render a BGP VIP DaemonSet — unrelated) | review; real `/approve` from root OWNERS needed (jcaamano/knobunc), as for #3046 |
+| **openshift/release#87186** nightly 5.1 periodics ×3 | **MERGED 2026-10-22 (`18cba7966`; lgtm emy, Mat `/label approved` + `/pj-rehearse ack` — the 10-22 rehearsals all died in `ofcir-acquire` "Timeout waiting for CI resource provisioning", nothing ran)** | Jobs `periodic-ci-openshift-release-main-nightly-5.1-e2e-metal-ipi-bgp-vip{,-ovn-bgp-metallb,-ovn-bgp-evpn}`, cron `0 2 * * *` / `1,3,5` / `2,4` UTC → first runs Fri 10-23 02:00 (bgp-vip + ovn-bgp-metallb), evpn Tue 10-27. They install `nightly/latest` (10-21-040310 Accepted, has installer#10931, not MCO#6643): expect bgp-vip green; ovn-bgp-metallb red on metallb [3/4] until a nightly with #6643 is Accepted (10-22-071948 has it, still Ready) — plus finding I's 3 hygiene tests until MCO#6673/CNO#3202 merge; evpn red until ovn-k#7099. Check Sippy/prow Friday morning |
 | **openshift/machine-config-operator#6661** umohnani8's k8s 1.37 rebase (api 6cace88a ⊇ BGPVIPConfig) — the OPNET-811 vehicle after our #6655 was closed as superseded | lgtm+approved, payload-tested, 3 reds hers | MCO team's; when it merges, OPNET-811 vendor is done and the MCO consumer feature PR (branch `bgpvipconfig-crd` 56ab76d64, adapted to the final API) can go |
 | **OPNET-812** CNO re-vendor | not started | waits for **CNO#3183** (team 1.37 bump, lgtm) — then api-only bump to ≥ 8c03d1c42 |
 | **ovn-kubernetes/ovn-kubernetes#7099** finding C (OCPBUGS-130338) | **draft**, `Test-PR` red | **parked by Mat.** Red = two WIP `DescribeTable` specs that were folded in by mistake (uncommitted session leftovers, never runnable in this sandbox because the NAD-informer `BeforeEach` fails here). Fix path: get that `BeforeEach` working locally and bisect, or drop the WIP table and keep the four CodeRabbit fixes + the new unit spec |
@@ -147,25 +150,35 @@ the division of remaining work agreed with Mat:
 
 ### Live cluster (metal-u15, `/root/dev-scripts`, kubeconfig `/root/dev-scripts/ocp/ostest/auth/kubeconfig`)
 
-Running, dual-stack 3+2, BGP VIP, **local gateway mode**, payload
-`quay.io/mkowalski/ocp-release:bgp-vip-5.1` (5.1.0-0.nightly-2026-10-06-091356
-+ CNO#3047/#3046). **Deliberate drift**: CNO `managementState: Unmanaged`;
-`ds/ovnkube-node` (7 containers) + `deploy/ovnkube-control-plane` run
-`quay.io/mkowalski/ovn-kubernetes:ocpbugs-130338` (fixed binaries over the
-payload image); the three masters' `/etc/kubernetes/manifests/0000-frr-k8s.yaml`
-are hot-patched with MCO#6643's two emptyDir mounts (originals at
-`/tmp/0000-frr-k8s.yaml.orig` on each master). Route reflector `frr` (10.4.3,
-`192.168.111.3`) and `bgp-tor` containers up; the OTE shared VTEP
-`e2e-evpn-shared-vtep-node-cidr-range-do-not-use-this-name-anywhere-else`
-exists (annotations = node IPs). karpenter CO is permanently unavailable
-(BareMetal unsupported in this nightly) — ignore. Revert of the ovn-k swap:
-`oc set image` all 8 containers back to
-`quay.io/openshift-release-dev/ocp-v5.0-art-dev@sha256:a2c829e2b4ddcf658dd3c17720a9223fe47eaeecf20bddfb0f86d56a88c08815`
-+ `managementState: Managed`.
+Running since 2026-10-16 (run 5.1-stock): **stock payload**
+`5.1.0-0.nightly-2026-10-16-040146`, dual-stack 3+2 (all five nodes Ready
+on 10-22), BGP VIP, **shared** gateway mode (no LGW this time), CNO
+`managementState: Managed`, stock ovn-k images (no swap). Three BGP
+producers on it: the `bgp-vip` FRRConfiguration (ToR `bgp-tor`, both
+families), OVN-K route advertisements (`routeAdvertisements: Enabled`, the
+`receive-filtered` FRRConfiguration, five `ovnk-generated-*`, route
+reflector container `frr` on the host), and MetalLB (operator from
+`metallb-pre`, BGPPeers `tor` + `tor-v6` mirroring the ToR peer, five
+`metallb-*` FRRConfigurations, `lb-echo` LoadBalancer in **`default`**
+with `192.168.111.70` / `fd2e:6f44:5dd8:c956::70` — the local replay
+predates #87522; a re-run of `5-metallb-pre.sh` creates it in
+`bgp-vip-e2e` instead). **Deliberate drift**: the three masters'
+`/etc/kubernetes/manifests/0000-frr-k8s.yaml` carry MCO#6643's two emptyDir
+mounts (originals at `/tmp/0000-frr-k8s.yaml.orig` on each master; revert =
+`sudo cp` back). `openshift-frr-k8s` has 3 static pods + 3 `master-monitor`
++ 2 DaemonSet pods + the statuscleaner; **`openshift-kube-vip` does not
+exist** (finding J reproduces here: `crictl ps --name kube-vip` on a master
+shows the four containers, `oc` shows nothing). Host containers `bgp-tor`
+and `frr` (RR, 10.4.3, `192.168.111.3`) up since 10-16. karpenter CO is
+permanently unavailable (BareMetal unsupported in this nightly) — ignore.
 
 Tooling that exists on the host: `/tmp/opencode/local-steps/run.sh
 {bgpvip|lgw|ovnbgppre|ovnbgpverify|evpn|ote …}` replays the CI step bodies
-(logs in `/mnt/nvme0n1p1/dev-scripts/opnet-815-local/`); `/tmp/opencode/oc-5.1`;
+(logs in `/mnt/nvme0n1p1/dev-scripts/opnet-815-local/`; `5-metallb-{pre,verify}.sh`
+already use the `bgp-vip-e2e` namespace of #87522); `/tmp/opencode/prstat.py
+<org/repo#N …>` prints PR state/labels/failing checks/recent comments
+(`since` date inside); transient unit `bgpvip-monitor-prs`
+(`/tmp/opencode/monitor-bumps.sh`, log `/tmp/opencode/monitor-bumps.log`); `/tmp/opencode/oc-5.1`;
 `/tmp/opencode/openshift-tests-5.1`; `/tmp/opencode/ovn-kubernetes-tests-ext`
 (payload build) — run `run-test -o json "<one name>" </dev/null`, one test per
 call (the multi-`-n` form strips the bracket prefix and fails "no such tests");
@@ -273,8 +286,9 @@ clean`; `podman pod rm -f`, second clean ok). **`make` exit 0 in ~62 min**
 hot-patch: `sudo cp /tmp/0000-frr-k8s.yaml.orig /etc/kubernetes/manifests/0000-frr-k8s.yaml`
 on each master. Follow-ups filed from this run: (1) release lane hardening —
 poll the ovn-bgp datapath check; metallb-pre BGPPeer must mirror the ToR
-peer attributes; (2) #87186 periodics draft now has a local green for the
-`bgp-vip` lane and (with #6643) for `ovn-bgp-metallb`.
+peer attributes — **both shipped in release#87192 (merged 10-22)**; (2) the
+#87186 periodics got their local green for `bgp-vip` here and (with #6643)
+for `ovn-bgp-metallb` — **merged 10-22, first runs 10-23**.
 
 ## Meta-lessons for whoever continues
 

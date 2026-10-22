@@ -6,9 +6,9 @@ Dates from:  gh api repos/<org>/<repo>/pulls/<n> --jq '[.created_at,.merged_at,.
 """
 import datetime as dt
 
-TODAY = dt.date(2026, 10, 21)
+TODAY = dt.date(2026, 10, 22)
 START = dt.date(2026, 6, 20)
-END = dt.date(2026, 10, 24)
+END = dt.date(2026, 10, 27)
 
 X0, X1 = 262, 950          # plot area
 Y0 = 100                   # first row
@@ -47,18 +47,17 @@ PRS = [
     (None, "#82698 e2e-metal-ipi-bgp-vip lane", "2026-07-30", "2026-07-31", "merged", "l"),
     (None, "#82912 coexistence lanes + FRR-state verify", "2026-08-04", "2026-08-13", "merged", "l"),
     (None, "#86746 EVPN coexistence lane, OTE+LGW (OPNET-815)", "2026-10-08", "2026-10-19", "merged", "l"),
-    (None, "#87186 nightly 5.1 periodics x3 (draft, signed, rehearsing)", "2026-10-16", None, "open", "l"),
+    (None, "#87186 nightly 5.1 periodics x3 (bgp-vip daily, ovn-bgp-metallb MWF, evpn TuTh)", "2026-10-16", "2026-10-22", "merged", "l"),
     (None, "#87192 lanes read expectations from the bgp-vip CR", "2026-10-16", "2026-10-22", "merged", "l"),
     (None, "#87522 lb-echo test workload out of default/ (finding I)", "2026-10-22", None, "open", "l"),
     (None, "#87443 ovn-bgp-pre: from dev-scripts, not src (chai-bot via Slack)", "2026-10-21", "2026-10-21", "merged", "l"),
-    (None, "MCO#6673 static pods: no limits, mgmt annotation, kube-vip in kni-infra (OPNET-818)", "2026-10-22", None, "open", "l"),
-    (None, "CNO#3202 master-monitor: system-cluster-critical, annotation, no limits (OPNET-819)", "2026-10-22", None, "open", "l"),
     ("cluster-network-operator", "#3046 statusmanager DS fix", "2026-07-10", "2026-10-21", "merged", "l"),
     (None, "#3047 BGP VIP support — DevPreview complete in-payload", "2026-07-10", "2026-10-15", "merged", "l"),
     (None, "#3070 frr-k8s CRD align", "2026-07-20", "2026-07-22", "merged", "r"),
     (None, "#3080 frr-k8s asn format — closed: dup of #3070", "2026-07-21", None, "closed", "l"),
     (None, "#3089 api vendor bump", "2026-07-24", "2026-07-29", "merged", "l"),
     (None, "#3195 align frr-k8s 5.1 CRDs (nextHop/allowAsIn/EVPN)", "2026-10-15", "2026-10-20", "merged", "l"),
+    (None, "#3202 master-monitor: system-cluster-critical, mgmt annotation, no limits (OPNET-819)", "2026-10-22", None, "open", "l"),
     ("baremetal-runtimecfg", "#395 FRR peer-file rendering", "2026-07-10", "2026-08-13", "merged", "l"),
     ("ocp-build-data", "#11838 ose-kube-vip in payload", "2026-07-15", "2026-08-14", "merged", "l"),
     ("machine-config-operator", "#6326 BGP VIP static pods", "2026-07-22", "2026-10-02", "merged", "l"),
@@ -66,6 +65,7 @@ PRS = [
     (None, "#6643 static-pod reloader writable /tmp + /var/log/frr (finding B)", "2026-10-09", "2026-10-21", "merged", "l"),
     (None, "#6655 vendor api + k8s 1.37 — closed: MCO team's #6661 supersedes", "2026-10-14", None, "closed", "l"),
     (None, "#6661 MCO k8s 1.37 rebase (umohnani8; api 6cace88a ⊇ BGPVIPConfig; OPNET-811)", "2026-10-16", None, "open", "l"),
+    (None, "#6673 static pods: no limits, mgmt annotation, kube-vip in kni-infra (OPNET-818)", "2026-10-22", None, "open", "l"),
     ("openshift/installer", "#10710 vendor pin — closed (#10713)", "2026-07-24", None, "closed", "l"),
     (None, "#10713 rebase/vendor wave", "2026-07-24", "2026-07-28", "merged", "l"),
     (None, "#10718 BGP VIP support", "2026-07-28", "2026-08-17", "merged", "l"),
@@ -83,10 +83,11 @@ PHASES = [
     ("payload + merges", "2026-08-14", "2026-08-20"),
     ("TP API review + consumer prep", "2026-09-08", "2026-09-29"),
     ("MCO merge", "2026-10-01", "2026-10-02"),
-    ("EVPN lane + 5.1 run", "2026-10-08", "2026-10-09"),
-    ("TP API + CNO merge, vendor bumps", "2026-10-13", "2026-10-15"),
-    ("stock-nightly proof", "2026-10-16", "2026-10-16"),
+    ("EVPN lane", "2026-10-08", "2026-10-09"),
+    ("TP API + CNO merge", "2026-10-13", "2026-10-15"),
+    ("stock nightly", "2026-10-16", "2026-10-16"),
     ("merge week", "2026-10-19", "2026-10-21"),
+    ("lanes+periodics in", "2026-10-22", "2026-10-22"),
 ]
 
 COLORS = {
@@ -99,7 +100,7 @@ rows = len(PRS)
 height = Y0 + rows * ROW + 60
 out = []
 out.append(f'<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="{height}" viewBox="0 0 1000 {height}" font-family="Inter, Helvetica, Arial, sans-serif">')
-out.append(f'<text x="500" y="28" text-anchor="middle" font-size="17" font-weight="700" fill="#1e293b">Upstreaming timeline &#8212; every PR, per repository (bar: opened &#8594; merged/today)</text>')
+out.append(f'<text x="500" y="24" text-anchor="middle" font-size="17" font-weight="700" fill="#1e293b">Upstreaming timeline &#8212; every PR, per repository (bar: opened &#8594; merged/today)</text>')
 
 # week gridlines
 grid_bottom = Y0 + rows * ROW - 4
@@ -119,8 +120,8 @@ out.append("".join(axis))
 ph = []
 for i, (name, a, b) in enumerate(PHASES):
     xa, xb = x(dt.date.fromisoformat(a)), x(dt.date.fromisoformat(b))
-    # labels alternate over three rows (y=42/54/66) so adjacent phases do not overlap
-    ty = 42 + (i % 3) * 12
+    # labels alternate over four rows (y=36..66) so the dense October phases do not overlap
+    ty = 34 + (i % 4) * 10
     ph.append(f'<rect x="{xa:.0f}" y="82" width="{xb-xa:.0f}" height="10" rx="3" fill="#dbeafe"/>'
               f'<line x1="{(xa+xb)/2:.0f}" y1="{ty+2}" x2="{(xa+xb)/2:.0f}" y2="82" stroke="#bfdbfe" stroke-width="1"/>'
               f'<text x="{(xa+xb)/2:.0f}" y="{ty}" text-anchor="middle" font-size="9" font-weight="600" fill="#1e40af">{name}</text>')
@@ -149,7 +150,10 @@ for repo, label, opened, merged, state, side in PRS:
         body.append(f'<text x="{xo+w+2:.0f}" y="{y+13}" font-size="11" fill="{stroke}">&#10005;</text>')
     if side == "r":
         tx = xo + w + (14 if state == "closed" else 8)
-        body.append(f'<text x="{tx:.0f}" y="{y+13}" font-size="11" fill="{tcol}">{label}</text>')
+        if tx + len(label) * 6.2 > 990:        # would run off the canvas: label inside the bar
+            body.append(f'<text x="{xe-12:.0f}" y="{y+13}" text-anchor="end" font-size="11" fill="{tcol}">{label}</text>')
+        else:
+            body.append(f'<text x="{tx:.0f}" y="{y+13}" font-size="11" fill="{tcol}">{label}</text>')
     else:
         body.append(f'<text x="{xo-6:.0f}" y="{y+13}" text-anchor="end" font-size="11" fill="{tcol}">{label}</text>')
     y += ROW

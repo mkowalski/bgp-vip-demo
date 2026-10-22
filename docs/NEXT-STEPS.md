@@ -14,7 +14,28 @@ TechPreview, EP 066d3556).
 
 ### Phase 0 — now, nothing blocked (parallel)
 
-1. Review-chase (updated 2026-10-21 pm): **MILESTONE — first fully green
+1. Review-chase (updated 2026-10-22): **the CI track is merged** —
+   **release#87192** (lanes read expectations from the `bgp-vip` CR;
+   squash `ca63f202628d`, lgtm emy, 08:53) and **release#87186** (nightly
+   5.1 periodics; `18cba7966`, lgtm emy, Mat approved + rehearsals-ack —
+   the 10-22 rehearsals never got a host, `ofcir-acquire` timeout). The
+   periodics run at 02:00 UTC: `bgp-vip` daily, `ovn-bgp-metallb`
+   Mon/Wed/Fri, `evpn` Tue/Thu → first runs Fri 10-23; `nightly/latest`
+   is 10-21-040310 (has installer#10931, not MCO#6643), so expect bgp-vip
+   green, ovn-bgp-metallb red on metallb [3/4] + finding I until a nightly
+   with #6643 (10-22-071948, Ready) is Accepted and the fixes below merge.
+   **Findings I + J** from the first conformance run on a BGP VIP cluster
+   ([the #87192 `ovn-bgp-metallb` rehearsal](https://prow.ci.openshift.org/view/gs/test-platform-results-public/pr-logs/pull/openshift_release/87192/rehearse-87192-pull-ci-openshift-installer-main-e2e-metal-ipi-bgp-vip-ovn-bgp-metallb/2112891044474392576)): our pods are the only
+   violators of origin's platform pod conventions (22 limits violations,
+   3 pods without priority class, 1 DaemonSet without the
+   workload-partitioning annotation), and the kube-vip static pods never
+   had mirror pods because `openshift-kube-vip` is never created. Filed
+   **OPNET-818** → **MCO#6673** (static pods: no limits, annotation,
+   kube-vip into `openshift-kni-infra`) and **OPNET-819** → **CNO#3202**
+   (`frr-k8s-master-monitor`: `system-cluster-critical`, annotation, no
+   limits); the lane's own `lb-echo` moves to a `bgp-vip-e2e` namespace in
+   **release#87522** (signed, rehearsing `e2e-metal-ipi-bgp-vip-metallb`).
+   Earlier (2026-10-21 pm): **MILESTONE — first fully green
    CI run of a BGP VIP lane** (release#87192 rehearsal of
    `e2e-metal-ipi-bgp-vip-metallb`: 6/6 + 4/4 incl. v6, masters
    advertising → #6643 confirmed in CI; RUN-LEDGER finding H). #87192 now
@@ -178,9 +199,10 @@ closed as superseded).
    and #6643's exact diff proven as the fix (3 reloads, 0 errors); **lane
    script fixes needed (finding F)**: metallb-pre BGPPeer must mirror the
    ToR peer's password/multihop/timers, ovn-bgp-verify datapath check must
-   poll. **Periodics: release#87186 (draft, stacked on #86746)** — bgp-vip
-   daily, ovn-bgp-metallb MWF, evpn TuTh; expected red for the latter two
-   until #6643 (+#7099 for EVPN) reach a nightly AND finding F is fixed.
+   poll. **Periodics: release#87186 — MERGED 2026-10-22** (bgp-vip
+   daily, ovn-bgp-metallb MWF, evpn TuTh, 02:00 UTC); finding F is fixed
+   on main by #87192; the latter two stay red until #6643 (+#7099 for
+   EVPN) reach an Accepted nightly and MCO#6673/CNO#3202 merge.
    Original plan was: wait for the first 5.1 nightly built after fc66cef8b
    (5.1.0-0.nightly-2026-10-15-030023 predates it; check
    `oc adm release info --commits <nightly> | grep cluster-network-operator`),
@@ -655,7 +677,7 @@ re-sign (`git rebase --exec 'git commit --amend --no-edit -S'`).
 | OPNET-786 | FRR | downstream RPM backport filed: **RHEL-193997** (frr10, el9); upstream stable/10.4 backport request still pending; new zebra bug filed: **FRRouting/frr#22654 — CLOSED, fixed upstream** via FRRouting/frr#22676 (merged to master 2026-07; maintainer implemented from our root-cause pointer — our fork fix 8989c33 no longer needs submitting). NOT in any shipped release yet (10.7.0 predates it) — first release with #22676 (10.8 or a 10.7.x backport) removes the need for the kube-vip realm-toggle workaround; keep the workaround deployed until then. With 10.7 (SELECTED-flag fix) + a #22676-containing release, ALL our FRR needs are met by stock releases — if FDP ships recent FRR frequently, no downstream patches/backports needed (RHEL-193997 obsolete once FDP ≥10.7). Provenance confirmed 2026-08-05: payload `metallb-frr` = github.com/openshift/frr (midstream frr-k8s tree) building frr-k8s binaries + installing the FDP `frr10` RPM for the daemons — the FDP package is the single lever for FRR versions in-cluster (see RUNBOOK "FRR provenance") |
 | OPNET-818 | machine-config-operator | **PR OPEN 2026-10-22: openshift/machine-config-operator#6673** (09c251915) — frr-k8s + kube-vip static pods follow CONVENTIONS.md (no limits, `target.workload.openshift.io/management`), kube-vip rendered into `openshift-kni-infra` (namespace `openshift-kube-vip` was never created → pods invisible). RUN-LEDGER findings I + J; from the [first conformance run on a BGP VIP cluster](https://prow.ci.openshift.org/view/gs/test-platform-results-public/pr-logs/pull/openshift_release/87192/rehearse-87192-pull-ci-openshift-installer-main-e2e-metal-ipi-bgp-vip-ovn-bgp-metallb/2112891044474392576) |
 | OPNET-819 | cluster-network-operator | **PR OPEN 2026-10-22: openshift/cluster-network-operator#3202** (83a7c19d3) — `frr-k8s-master-monitor` gets `system-cluster-critical`, the management annotation, no limits; named in 3 of the 22 conformance failures (finding I) |
-| OPNET-621 (CI) | openshift/release | **2026-10-22: #87192 MERGED 08:53 UTC (squash ca63f202628d, lgtm emy) — the lanes now read every expectation from the `bgp-vip` CR on main. Follow-up #87522 (lb-echo → `bgp-vip-e2e`, finding I) open, needs Mat's signature.** Earlier: 2026-10-21: #87192 approved + signed (471437509, tree-identical to the validated dca31233), 12/12 checks green; `/pj-rehearse` of `e2e-metal-ipi-bgp-vip-metallb` + `-ovn-bgp-metallb` requested 09:40 — first CI runs with #6643 + #1945 in the integration stream. #87186 signed (854f30d7f), `/pj-rehearse` requested 09:41, still draft; mark ready after #87192 merges.** Earlier: **#87186 DRAFT 2026-10-16** — nightly 5.1 periodics for the three lanes (bgp-vip daily, ovn-bgp-metallb MWF, evpn TuTh), stacked on #86746; unsigned commits (Mat to sign); rehearse after #87192. **#87192 OPEN 2026-10-16** — lane fixes from run 5.1-stock (finding F): metallb-pre reads password/multihop/timers/port off the `bgp-vip` FRRConfiguration onto the BGPPeer (bfdProfile deliberately not mirrored), ovn-bgp-verify polls the datapath curl; both validated live; `/pj-rehearse ack`. Must merge before #87186 can go green |
+| OPNET-621 (CI) | openshift/release | **2026-10-22: #87192 MERGED 08:53 UTC (squash ca63f202628d, lgtm emy) — the lanes now read every expectation from the `bgp-vip` CR on main; #87186 MERGED (18cba7966) — nightly 5.1 periodics live, first runs Fri 10-23 02:00 UTC (bgp-vip + ovn-bgp-metallb), evpn Tue 10-27. Follow-up #87522 (lb-echo → `bgp-vip-e2e`, finding I) signed (5ef5c26c3), approved, rehearsing `e2e-metal-ipi-bgp-vip-metallb`.** Earlier: 2026-10-21: #87192 approved + signed (471437509, tree-identical to the validated dca31233), 12/12 checks green; `/pj-rehearse` of `e2e-metal-ipi-bgp-vip-metallb` + `-ovn-bgp-metallb` requested 09:40 — first CI runs with #6643 + #1945 in the integration stream. #87186 signed (854f30d7f), `/pj-rehearse` requested 09:41, still draft; mark ready after #87192 merges.** Earlier: **#87186 DRAFT 2026-10-16** — nightly 5.1 periodics for the three lanes (bgp-vip daily, ovn-bgp-metallb MWF, evpn TuTh), stacked on #86746; unsigned commits (Mat to sign); rehearse after #87192. **#87192 OPEN 2026-10-16** — lane fixes from run 5.1-stock (finding F): metallb-pre reads password/multihop/timers/port off the `bgp-vip` FRRConfiguration onto the BGPPeer (bfdProfile deliberately not mirrored), ovn-bgp-verify polls the datapath curl; both validated live; `/pj-rehearse ack`. Must merge before #87186 can go green |
 | OPNET-815 | openshift/release | **MERGED: openshift/release#86746 (2026-10-19, 48cfc06bb)** — EVPN coexistence lane `e2e-metal-ipi-bgp-vip-ovn-bgp-evpn` live as an optional installer presubmit (lgtm emy, Mat signed/verified/approved). #87186 rebased onto main the same morning (887bbc72, single commit, `make jobs` idempotent). Was: **PR OPEN: openshift/release#86746** (2026-10-08) — BGP VIP x EVPN coexistence lane `e2e-metal-ipi-bgp-vip-ovn-bgp-evpn` (OTE suite under LGW + static-pod check; redesigned same day); rehearsal requested; blocked on commit signing; see E2 |
 | OPNET-815 (B) | machine-config-operator | **MERGED 2026-10-21 (d5243be96): openshift/machine-config-operator#6643** — static-pod reloader writable /tmp + /var/log/frr (regression of e776f417e; without it masters never apply day-2 FRRConfigurations) |
 | OPNET-815 (A) | dev-scripts | **MERGED 2026-10-21 with #1945** — pushed as 420499a — ToR `ebgp-multihop` + 4784/udp for multihop BFD |

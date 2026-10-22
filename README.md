@@ -5,7 +5,7 @@ Working demo and upstreaming workspace of
 (OPNET-595/OPNET-773): BGP-based VIP management for on-premise OpenShift —
 kube-vip (routing-table mode) + frr-k8s static pods replacing keepalived.
 
-**Status (2026-10-21): merge week done — every DevPreview PR plus the CI-lane dependencies are merged: CNO#3047/#3046/#3195, installer#10931/#10985 (OPNET-810 complete), dev-scripts#1945 (full ToR peer in CI), MCO#6643 (finding B fix). TP `BGPVIPConfig` API merged (api#2972). DevPreview proven end to end from a stock nightly (run 5.1-stock). **First fully green CI run of a BGP VIP lane (10-21, #87192 rehearsal: 6/6 + MetalLB 4/4 both families).** The first conformance run on a BGP VIP cluster (10-22) found our components to be the only violators of origin's platform pod conventions and the kube-vip static pods invisible to the API (namespace never created) — fixes in **MCO#6673 (OPNET-818)**, **CNO#3202 (OPNET-819)** and a #87192 commit. **release#87192 MERGED 10-22** (lanes read expectations from the bgp-vip CR). Remaining: release#87522 (lb-echo test workload out of `default/`; needs signature + lgtm) → release#87186 (nightly periodics, draft, signed, rehearsing); OPNET-811 via the MCO team's #6661; OPNET-812 CNO vendor after CNO#3183; ovn-k#7099 (finding C) parked. Full handoff: docs/RUN-LEDGER.md 'HANDOFF STATE'.**
+**Status (2026-10-22): everything feature-related and the CI track are merged — DevPreview in every repo, the TP `BGPVIPConfig` API (api#2972), the lane fixes (**release#87192**, lanes derive expectations from the `bgp-vip` CR) and the **nightly 5.1 periodics (release#87186**: `bgp-vip` daily, `ovn-bgp-metallb` Mon/Wed/Fri, `evpn` Tue/Thu, 02:00 UTC; first runs 2026-10-23). DevPreview proven end to end from a stock nightly (run 5.1-stock) and by the first fully green CI lane run (10-21, finding H). The first conformance run on a BGP VIP cluster (10-22) found our pods to be the only violators of origin's platform pod conventions and the kube-vip static pods invisible to the API (their namespace was never created) — fixes open: **MCO#6673 (OPNET-818)**, **CNO#3202 (OPNET-819)**, **release#87522** (lane test workload out of `default/`; signed, rehearsing). Also open: OPNET-811 via the MCO team's #6661; OPNET-812 CNO vendor after CNO#3183; ovn-k#7099 (finding C) parked. Full handoff: docs/RUN-LEDGER.md 'HANDOFF STATE'.**
 All six demo criteria proven across 27 install runs (see
 [docs/demo-results.md](docs/demo-results.md), [docs/RUN-LEDGER.md](docs/RUN-LEDGER.md)):
 API + Ingress VIPs advertised via BGP from bootstrap through steady state,
@@ -51,20 +51,27 @@ Upstream state:
   metallb/frr-k8s#484 fixed upstream. Closed/superseded: installer#10710
   (by #10713), CNO#3080 (dup of #3070), kube-vip#6, kube-vip#14 (by #12),
   MCO#6655 (by #6661).
-- **Open**: **release#87192** — the lanes derive their expectations from
-  the CNO-rendered `bgp-vip` FRRConfiguration instead of hardcoding the
-  dev-scripts peer (metallb-pre mirrors password/multihop/timers onto the
-  BGPPeer, bgp-vip-verify checks negotiated timers/BFD/families against
-  the CR, datapath checks poll); approved + signed, first-ever CI
-  rehearsals of the lanes running against an integration stream that now
-  has #6643 and #1945. **release#87186** — nightly 5.1 periodics for the
-  three lanes (bgp-vip daily, ovn-bgp-metallb MWF, evpn TuTh), draft,
-  signed; its `pipeline:src` blocker was fixed by **release#87443**
-  (chai-bot, merged 10-21), and it now waits for an *Accepted* nightly
-  carrying installer#10931 (dev-scripts master renders the new peer
-  fields) plus #87192; merges after #87192. **ovn-k#7099** (OCPBUGS-130338,
-  finding C: VTEP picks the VIP) — draft, parked. metallb/frr-k8s#470
-  (redistribution design) and openshift/enhancements#1982 await reviewers.
+- **Merged — CI, continued (10-21/22)**: **release#87443** (chai-bot,
+  10-21: shared step `baremetalds-e2e-ovn-bgp-pre` runs `from: dev-scripts`,
+  unblocking the ovn-bgp workflows as periodics), **release#87192** (10-22,
+  squash `ca63f202628d`: lanes derive their expectations from the
+  CNO-rendered `bgp-vip` FRRConfiguration — metallb-pre mirrors
+  password/multihop/timers onto the BGPPeer, bgp-vip-verify checks
+  negotiated timers/BFD/families against the CR, datapath checks poll),
+  **release#87186** (10-22, `18cba7966`: nightly 5.1 periodics for the
+  three lanes).
+- **Open**: **release#87522** — the lanes' `lb-echo` test workload moves
+  from `default/` to its own `bgp-vip-e2e` namespace (origin audits
+  `default/` as a platform namespace; RUN-LEDGER finding I) — signed,
+  rehearsing. **MCO#6673** (OPNET-818) — frr-k8s + kube-vip static pods
+  drop resource limits, gain the workload-partitioning annotation, and
+  kube-vip renders into `openshift-kni-infra` (finding J: nothing ever
+  created `openshift-kube-vip`, so its mirror pods never existed).
+  **CNO#3202** (OPNET-819) — `frr-k8s-master-monitor` gets
+  `system-cluster-critical`, the annotation, no limits. **ovn-k#7099**
+  (OCPBUGS-130338, finding C: VTEP picks the VIP) — draft, parked.
+  metallb/frr-k8s#470 (redistribution design) and
+  openshift/enhancements#1982 await reviewers.
 
 Full tracker: [docs/NEXT-STEPS.md](docs/NEXT-STEPS.md) (Jira subtask
 mapping + PR tracker).
@@ -94,7 +101,7 @@ to the CI lane:
 | Path | What |
 |------|------|
 | `bgp-tor.sh`, `tor/` | FRR ToR container helper for the hypervisor (up/down/status); superseded in dev-scripts by `ENABLE_BGP_TOR` (#1929) |
-| `patches/` | git-am-able patch series for the one repo with an **open PR** (CNO) — historical form; the open PR is the canonical carrier. Everything merged (api, installer#10718, MCO#6326, runtimecfg#395, dev-scripts, FRR, the whole kube-vip series, vendor patches) removed; recoverable from git history |
+| `patches/` | historical git-am-able patch series (CNO) from before CNO#3047 merged — everything in it is upstream now; kept for provenance, recoverable from git history |
 | `build/` | Dockerfiles used for the demo image builds + FRR build script |
 | `lab/` | Standalone FRR reproduction labs that isolated both zebra bugs without a cluster |
 
@@ -127,11 +134,15 @@ validation, no status, inline password:
 
 <img src="drawings/bgp-vip-dp-objects.svg" alt="Dev Preview objects and configuration flow" style="width: 95%; max-width: 1000px;">
 
-Tech Preview (`BGPVIPConfig` CRD, openshift/api#2972 — merged 2026-10-14): the ConfigMap is
-gone — the installer generates the admission-validated, day-2-editable CR
-plus a basic-auth Secret; the operators watch the CR and report progress
-through status conditions. Everything below the MCO-internal transport is
-byte-identical to Dev Preview — the node-side contract never moves:
+Tech Preview (`BGPVIPConfig` CRD, openshift/api#2972 — merged 2026-10-14) is
+the **target design**: the ConfigMap goes away — the installer generates the
+admission-validated, day-2-editable CR plus a basic-auth Secret; the
+operators watch the CR and report progress through status conditions.
+Everything below the MCO-internal transport is byte-identical to Dev Preview
+— the node-side contract never moves. As of 2026-10-22 only the CRD and the
+install-config field alignment (installer#10931) are merged; the installer
+still writes the ConfigMap, and the CR generation + operator consumers
+follow the vendor bumps (OPNET-811 via MCO#6661, OPNET-812 after CNO#3183):
 
 <img src="drawings/bgp-vip-tp-objects.svg" alt="Tech Preview objects and configuration flow" style="width: 95%; max-width: 1000px;">
 
@@ -147,17 +158,19 @@ replace paths).
 |---|---|---|
 | openshift/api | merged (#2923) | `OPNET-595-bgp-vip-management` |
 | installer | merged (#10718) | `OPNET-595-bgp-vip-management-vendored` |
-| machine-config-operator | merged (#6326); open #6643 (reloader mounts) | `OPNET-595-bgp-vip-management-dev` |
-| cluster-network-operator | `bgp-vip-management` (#3047) | `OPNET-595-bgp-vip-management-vendored` (carries a now-redundant DEMO-CARRY; refresh on next demo rebuild) |
+| machine-config-operator | merged (#6326, #6643); **open #6673** (`opnet-818-static-pod-conventions`, OPNET-818) | `OPNET-595-bgp-vip-management-dev`; `bgpvipconfig-crd` (CR consumer prep) |
+| cluster-network-operator | merged (#3047, #3195, #3046); **open #3202** (`opnet-819-master-monitor-conventions`, OPNET-819) | `OPNET-595-bgp-vip-management-vendored` (carries a now-redundant DEMO-CARRY; refresh on next demo rebuild); `bgpvipconfig-crd` |
 | baremetal-runtimecfg | merged (#395) | `OPNET-595-bgp-vip-management` |
 | kube-vip | upstream #1604 #1627 #1636 #1671 #1675 merged; downstream #2/#3/#4/#12/#15 merged, #6/#14 closed | `OPNET-595-bgp-vip-management` |
-| dev-scripts | merged (#1929, #1939); open #1945 | — |
-| openshift/release | merged (#80926, #81065, #81957, #82698, #82912); open #86746 (EVPN lane) | — |
+| dev-scripts | merged (#1929, #1939, #1945) | `/root/dev-scripts` on the host: `bgp-5.1-run` (deploy config of the running cluster) |
+| openshift/release | merged (#80926, #81065, #81957, #82698, #82912, #86746, #87443, #87192, #87186); **open #87522** (`bgp-vip-lb-echo-namespace`) | fork is `mkowalski/openshift-release` (renamed from `mkowalski/release`; old URL redirects) |
 
-Images: current run (5.1-evpn) uses `quay.io/mkowalski/ocp-release:bgp-vip-5.1`
-(base 5.1.0-0.nightly-2026-10-06-091356 + only
-`quay.io/mkowalski/cluster-network-operator:bgp-5.1` = CNO#3047+#3046;
-everything else stock — MCO#6326 and installer#10718 are in the nightly).
+Images: the running cluster (run 5.1-stock, since 2026-10-16) is the **stock
+nightly** `5.1.0-0.nightly-2026-10-16-040146` — no custom images, no fork
+`replace`s; only the three masters' frr-k8s static pod manifest is
+hot-patched with MCO#6643's diff (merged since). Previous 5.1 cycle
+(5.1-evpn) used `quay.io/mkowalski/ocp-release:bgp-vip-5.1` (base
+5.1.0-0.nightly-2026-10-06-091356 + CNO#3047+#3046 image).
 Historical demo set: `quay.io/mkowalski/{machine-config-operator,cluster-network-operator,baremetal-runtimecfg,kube-vip,cluster-config-api,metallb-frr}:bgp-demo`,
 payload `quay.io/mkowalski/ocp-release:bgp-vip-demo` (base
 5.0.0-0.nightly-2026-07-20-081439).
@@ -167,28 +180,26 @@ the knob applied, demo config `config_root.sh`; ToR via `ENABLE_BGP_TOR`).
 
 ## CI
 
-`e2e-metal-ipi-bgp-vip` (openshift/release#82698, merged): dev-scripts
-install with `BGP_VIP_MANAGEMENT=true` + an acceptance-criteria verify step
-(vipManagement=BGP, static pods/no keepalived, per-VIP BGP path counts at
-the ToR, console 200 pinned to the ingress VIP). Optional on-demand
-presubmit on openshift/installer; combined-stack runs via multi-PR testing
-(`/testwith openshift/installer/main/e2e-metal-ipi-bgp-vip <PR refs...>`).
-Red until the open PRs and the kube-vip istag land — by design.
-Coexistence + dual-stack lanes (release#82912, merged): OVN-K route
-advertisements, day-2 MetalLB, and the all-three-producers job, plus a
-verify step asserting FRR runtime state at the ToR (sessions Established,
-negotiated timers 90/30, BFD Up) against the optional peer fields the
-dev-scripts knob now sets (#1945).
+Three installer presubmits (optional, `/test …` or `/testwith`) and, since
+release#87186 (2026-10-22), three nightly 5.1 periodics with the same step
+bodies:
 
-EVPN coexistence lane (release#86746, **open**, OPNET-815): installer
-presubmit `e2e-metal-ipi-bgp-vip-ovn-bgp-evpn` composing the ovn-bgp flow
-with the local-gateway migration and the **ovn-kubernetes OTE suite**
-(43 EVPN tests via its baremetal infraprovider against the same route
-reflector — the suite `e2e-metal-ipi-core-networking-dualstack-bgp-lgw-ote`
-runs) plus a small verify step for the one thing that suite cannot cover:
-the EVPN FRRConfiguration merged by the **static-pod frr-k8s** on a master,
-its `l2vpn evpn` session, and a BGP-VIP regression guard with EVPN live.
-IPv4 underlay only for now.
+| Lane | Steps (after dev-scripts install with `BGP_VIP_MANAGEMENT=true`, `ENABLE_BGP_TOR=true`, v4v6, 3+2) | Periodic |
+|---|---|---|
+| `e2e-metal-ipi-bgp-vip-metallb` | `bgp-vip-verify` (6 checks: vipManagement=BGP, static pods / no keepalived, ToR sessions with negotiated timers + BFD + families **derived from the `bgp-vip` FRRConfiguration**, per-VIP path counts, console) → `metallb-pre` (MetalLB operator, BGPPeer mirroring the ToR peer, pool, `lb-echo` LoadBalancer) → `metallb-verify` (same-neighbor merge, LB IP advertised from every node, datapath over BGP on both families) | `bgp-vip`, daily 02:00 UTC |
+| `e2e-metal-ipi-bgp-vip-ovn-bgp-metallb` | + `ovn-bgp-pre` (external FRR route reflector, OVN-K route advertisements) and `ovn-bgp-verify` (both FRRConfigurations merged, RR sessions, pod subnets, datapath) before MetalLB; the only lane that also runs `baremetalds-e2e-test` (conformance) | `ovn-bgp-metallb`, Mon/Wed/Fri |
+| `e2e-metal-ipi-bgp-vip-ovn-bgp-evpn` (release#86746, OPNET-815) | ovn-bgp flow + local-gateway migration + the **ovn-kubernetes OTE suite** (43 EVPN tests against the same route reflector) + a verify step for the EVPN FRRConfiguration merged by the **static-pod frr-k8s** on a master, its `l2vpn evpn` session, and a BGP-VIP regression guard; IPv4 underlay only | `evpn`, Tue/Thu |
+
+Proof so far: `bgp-vip-metallb` fully green on 10-21 (release#87192
+rehearsal — first fully green CI run of a BGP VIP lane, RUN-LEDGER finding
+H); `ovn-bgp-metallb` green on every BGP step the same day, red only in
+conformance — 18 payload-wide failures plus **3 caused by our pods**
+(finding I → MCO#6673, CNO#3202, release#87522). The periodics install
+`nightly/latest`, which must carry installer#10931 (dev-scripts master
+renders the new peer fields; 10-21-040310 does) — expect `bgp-vip` green,
+`ovn-bgp-metallb` red on MetalLB [3/4] until a nightly also carries
+MCO#6643 (10-22-071948 does, not yet Accepted), `evpn` red until
+ovn-k#7099.
 
 <img src="drawings/bgp-vip-evpn-lane-flow.svg" alt="EVPN lane step flow: reused vs new steps" style="width: 95%; max-width: 1000px;">
 

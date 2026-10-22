@@ -5,6 +5,15 @@ end to end, as proven by the dev demo. Grouped by repository, in dependency
 order. Status: all on local branches; PR splitting/vendor-commit cleanup
 pending.
 
+> **Status addendum (2026-10-22).** Every patch in this inventory is merged
+> upstream — the DevPreview feature in all repos, the TP `BGPVIPConfig` API
+> (api#2972), the CI lanes and their nightly periodics; see README "Upstream
+> state" for the PR list and dates. The inventory below is historical
+> (commit SHAs are pre-PR). Open follow-ups are not patches of this set:
+> MCO#6673 / CNO#3202 (platform pod conventions, kube-vip namespace —
+> RUN-LEDGER findings I/J), release#87522 (lane test workload namespace),
+> and the TP consumer PRs after the vendor bumps (OPNET-811/812).
+
 > **Branch state addendum (2026-07-22).** All customized branches were rebased
 > onto current upstream mains (runs 25/26 validated the result; commit SHAs in
 > the tables below predate the rebase — content is unchanged unless noted):

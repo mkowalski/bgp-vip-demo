@@ -147,6 +147,27 @@ Install takes 60–75 min. First host provisioning: `make requirements configure
   `SHARED_DIR` (file `server-ip` = 192.168.111.1) + `CLUSTER_PROFILE_DIR`
   (`packet-ssh-key` authorized for root@localhost).
 
+### 5.1-stock cycle (run 5.1-stock, 2026-10-16 — the cluster running now)
+
+- **Stock payload, no custom images**: `config_root.sh` points
+  `OPENSHIFT_RELEASE_IMAGE` at
+  `registry.ci.openshift.org/ocp/release-5:5.1.0-0.nightly-2026-10-16-040146`
+  (first nightly with CNO#3047; MCO#6326, installer#10718, runtimecfg#395
+  and kube-vip were already in). `/root/dev-scripts` = `bgp-5.1-run` +
+  the cherry-picked ToR multihop-BFD fix (`420499a`, merged in #1945).
+- Any nightly **older than 2026-10-20** rejects the install-config that
+  dev-scripts master renders now (`json: unknown field "failureDetection"`
+  — installer#10931 renamed the peer fields); use ≥ 10-21-040310 or a
+  dev-scripts commit before #1945.
+- Masters carry the MCO#6643 hot-patch in
+  `/etc/kubernetes/manifests/0000-frr-k8s.yaml` (originals at
+  `/tmp/0000-frr-k8s.yaml.orig`); merged upstream 10-21 — not needed on a
+  nightly ≥ 10-21-190506.
+- The three BGP producers were added with the CI step replays in
+  `/tmp/opencode/local-steps/` (`3-ovn-bgp-*`, `5-metallb-*`); the MetalLB
+  replay now creates `lb-echo` in `bgp-vip-e2e` (release#87522), the
+  cluster still has the earlier copy in `default` (`192.168.111.70`).
+
 ## Current image-tag state (2026-07-14; provenance updated 2026-08-05)
 
 `quay.io/mkowalski/metallb-frr:bgp-demo` = 10.4.3 + SELECTED-flag patch ONLY
@@ -199,7 +220,10 @@ oc get infrastructure cluster -o jsonpath='{.status.platformStatus.baremetal.vip
 oc get frrconfiguration -n openshift-frr-k8s           # bgp-vip (cluster-wide; was bgp-vip-master pre-run15)
 oc get bgpsessionstates -n openshift-frr-k8s           # Established per master
 oc get frrnodestates                                   # one per master
-oc get pods -n openshift-frr-k8s                       # static mirror pods 4/4
+oc get pods -n openshift-frr-k8s                       # on 3+2: 3 static pods, 3 master-monitor, 2 DaemonSet pods, statuscleaner
+oc get pods -n openshift-kni-infra | grep kube-vip      # kube-vip mirror pods — ONLY after MCO#6673; before it the
+                                                        # pods run but have no API object (ns openshift-kube-vip never
+                                                        # created): ssh core@<master> sudo crictl ps --name kube-vip
 
 # Node-level (ssh core@<master>)
 ip route show table 198                                # VIP on the kube-vip leader, proto 248
@@ -209,6 +233,19 @@ curl -s -o /dev/null -w %{http_code} http://localhost:1936/healthz   # router he
 
 # End-user path
 curl -k https://console-openshift-console.apps.ostest.test.metalkube.org   # 200 via BGP-routed .4
+```
+
+Platform-hygiene check (what the conformance step runs; the three tests that
+finding I fixes — all three should pass once MCO#6673 + CNO#3202 are in the
+payload and the lane workload is out of `default/`):
+
+```bash
+T=/tmp/opencode/openshift-tests-5.1   # or: oc adm release extract --command=openshift-tests <payload>
+for t in "[sig-arch] Managed cluster should set requests but not limits [Early] [Suite:openshift/conformance/parallel]" \
+         "[sig-arch] Managed cluster should ensure platform components have system-* priority class associated [Suite:openshift/conformance/parallel]" \
+         "[sig-node][apigroup:config.openshift.io] CPU Partitioning cluster platform workloads should be annotated correctly for DaemonSets [Suite:openshift/conformance/parallel]"; do
+  $T run-test "$t" </dev/null | tail -3
+done
 ```
 
 Healthy end state: origin `?` paths (redistribute = health-gated); ingress VIP
