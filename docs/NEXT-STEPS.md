@@ -227,12 +227,18 @@ closed as superseded).
 ### Phase 3 — TechPreview
 
 0. **API MERGED 2026-10-14 (openshift/api#2972, 8c03d1c42).** **UPDATE
-   2026-10-21: installer re-vendor DONE** (#10931 + #10985 merged —
-   OPNET-810 closed); **MCO re-vendor** rides MCO#6661 (team rebase,
-   lgtm+approved, api 6cace88a; OPNET-811 open until it merges); **CNO
-   re-vendor** (OPNET-812) still waits for CNO#3183. Next: the consumer
-   feature PRs from the prepared `bgpvipconfig-crd` branches, installer
-   first (vendor present). Jira pass
+   2026-10-22: all three vendor prerequisites are on main** — installer
+   (#10931 + #10985, OPNET-810 closed 10-21), **MCO#6661 merged 10-22**
+   (`19d25ab56`: api 6cace88a → `types_bgpvipconfig.go` + the CRD manifest
+   vendored, k8s 1.37), **CNO#3183 merged 10-22** (k8s 1.37; CNO's api
+   pin `f8795cdde518` still predates #2972, so OPNET-812 opens with an
+   api-only bump to ≥ 8c03d1c42). **OPNET-811/812 stay open**: their
+   scope is the consumers. Next: the consumer PRs from the prepared
+   `bgpvipconfig-crd` branches — MCO (56ab76d64 base, 11 commits: rebase
+   onto main, drop the vendor commit `3a24e921f` + the
+   `mkowalski/openshift-api` replace pin), CNO (9 commits, same cleanup,
+   after the api bump), installer (CR + Secret generation instead of the
+   ConfigMap). Earlier: installer re-vendor DONE 10-21. Jira pass
    done the same day: OPNET-809/782/784 closed, OPNET-811/812 descriptions
    corrected. **Vendor bumps opened 2026-10-14** — api@8c03d1c42 requires
    k8s.io 0.37.1, so each is a full Kubernetes 1.37 bump (not a small api
