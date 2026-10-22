@@ -114,7 +114,7 @@
   <text x="730" y="455" text-anchor="middle" font-size="10" fill="#3730a3">ns openshift-frr-k8s, sessions only</text>
   <text x="730" y="469" text-anchor="middle" font-size="10" fill="#3730a3">+ BFDProfile "vip-bfd"</text>
   <text x="730" y="483" text-anchor="middle" font-size="10" fill="#3730a3">neighbor passwordSecret reference</text>
-  <text x="730" y="497" text-anchor="middle" font-size="10" fill="#3730a3">(frr-k8s#484 fixed upstream)</text>
+  <text x="730" y="497" text-anchor="middle" font-size="10" fill="#3730a3">(frr-k8s#484 → fix PR #511, open)</text>
   <line x1="730" y1="386" x2="730" y2="413" stroke="#475569" stroke-width="2" marker-end="url(#arrow2)"/>
   <text x="748" y="404" font-size="10" fill="#64748b">renders</text>
 

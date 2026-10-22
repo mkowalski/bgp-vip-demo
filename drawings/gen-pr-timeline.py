@@ -40,6 +40,7 @@ PRS = [
     (None, "#1945 v6 ToR peer + e2e fields + multihop BFD", "2026-08-06", "2026-10-21", "merged", "l"),
     ("FRRouting/frr", "#22676 zebra table-scoped fix", "2026-07-15", "2026-07-21", "merged", "r"),
     ("metallb/frr-k8s", "#470 redistribute design", "2026-07-15", None, "open", "l"),
+    (None, "#511 mixed inline + secret-backed passwords (fixes #484)", "2026-10-22", None, "open", "l"),
     ("ovn-kubernetes", "#7099 VTEP prefers node primary addr (OCPBUGS-130338; issue #7090)", "2026-10-12", None, "open", "l"),
     ("openshift/release", "#80926 kube-vip project onboarding", "2026-06-23", "2026-06-24", "merged", "r"),
     (None, "#81065 kube-vip rebasebot periodic", "2026-06-25", "2026-07-15", "merged", "r"),

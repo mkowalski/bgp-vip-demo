@@ -47,8 +47,11 @@ Upstream state:
   #1929 + #1939; kube-vip onboarding #80926 + #81065; the vendor wave
   (MCO#6334, CNO#3089, installer#10713), CNO#3070; the full upstream
   kube-vip series (#1604, #1627, #1636, #1671, #1675) and downstream syncs
-  #12 + #15; FRRouting/frr#22654 fixed upstream via #22676;
-  metallb/frr-k8s#484 fixed upstream. Closed/superseded: installer#10710
+  #12 + #15; FRRouting/frr#22654 fixed upstream via #22676. **Not**
+  fixed upstream: metallb/frr-k8s#484 (webhook rejects a shared neighbor
+  that mixes `passwordSecret` and inline `password`) was auto-closed as
+  stale on 2026-09-20 — our fix is **metallb/frr-k8s#511** (open, see
+  below). Closed/superseded: installer#10710
   (by #10713), CNO#3080 (dup of #3070), kube-vip#6, kube-vip#14 (by #12),
   MCO#6655 (by #6661).
 - **Merged — CI, continued (10-21/22)**: **release#87443** (chai-bot,
@@ -70,6 +73,17 @@ Upstream state:
   **CNO#3202** (OPNET-819) — `frr-k8s-master-monitor` gets
   `system-cluster-critical`, the annotation, no limits. **ovn-k#7099**
   (OCPBUGS-130338, finding C: VTEP picks the VIP) — draft, parked.
+  **metallb/frr-k8s#511** (2026-10-22, `fix/484-mixed-password-validation`):
+  the validation webhook used an *empty* password for unresolved
+  `passwordSecret` references, so a neighbor shared by a secret-backed
+  FRRConfiguration (ours) and an inline-password one (MetalLB) was
+  rejected even when the passwords match — the reason CNO renders the
+  resolved password inline today. The fix validates unresolved refs with
+  a validation-only placeholder, keeps the known-password conflict
+  checks, works on deep copies, and adds controller + webhook regression
+  tests (both creation orders, updates, peer/VRF isolation, strict
+  reconciliation). Once it ships in the frr-k8s image CNO deploys, the
+  CNO inline fallback can revert to `passwordSecret` rendering.
   metallb/frr-k8s#470 (redistribution design) and
   openshift/enhancements#1982 await reviewers.
 
@@ -162,6 +176,7 @@ replace paths).
 | cluster-network-operator | merged (#3047, #3195, #3046); **open #3202** (`opnet-819-master-monitor-conventions`, OPNET-819) | `OPNET-595-bgp-vip-management-vendored` (carries a now-redundant DEMO-CARRY; refresh on next demo rebuild); `bgpvipconfig-crd` |
 | baremetal-runtimecfg | merged (#395) | `OPNET-595-bgp-vip-management` |
 | kube-vip | upstream #1604 #1627 #1636 #1671 #1675 merged; downstream #2/#3/#4/#12/#15 merged, #6/#14 closed | `OPNET-595-bgp-vip-management` |
+| metallb/frr-k8s | open #470 (`redistribution-support`, design doc), **open #511** (`fix/484-mixed-password-validation`, mixed inline/secret passwords) | — |
 | dev-scripts | merged (#1929, #1939, #1945) | `/root/dev-scripts` on the host: `bgp-5.1-run` (deploy config of the running cluster) |
 | openshift/release | merged (#80926, #81065, #81957, #82698, #82912, #86746, #87443, #87192, #87186); **open #87522** (`bgp-vip-lb-echo-namespace`) | fork is `mkowalski/openshift-release` (renamed from `mkowalski/release`; old URL redirects) |
 
