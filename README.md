@@ -5,7 +5,7 @@ Working demo and upstreaming workspace of
 (OPNET-595/OPNET-773): BGP-based VIP management for on-premise OpenShift —
 kube-vip (routing-table mode) + frr-k8s static pods replacing keepalived.
 
-**Status (2026-10-22): everything feature-related and the CI track are merged — DevPreview in every repo, the TP `BGPVIPConfig` API (api#2972), the lane fixes (**release#87192**, lanes derive expectations from the `bgp-vip` CR) and the **nightly 5.1 periodics (release#87186**: `bgp-vip` daily, `ovn-bgp-metallb` Mon/Wed/Fri, `evpn` Tue/Thu, 02:00 UTC; first runs 2026-10-23). DevPreview proven end to end from a stock nightly (run 5.1-stock) and by the first fully green CI lane run (10-21, finding H). The first conformance run on a BGP VIP cluster (10-22) found our pods to be the only violators of origin's platform pod conventions and the kube-vip static pods invisible to the API (their namespace was never created) — fixes open: **MCO#6673 (OPNET-818)**, **CNO#3202 (OPNET-819)**, **release#87522** (lane test workload out of `default/`; signed, rehearsing). Also open: OPNET-811 via the MCO team's #6661; OPNET-812 CNO vendor after CNO#3183; ovn-k#7099 (finding C) parked. Full handoff: docs/RUN-LEDGER.md 'HANDOFF STATE'.**
+**Status (2026-10-22): everything feature-related and the CI track are merged — DevPreview in every repo, the TP `BGPVIPConfig` API (api#2972), the lane fixes (**release#87192**, lanes derive expectations from the `bgp-vip` CR) and the **nightly 5.1 periodics (release#87186**: `bgp-vip` daily, `ovn-bgp-metallb` Mon/Wed/Fri, `evpn` Tue/Thu, 02:00 UTC; first runs 2026-10-23). DevPreview proven end to end from a stock nightly (run 5.1-stock) and by the first fully green CI lane run (10-21, finding H). The first conformance run on a BGP VIP cluster (10-22) found our pods to be the only violators of origin's platform pod conventions and the kube-vip static pods invisible to the API (their namespace was never created) — fixes: **release#87522 merged** (lane test workload out of `default/`), **MCO#6673 (OPNET-818)** and **CNO#3202 (OPNET-819)** lgtm+approved, waiting on CI. **Both TP consumer tracks are unblocked today**: MCO#6661 (api 6cace88a ⊇ `BGPVIPConfig`, k8s 1.37) and CNO#3183 (k8s 1.37) merged — next are the api-only CNO bump to ≥ 8c03d1c42 and the two consumer PRs from the `bgpvipconfig-crd` branches (OPNET-811/812). ovn-k#7099 (finding C) parked; **metallb/frr-k8s#511** (mixed inline/secret passwords, fixes #484) open. Full handoff: docs/RUN-LEDGER.md 'HANDOFF STATE'.**
 All six demo criteria proven across 27 install runs (see
 [docs/demo-results.md](docs/demo-results.md), [docs/RUN-LEDGER.md](docs/RUN-LEDGER.md)):
 API + Ingress VIPs advertised via BGP from bootstrap through steady state,
@@ -63,10 +63,15 @@ Upstream state:
   negotiated timers/BFD/families against the CR, datapath checks poll),
   **release#87186** (10-22, `18cba7966`: nightly 5.1 periodics for the
   three lanes).
-- **Open**: **release#87522** — the lanes' `lb-echo` test workload moves
-  from `default/` to its own `bgp-vip-e2e` namespace (origin audits
-  `default/` as a platform namespace; RUN-LEDGER finding I) — signed,
-  rehearsing. **MCO#6673** (OPNET-818) — frr-k8s + kube-vip static pods
+- **Merged — 10-22 pm**: **release#87522** (`4dc801d2c`; the lanes'
+  `lb-echo` test workload moves from `default/` to its own `bgp-vip-e2e`
+  namespace — origin audits `default/` as a platform namespace, finding
+  I; rehearsal acked, the first periodics on 10-23 are the proof run),
+  **MCO#6661** (`19d25ab56`, the MCO team's k8s 1.37 rebase carrying api
+  6cace88a ⊇ `BGPVIPConfig` — the OPNET-811 vendor prerequisite),
+  **CNO#3183** (k8s 1.37 — the OPNET-812 prerequisite; CNO's api pin
+  f8795cdde518 still predates api#2972, so an api-only bump comes next).
+- **Open**: **MCO#6673** (OPNET-818) — frr-k8s + kube-vip static pods
   drop resource limits, gain the workload-partitioning annotation, and
   kube-vip renders into `openshift-kni-infra` (finding J: nothing ever
   created `openshift-kube-vip`, so its mirror pods never existed).
@@ -172,8 +177,8 @@ replace paths).
 |---|---|---|
 | openshift/api | merged (#2923) | `OPNET-595-bgp-vip-management` |
 | installer | merged (#10718) | `OPNET-595-bgp-vip-management-vendored` |
-| machine-config-operator | merged (#6326, #6643); **open #6673** (`opnet-818-static-pod-conventions`, OPNET-818) | `OPNET-595-bgp-vip-management-dev`; `bgpvipconfig-crd` (CR consumer prep) |
-| cluster-network-operator | merged (#3047, #3195, #3046); **open #3202** (`opnet-819-master-monitor-conventions`, OPNET-819) | `OPNET-595-bgp-vip-management-vendored` (carries a now-redundant DEMO-CARRY; refresh on next demo rebuild); `bgpvipconfig-crd` |
+| machine-config-operator | merged (#6326, #6643, #6661 vendor); **open #6673** (`opnet-818-static-pod-conventions`, OPNET-818) | `bgpvipconfig-crd` — the OPNET-811 consumer (11 commits on an Aug base, incl. a vendor commit + `mkowalski/openshift-api` replace pin to drop on rebase onto main, which now has the API) |
+| cluster-network-operator | merged (#3047, #3195, #3046, #3183 k8s 1.37); **open #3202** (`opnet-819-master-monitor-conventions`, OPNET-819) | `bgpvipconfig-crd` — the OPNET-812 consumer (9 commits on an old base, 1 replace pin; needs the api-only bump to ≥ 8c03d1c42 first) |
 | baremetal-runtimecfg | merged (#395) | `OPNET-595-bgp-vip-management` |
 | kube-vip | upstream #1604 #1627 #1636 #1671 #1675 merged; downstream #2/#3/#4/#12/#15 merged, #6/#14 closed | `OPNET-595-bgp-vip-management` |
 | metallb/frr-k8s | open #470 (`redistribution-support`, design doc), **open #511** (`fix/484-mixed-password-validation`, mixed inline/secret passwords) | — |
