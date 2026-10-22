@@ -50,6 +50,8 @@ PRS = [
     (None, "#87186 nightly 5.1 periodics x3 (draft, signed, rehearsing)", "2026-10-16", None, "open", "l"),
     (None, "#87192 lanes read expectations from the bgp-vip CR (approved, signed, rehearsal GREEN)", "2026-10-16", None, "open", "l"),
     (None, "#87443 ovn-bgp-pre: from dev-scripts, not src (chai-bot via Slack)", "2026-10-21", "2026-10-21", "merged", "l"),
+    (None, "MCO#6673 static pods: no limits, mgmt annotation, kube-vip in kni-infra (OPNET-818)", "2026-10-22", None, "open", "l"),
+    (None, "CNO#3202 master-monitor: system-cluster-critical, annotation, no limits (OPNET-819)", "2026-10-22", None, "open", "l"),
     ("cluster-network-operator", "#3046 statusmanager DS fix", "2026-07-10", "2026-10-21", "merged", "l"),
     (None, "#3047 BGP VIP support — DevPreview complete in-payload", "2026-07-10", "2026-10-15", "merged", "l"),
     (None, "#3070 frr-k8s CRD align", "2026-07-20", "2026-07-22", "merged", "r"),
