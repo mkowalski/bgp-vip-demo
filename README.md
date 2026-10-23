@@ -214,12 +214,16 @@ Proof so far: `bgp-vip-metallb` fully green on 10-21 (release#87192
 rehearsal — first fully green CI run of a BGP VIP lane, RUN-LEDGER finding
 H); `ovn-bgp-metallb` green on every BGP step the same day, red only in
 conformance — 18 payload-wide failures plus **3 caused by our pods**
-(finding I → MCO#6673, CNO#3202, release#87522). The periodics install
-`nightly/latest`, which must carry installer#10931 (dev-scripts master
-renders the new peer fields; 10-21-040310 does) — expect `bgp-vip` green,
-`ovn-bgp-metallb` red on MetalLB [3/4] until a nightly also carries
-MCO#6643 (10-22-071948 does, not yet Accepted), `evpn` red until
-ovn-k#7099.
+(finding I → MCO#6673, CNO#3202, release#87522). **First scheduled
+periodics (2026-10-23 02:00 UTC): [`bgp-vip` SUCCESS](https://prow.ci.openshift.org/view/gs/test-platform-results-public/logs/periodic-ci-openshift-release-main-nightly-5.1-e2e-metal-ipi-bgp-vip/2113450686661267456) on its first
+run; [`ovn-bgp-metallb` FAILURE](https://prow.ci.openshift.org/view/gs/test-platform-results-public/logs/periodic-ci-openshift-release-main-nightly-5.1-e2e-metal-ipi-bgp-vip-ovn-bgp-metallb/2113450690868154368) at `ovn-bgp-verify` [2/4] — the
+masters never establish their route-reflector sessions because the
+nightly (10-21-040310) predates MCO#6643 (finding B, reloader
+`Read-only file system` ×119 on master-0).** It turns green once an
+*Accepted* nightly carries #6643 — every nightly since 10-21-040310 has
+been Rejected on unrelated blocking jobs — and the three finding-I
+conformance tests once MCO#6673/CNO#3202 are in the payload; `evpn`
+(Tue/Thu) stays red until ovn-k#7099.
 
 <img src="drawings/bgp-vip-evpn-lane-flow.svg" alt="EVPN lane step flow: reused vs new steps" style="width: 95%; max-width: 1000px;">
 
