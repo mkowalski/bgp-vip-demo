@@ -74,5 +74,5 @@
   <line x1="30" y1="434" x2="910" y2="434" stroke="#e2e8f0" stroke-width="1"/>
   <text x="470" y="447" text-anchor="middle" font-size="9.5" fill="#475569">Status 2026-10-22: the merged Dev Preview flow (installer#10718, runtimecfg#395, MCO#6326, CNO#3047) — proven from a stock 5.1 nightly and by the first green CI lane run.</text>
   <text x="470" y="460" text-anchor="middle" font-size="9.5" fill="#475569">Tech Preview swaps the ConfigMap for the BGPVIPConfig CR: api#2972 merged, installer#10931 aligned the install-config fields; CR generation and the MCO/CNO consumers</text>
-  <text x="470" y="473" text-anchor="middle" font-size="9.5" fill="#475569">follow (OPNET-811/812). MCO#6673 moves the kube-vip static pods into openshift-kni-infra (their openshift-kube-vip namespace was never created) and drops all limits.</text>
+  <text x="470" y="473" text-anchor="middle" font-size="9.5" fill="#475569">follow (OPNET-811/812). MCO#6673 (merged 10-23) moves the kube-vip static pods into openshift-kni-infra (their namespace was never created) and drops all limits.</text>
 </svg>

@@ -6,7 +6,7 @@ Dates from:  gh api repos/<org>/<repo>/pulls/<n> --jq '[.created_at,.merged_at,.
 """
 import datetime as dt
 
-TODAY = dt.date(2026, 10, 22)
+TODAY = dt.date(2026, 10, 23)
 START = dt.date(2026, 6, 20)
 END = dt.date(2026, 10, 27)
 
@@ -66,7 +66,7 @@ PRS = [
     (None, "#6643 static-pod reloader writable /tmp + /var/log/frr (finding B)", "2026-10-09", "2026-10-21", "merged", "l"),
     (None, "#6655 vendor api + k8s 1.37 — closed: MCO team's #6661 supersedes", "2026-10-14", None, "closed", "l"),
     (None, "#6661 MCO k8s 1.37 rebase (umohnani8; api 6cace88a ⊇ BGPVIPConfig; OPNET-811 prereq)", "2026-10-16", "2026-10-22", "merged", "l"),
-    (None, "#6673 static pods: no limits, mgmt annotation, kube-vip in kni-infra (OPNET-818)", "2026-10-22", None, "open", "l"),
+    (None, "#6673 static pods: no limits, mgmt annotation, kube-vip in kni-infra (OPNET-818)", "2026-10-22", "2026-10-23", "merged", "l"),
     ("openshift/installer", "#10710 vendor pin — closed (#10713)", "2026-07-24", None, "closed", "l"),
     (None, "#10713 rebase/vendor wave", "2026-07-24", "2026-07-28", "merged", "l"),
     (None, "#10718 BGP VIP support", "2026-07-28", "2026-08-17", "merged", "l"),
@@ -88,7 +88,7 @@ PHASES = [
     ("TP API + CNO merge", "2026-10-13", "2026-10-15"),
     ("stock nightly", "2026-10-16", "2026-10-16"),
     ("merge week", "2026-10-19", "2026-10-21"),
-    ("lanes+periodics in", "2026-10-22", "2026-10-22"),
+    ("lanes+periodics in", "2026-10-22", "2026-10-23"),
 ]
 
 COLORS = {
