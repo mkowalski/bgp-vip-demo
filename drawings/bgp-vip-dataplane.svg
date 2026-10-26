@@ -84,5 +84,5 @@
   <line x1="30" y1="524" x2="910" y2="524" stroke="#e2e8f0" stroke-width="1"/>
   <text x="470" y="537" text-anchor="middle" font-size="9.5" fill="#475569">Status 2026-10-22: merged and proven — run 5.1-stock and CI (bgp-vip 6/6, OVN-K route advertisements 4/4, MetalLB 4/4 on one cluster; nightly periodics live, #87186).</text>
   <text x="470" y="550" text-anchor="middle" font-size="9.5" fill="#475569">The first conformance run found only our pods breaking the platform conventions: MCO#6673 (merged 10-23) drops the resource limits and adds the workload-partitioning annotation on the</text>
-  <text x="470" y="563" text-anchor="middle" font-size="9.5" fill="#475569">frr-k8s and kube-vip static pods (and makes kube-vip visible — its namespace was never created); CNO#3202 does the same for the metrics companion (system-cluster-critical).</text>
+  <text x="470" y="563" text-anchor="middle" font-size="9.5" fill="#475569">frr-k8s and kube-vip static pods (and makes kube-vip visible — its namespace was never created); CNO#3202 (merged 10-26) does the same for the metrics companion (system-cluster-critical).</text>
 </svg>

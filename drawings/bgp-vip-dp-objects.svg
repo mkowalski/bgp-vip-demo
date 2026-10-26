@@ -129,5 +129,5 @@
   <line x1="30" y1="724" x2="970" y2="724" stroke="#e2e8f0" stroke-width="1"/>
   <text x="500" y="737" text-anchor="middle" font-size="9.5" fill="#475569">Status 2026-10-22: merged in every repo and proven end to end (stock nightly 2026-10-16; first fully green CI lane 10-21; nightly periodics live since release#87186).</text>
   <text x="500" y="750" text-anchor="middle" font-size="9.5" fill="#475569">The installer still writes this ConfigMap — the Tech Preview consumers are pending. Follow-ups: MCO#6673 merged 10-23 (static pods: no limits, workload annotation; kube-vip into</text>
-  <text x="500" y="763" text-anchor="middle" font-size="9.5" fill="#475569">openshift-kni-infra — the openshift-kube-vip namespace in the manifests was never created), CNO#3202 (metrics companion: priority class, annotation, no limits).</text>
+  <text x="500" y="763" text-anchor="middle" font-size="9.5" fill="#475569">openshift-kni-infra — the openshift-kube-vip namespace in the manifests was never created), CNO#3202 merged 10-26 (metrics companion: priority class, annotation, no limits).</text>
 </svg>

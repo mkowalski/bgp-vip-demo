@@ -5,7 +5,7 @@ Working demo and upstreaming workspace of
 (OPNET-595/OPNET-773): BGP-based VIP management for on-premise OpenShift —
 kube-vip (routing-table mode) + frr-k8s static pods replacing keepalived.
 
-**Status (2026-10-23): everything feature-related and the CI track are merged — DevPreview in every repo, the TP `BGPVIPConfig` API (api#2972), the lane fixes (release#87192/#87522) and the **nightly 5.1 periodics (release#87186)**, whose first scheduled run went **green for `bgp-vip`** on 2026-10-23. The first conformance run on a BGP VIP cluster (10-22) found our pods to be the only violators of origin's platform pod conventions and the kube-vip static pods invisible to the API (their namespace was never created) — **MCO#6673 merged 10-23 (OPNET-818 closed)**, **CNO#3202 (OPNET-819)** lgtm+approved, retesting. **Both TP consumer tracks are unblocked** (MCO#6661 and CNO#3183 merged 10-22) — next are the api-only CNO bump to ≥ 8c03d1c42 and the consumer PRs from the `bgpvipconfig-crd` branches (OPNET-811/812). ovn-k#7099 (finding C) parked; **metallb/frr-k8s#511** (mixed inline/secret passwords, fixes #484) awaits review. Full handoff: docs/RUN-LEDGER.md 'HANDOFF STATE'.**
+**Status (2026-10-26): everything is merged — DevPreview in every repo, the TP `BGPVIPConfig` API (api#2972), the CI lanes and their fixes (release#87192/#87522), the **nightly 5.1 periodics (release#87186; `bgp-vip` green on all four runs since it went live)**, and the platform-pod-convention fixes from the first conformance run (**MCO#6673, OPNET-818** and **CNO#3202, OPNET-819** — both closed). Open: the TP consumer PRs (OPNET-811/812, prerequisites on main since 10-22), **metallb/frr-k8s#511** (mixed inline/secret passwords, fixes #484; awaiting review), ovn-k#7099 (finding C, parked), frr-k8s#470 and enhancements#1982 (awaiting reviewers). Payload side: no 5.1 nightly has been Accepted since 10-21-040310 and ART has not rebuilt operator images since 10-23 — the `ovn-bgp-metallb` periodic stays red on finding B until that clears. Full handoff: docs/RUN-LEDGER.md 'HANDOFF STATE'.**
 All six demo criteria proven across 27 install runs (see
 [docs/demo-results.md](docs/demo-results.md), [docs/RUN-LEDGER.md](docs/RUN-LEDGER.md)):
 API + Ingress VIPs advertised via BGP from bootstrap through steady state,
@@ -78,8 +78,11 @@ Upstream state:
   `openshift-kube-vip`, so its mirror pods never existed). First nightly
   that can carry it: anything built after 10:34 UTC (10-23-094141 does
   not).
-- **Open**: **CNO#3202** (OPNET-819) — `frr-k8s-master-monitor` gets
-  `system-cluster-critical`, the annotation, no limits. **ovn-k#7099**
+- **Merged — 10-26**: **CNO#3202** (`1f40d2069`, OPNET-819 closed) —
+  `frr-k8s-master-monitor` gets `system-cluster-critical`, the
+  annotation, no limits (the one required red, `e2e-aws-ovn-fdp-qe`, was
+  the payload-wide IPSec FDP test 83672 flake, overridden).
+- **Open**: **ovn-k#7099**
   (OCPBUGS-130338, finding C: VTEP picks the VIP) — draft, parked.
   **metallb/frr-k8s#511** (2026-10-22, `fix/484-mixed-password-validation`):
   the validation webhook used an *empty* password for unresolved
@@ -181,7 +184,7 @@ replace paths).
 | openshift/api | merged (#2923) | `OPNET-595-bgp-vip-management` |
 | installer | merged (#10718) | `OPNET-595-bgp-vip-management-vendored` |
 | machine-config-operator | merged (#6326, #6643, #6661 vendor, #6673 pod conventions) | `bgpvipconfig-crd` — the OPNET-811 consumer (11 commits on an Aug base, incl. a vendor commit + `mkowalski/openshift-api` replace pin to drop on rebase onto main, which now has the API) |
-| cluster-network-operator | merged (#3047, #3195, #3046, #3183 k8s 1.37); **open #3202** (`opnet-819-master-monitor-conventions`, OPNET-819) | `bgpvipconfig-crd` — the OPNET-812 consumer (9 commits on an old base, 1 replace pin; needs the api-only bump to ≥ 8c03d1c42 first) |
+| cluster-network-operator | merged (#3047, #3195, #3046, #3183 k8s 1.37, #3202 pod conventions) | `bgpvipconfig-crd` — the OPNET-812 consumer (9 commits on an old base, 1 replace pin; needs the api-only bump to ≥ 8c03d1c42 first) |
 | baremetal-runtimecfg | merged (#395) | `OPNET-595-bgp-vip-management` |
 | kube-vip | upstream #1604 #1627 #1636 #1671 #1675 merged; downstream #2/#3/#4/#12/#15 merged, #6/#14 closed | `OPNET-595-bgp-vip-management` |
 | metallb/frr-k8s | open #470 (`redistribution-support`, design doc), **open #511** (`fix/484-mixed-password-validation`, mixed inline/secret passwords) | — |
@@ -217,15 +220,18 @@ Proof so far: `bgp-vip-metallb` fully green on 10-21 (release#87192
 rehearsal — first fully green CI run of a BGP VIP lane, RUN-LEDGER finding
 H); `ovn-bgp-metallb` green on every BGP step the same day, red only in
 conformance — 18 payload-wide failures plus **3 caused by our pods**
-(finding I → MCO#6673, CNO#3202, release#87522). **First scheduled
-periodics (2026-10-23 02:00 UTC): [`bgp-vip` SUCCESS](https://prow.ci.openshift.org/view/gs/test-platform-results-public/logs/periodic-ci-openshift-release-main-nightly-5.1-e2e-metal-ipi-bgp-vip/2113450686661267456) on its first
+(finding I → MCO#6673, CNO#3202, release#87522). **Periodics: `bgp-vip` green on every run so far (10-23, 24, 25, 26)** — first:
+[`bgp-vip` SUCCESS](https://prow.ci.openshift.org/view/gs/test-platform-results-public/logs/periodic-ci-openshift-release-main-nightly-5.1-e2e-metal-ipi-bgp-vip/2113450686661267456) on its first
 run; [`ovn-bgp-metallb` FAILURE](https://prow.ci.openshift.org/view/gs/test-platform-results-public/logs/periodic-ci-openshift-release-main-nightly-5.1-e2e-metal-ipi-bgp-vip-ovn-bgp-metallb/2113450690868154368) at `ovn-bgp-verify` [2/4] — the
 masters never establish their route-reflector sessions because the
 nightly (10-21-040310) predates MCO#6643 (finding B, reloader
-`Read-only file system` ×119 on master-0).** It turns green once an
-*Accepted* nightly carries #6643 — every nightly since 10-21-040310 has
-been Rejected on unrelated blocking jobs — and the three finding-I
-conformance tests once MCO#6673/CNO#3202 are in the payload; `evpn`
+`Read-only file system` ×119 on master-0).** Same result on
+[10-26](https://prow.ci.openshift.org/view/gs/test-platform-results-public/logs/periodic-ci-openshift-release-main-nightly-5.1-e2e-metal-ipi-bgp-vip-ovn-bgp-metallb/2114537779533713408) — `nightly/latest` has been 10-21-040310 since 10-21:
+every later nightly was Rejected on the same aggregated-upgrade /
+hypershift / techpreview / metal-ipv4+ipv6 blocking set, and ART has not
+rebuilt operator images since 10-23 09:41 (the 10-26 nightly differs from
+10-23 only in Kubernetes + RHCOS), so neither #6643 nor the finding-I
+fixes (MCO#6673, CNO#3202 — both merged) are in any payload yet. `evpn`
 (Tue/Thu) stays red until ovn-k#7099.
 
 <img src="drawings/bgp-vip-evpn-lane-flow.svg" alt="EVPN lane step flow: reused vs new steps" style="width: 95%; max-width: 1000px;">

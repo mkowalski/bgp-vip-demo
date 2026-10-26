@@ -6,9 +6,9 @@ Dates from:  gh api repos/<org>/<repo>/pulls/<n> --jq '[.created_at,.merged_at,.
 """
 import datetime as dt
 
-TODAY = dt.date(2026, 10, 23)
+TODAY = dt.date(2026, 10, 26)
 START = dt.date(2026, 6, 20)
-END = dt.date(2026, 10, 27)
+END = dt.date(2026, 10, 31)
 
 X0, X1 = 262, 950          # plot area
 Y0 = 100                   # first row
@@ -58,7 +58,7 @@ PRS = [
     (None, "#3080 frr-k8s asn format — closed: dup of #3070", "2026-07-21", None, "closed", "l"),
     (None, "#3089 api vendor bump", "2026-07-24", "2026-07-29", "merged", "l"),
     (None, "#3195 align frr-k8s 5.1 CRDs (nextHop/allowAsIn/EVPN)", "2026-10-15", "2026-10-20", "merged", "l"),
-    (None, "#3202 master-monitor: system-cluster-critical, mgmt annotation, no limits (OPNET-819)", "2026-10-22", None, "open", "l"),
+    (None, "#3202 master-monitor: system-cluster-critical, mgmt annotation, no limits (OPNET-819)", "2026-10-22", "2026-10-26", "merged", "l"),
     ("baremetal-runtimecfg", "#395 FRR peer-file rendering", "2026-07-10", "2026-08-13", "merged", "l"),
     ("ocp-build-data", "#11838 ose-kube-vip in payload", "2026-07-15", "2026-08-14", "merged", "l"),
     ("machine-config-operator", "#6326 BGP VIP static pods", "2026-07-22", "2026-10-02", "merged", "l"),
@@ -88,7 +88,7 @@ PHASES = [
     ("TP API + CNO merge", "2026-10-13", "2026-10-15"),
     ("stock nightly", "2026-10-16", "2026-10-16"),
     ("merge week", "2026-10-19", "2026-10-21"),
-    ("lanes+periodics in", "2026-10-22", "2026-10-23"),
+    ("CI + conventions in", "2026-10-22", "2026-10-26"),
 ]
 
 COLORS = {
