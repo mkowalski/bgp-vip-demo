@@ -243,9 +243,10 @@ closed as superseded).
    everything).** `hack/update-payload-crds.sh` lists v1alpha1 CRDs
    explicitly and #2972 added none, so no payload carries
    `bgpvipconfigs.machineconfiguration.openshift.io`; the installer's CR
-   manifest cannot apply at bootstrap until it does. One-line glob +
-   `make update-payload-crds`; api approvers. Jira: reopen OPNET-809 or a
-   new story.
+   manifest cannot apply at bootstrap until it does. **openshift/api#3127
+   OPEN 2026-10-26** (`34e6fe4b7`: the glob + generated copy,
+   `verify-payload-crds` green; titled under OPNET-809 — reopen it or
+   file a story). api approvers.
 
    **Step 1 — installer: emit CR + Secret *alongside* the ConfigMap.**
    OPNET-810 is Closed although its description's CR-generation bullet is
