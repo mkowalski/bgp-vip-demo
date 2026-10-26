@@ -35,6 +35,7 @@ PRS = [
     ("openshift/enhancements", "#1982 BGP-based VIP management EP", "2026-04-23", None, "open", "r"),
     ("openshift/api", "#2923 gate + vipManagement", "2026-07-09", "2026-07-24", "merged", "l"),
     (None, "#2972 BGPVIPConfig CRD (TP API)", "2026-08-10", "2026-10-14", "merged", "l"),
+    (None, "#3127 ship the BGPVIPConfig CRD in the payload (finding K)", "2026-10-26", None, "open", "l"),
     ("dev-scripts", "#1929 BGP ToR", "2026-07-09", "2026-07-23", "merged", "r"),
     (None, "#1939 BGP_VIP_MANAGEMENT knob", "2026-07-30", "2026-07-31", "merged", "l"),
     (None, "#1945 v6 ToR peer + e2e fields + multihop BFD", "2026-08-06", "2026-10-21", "merged", "l"),
