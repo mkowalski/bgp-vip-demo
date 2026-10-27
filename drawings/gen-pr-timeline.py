@@ -107,7 +107,7 @@ rows = len(PRS)
 height = Y0 + rows * ROW + 60
 out = []
 out.append(f'<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="{height}" viewBox="0 0 1000 {height}" font-family="Inter, Helvetica, Arial, sans-serif">')
-out.append(f'<text x="500" y="24" text-anchor="middle" font-size="17" font-weight="700" fill="#1e293b">Upstreaming timeline &#8212; every PR, per repository (bar: opened &#8594; merged/today)</text>')
+out.append(f'<text x="500" y="18" text-anchor="middle" font-size="17" font-weight="700" fill="#1e293b">Upstreaming timeline &#8212; every PR, per repository (bar: opened &#8594; merged/today)</text>')
 
 # week gridlines
 grid_bottom = Y0 + rows * ROW - 4
@@ -127,8 +127,8 @@ out.append("".join(axis))
 ph = []
 for i, (name, a, b) in enumerate(PHASES):
     xa, xb = x(dt.date.fromisoformat(a)), x(dt.date.fromisoformat(b))
-    # labels alternate over four rows (y=36..66) so the dense October phases do not overlap
-    ty = 34 + (i % 4) * 10
+    # labels alternate over five rows (y=28..66) so the dense October phases do not overlap
+    ty = 28 + (i % 5) * 9.5
     ph.append(f'<rect x="{xa:.0f}" y="82" width="{xb-xa:.0f}" height="10" rx="3" fill="#dbeafe"/>'
               f'<line x1="{(xa+xb)/2:.0f}" y1="{ty+2}" x2="{(xa+xb)/2:.0f}" y2="82" stroke="#bfdbfe" stroke-width="1"/>'
               f'<text x="{(xa+xb)/2:.0f}" y="{ty}" text-anchor="middle" font-size="9" font-weight="600" fill="#1e40af">{name}</text>')
