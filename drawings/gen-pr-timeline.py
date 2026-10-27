@@ -61,6 +61,8 @@ PRS = [
     (None, "#3089 api vendor bump", "2026-07-24", "2026-07-29", "merged", "l"),
     (None, "#3195 align frr-k8s 5.1 CRDs (nextHop/allowAsIn/EVPN)", "2026-10-15", "2026-10-20", "merged", "l"),
     (None, "#3202 master-monitor: system-cluster-critical, mgmt annotation, no limits (OPNET-819)", "2026-10-22", "2026-10-26", "merged", "l"),
+    (None, "#3206 vendor api + client-go to master (chai-bot; OPNET-812)", "2026-10-27", None, "open", "l"),
+    (None, "#3207 BGPVIPConfig CR consumer, ConfigMap path removed (OPNET-812)", "2026-10-27", None, "open", "l"),
     ("baremetal-runtimecfg", "#395 FRR peer-file rendering", "2026-07-10", "2026-08-13", "merged", "l"),
     ("ocp-build-data", "#11838 ose-kube-vip in payload", "2026-07-15", "2026-08-14", "merged", "l"),
     ("machine-config-operator", "#6326 BGP VIP static pods", "2026-07-22", "2026-10-02", "merged", "l"),
