@@ -272,13 +272,21 @@ closed as superseded).
    no `status.observedGeneration`) and squashed. Day-0 proof: `/testwith
    openshift/installer/main/e2e-metal-ipi-bgp-vip` including #6686.
 
-   **Step 3 — CNO (OPNET-812), next.** (a) api-only bump to ≥ 8c03d1c42
-   (main pins `f8795cdde518`; k8s 1.37 already in). (b) CR-only consumer
-   from `bgpvipconfig-crd` (`26e115d72` dynamicinformer read, `2566dc602`
-   passwordSecret → copy to `openshift-frr-k8s`, `a5680c393` inline
-   interim — **keep** until metallb/frr-k8s#511 ships in the image CNO
-   deploys), same API adaptations, ConfigMap read removed, SSA
-   `SessionsConfigured`. Conflicts expected in `pkg/network/bgp_vip.go`.
+   **Step 3 — CNO (OPNET-812), in flight 10-27.** (a) vendor bump
+   **requested from chai-bot** (DM 13:57 UTC): api `da0032bf0c5f` + client-go
+   `48133ed95dad` *together* — api alone fails to build against the Oct-1
+   client-go (dropped `config/v1alpha1` CRIOCredentialProviderConfig
+   applyconfigurations); verified pair: build/vet/19 test pkgs green, k8s
+   0.37.1 unchanged. Mat lgtm+merge. (b) **consumer ready** on
+   `opnet-812-bgpvipconfig-consumer` (`55b22eb07` on a stand-in bump):
+   re-implemented on today's `bgp_vip.go` (the Aug cherry-pick had 12
+   conflict blocks) — CR via dynamic client, feature-gated dynamic informer
+   in operconfig, VIPs from Infrastructure status, passwordSecret resolved
+   + rendered inline (interim for frr-k8s#484; #511 flips
+   `renderInlinePassword`, reference+copy path tested), `SessionsConfigured`
+   via SSA (field manager `cluster-network-operator`, only that condition),
+   missing CR → nothing rendered / no condition (as before),
+   `docs/bgp_vip_management.md` rewritten. Open the PR after (a) merges.
 
    **Step 4 — installer drops the ConfigMap asset** (`bgpvipconfig.go` +
    test + wiring) once #6686 and the CNO consumer are in a nightly; MCO's
