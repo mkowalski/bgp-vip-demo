@@ -6,7 +6,7 @@ Dates from:  gh api repos/<org>/<repo>/pulls/<n> --jq '[.created_at,.merged_at,.
 """
 import datetime as dt
 
-TODAY = dt.date(2026, 10, 26)
+TODAY = dt.date(2026, 10, 27)
 START = dt.date(2026, 6, 20)
 END = dt.date(2026, 10, 31)
 
@@ -35,7 +35,7 @@ PRS = [
     ("openshift/enhancements", "#1982 BGP-based VIP management EP", "2026-04-23", None, "open", "r"),
     ("openshift/api", "#2923 gate + vipManagement", "2026-07-09", "2026-07-24", "merged", "l"),
     (None, "#2972 BGPVIPConfig CRD (TP API)", "2026-08-10", "2026-10-14", "merged", "l"),
-    (None, "#3127 ship the BGPVIPConfig CRD in the payload (finding K)", "2026-10-26", None, "open", "l"),
+    (None, "#3127 ship the BGPVIPConfig CRD in the payload (finding K)", "2026-10-26", "2026-10-26", "merged", "l"),
     ("dev-scripts", "#1929 BGP ToR", "2026-07-09", "2026-07-23", "merged", "r"),
     (None, "#1939 BGP_VIP_MANAGEMENT knob", "2026-07-30", "2026-07-31", "merged", "l"),
     (None, "#1945 v6 ToR peer + e2e fields + multihop BFD", "2026-08-06", "2026-10-21", "merged", "l"),
@@ -53,6 +53,7 @@ PRS = [
     (None, "#87192 lanes read expectations from the bgp-vip CR", "2026-10-16", "2026-10-22", "merged", "l"),
     (None, "#87522 lb-echo test workload out of default/ (finding I)", "2026-10-22", "2026-10-22", "merged", "l"),
     (None, "#87443 ovn-bgp-pre: from dev-scripts, not src (chai-bot via Slack)", "2026-10-21", "2026-10-21", "merged", "l"),
+    (None, "#87762 bgp-vip-verify guards the CRD in the payload", "2026-10-27", None, "open", "l"),
     ("cluster-network-operator", "#3046 statusmanager DS fix", "2026-07-10", "2026-10-21", "merged", "l"),
     (None, "#3047 BGP VIP support — DevPreview complete in-payload", "2026-07-10", "2026-10-15", "merged", "l"),
     (None, "#3070 frr-k8s CRD align", "2026-07-20", "2026-07-22", "merged", "r"),
@@ -68,11 +69,14 @@ PRS = [
     (None, "#6655 vendor api + k8s 1.37 — closed: MCO team's #6661 supersedes", "2026-10-14", None, "closed", "l"),
     (None, "#6661 MCO k8s 1.37 rebase (umohnani8; api 6cace88a ⊇ BGPVIPConfig; OPNET-811 prereq)", "2026-10-16", "2026-10-22", "merged", "l"),
     (None, "#6673 static pods: no limits, mgmt annotation, kube-vip in kni-infra (OPNET-818)", "2026-10-22", "2026-10-23", "merged", "l"),
+    (None, "#6685 peers propagation + disable-connected-check (OPNET-811 fixes)", "2026-10-27", None, "open", "l"),
+    (None, "#6686 BGPVIPConfig CR consumer, ConfigMap path removed (OPNET-811)", "2026-10-27", None, "open", "l"),
     ("openshift/installer", "#10710 vendor pin — closed (#10713)", "2026-07-24", None, "closed", "l"),
     (None, "#10713 rebase/vendor wave", "2026-07-24", "2026-07-28", "merged", "l"),
     (None, "#10718 BGP VIP support", "2026-07-28", "2026-08-17", "merged", "l"),
     (None, "#10931 install-config aligned with the CRD", "2026-09-29", "2026-10-20", "merged", "l"),
     (None, "#10985 vendor openshift/api 8c03d1c + k8s 1.37 (OPNET-810)", "2026-10-14", "2026-10-21", "merged", "l"),
+    (None, "#11026 emit the BGPVIPConfig CR + peer password Secrets (OPNET-810)", "2026-10-27", None, "open", "l"),
 ]
 
 PHASES = [
@@ -90,6 +94,7 @@ PHASES = [
     ("stock nightly", "2026-10-16", "2026-10-16"),
     ("merge week", "2026-10-19", "2026-10-21"),
     ("CI + conventions in", "2026-10-22", "2026-10-26"),
+    ("TP consumers", "2026-10-27", "2026-10-27"),
 ]
 
 COLORS = {

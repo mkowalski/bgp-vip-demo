@@ -234,63 +234,56 @@ closed as superseded).
 
 ### Phase 3 — TechPreview
 
-0. **TP consumer PRs — plan as of 2026-10-26** (API merged 10-14 as
-   api#2972 8c03d1c42; vendor prerequisites on main since 10-22:
-   installer#10985, MCO#6661, CNO#3183 — CNO's api pin `f8795cdde518`
-   still predates #2972).
+0. **TP consumer PRs — status 2026-10-27** (decision by Mat 10-27: **no
+   ConfigMap fallback in the consumers, remove the ConfigMap path
+   everywhere** — no deployments use it). Merge order that keeps every
+   install green: installer emits CR **and** ConfigMap → MCO/CNO switch to
+   CR-only → installer drops the ConfigMap.
 
-   **Step 0 — openshift/api: ship the CRD (RUN-LEDGER finding K, blocks
-   everything).** `hack/update-payload-crds.sh` lists v1alpha1 CRDs
-   explicitly and #2972 added none, so no payload carries
-   `bgpvipconfigs.machineconfiguration.openshift.io`; the installer's CR
-   manifest cannot apply at bootstrap until it does. **openshift/api#3127
-   OPEN 2026-10-26** (`34e6fe4b7`: the glob + generated copy,
-   `verify-payload-crds` green; titled under OPNET-809 — reopen it or
-   file a story). api approvers.
+   **Step 0 — DONE: openshift/api#3127 merged 10-26** (finding K; CRD in
+   the integration stream and in nightly 10-27-082258). Guard:
+   **release#87762** (`bgp-vip-verify [1/6]` asserts the CRD), open,
+   needs Mat's signature.
 
-   **Step 1 — installer: emit CR + Secret *alongside* the ConfigMap.**
-   OPNET-810 is Closed although its description's CR-generation bullet is
-   not done (main still writes `bgp-vip-config`) → reopen or new story.
-   Branch `bgpvipconfig-crd`: drop the two vendor commits (main has
-   8c03d1c42, no replace pin); keep `a436c029a3` + `1864ea3844`
-   (`pkg/asset/manifests/bgpvipconfig.go` + test, +367/−88) but **keep
-   the ConfigMap path** for one release so MCO/CNO on the payload keep
-   working and so the consumers' CR path becomes CI-testable once this
-   merges. Adapt: `BFDMode`/`EBGPMultiHopMode` →
-   `FailureDetectionMode{BFD,HoldTimer}` / `PeerReachabilityMode{DirectlyConnected,MultiHop}`,
-   `Communities []BGPCommunity`, timers plain `int32`, no "" enums.
+   **Step 1 — installer#11026 OPEN** (`754370665d`): `BGPVIPConfigCR`
+   asset — `manifests/cluster-bgp-vip-02-config.yml` + one basic-auth
+   Secret per peer password in `manifests/<name>-secret.yaml`, enums
+   mapped 1:1, unset stays unset, `omitzero` on passwordSecret; rendered
+   CR accepted by `oc apply --dry-run=server` against the real CRD
+   (empty passwordSecret rejected). ConfigMap still emitted (drop in step
+   4). `/test e2e-metal-ipi-bgp-vip` running — first day-0 CR run ever.
+   Jira: OPNET-810 is Closed with this bullet undone → reopen or new story.
 
-   **Step 2 — MCO (OPNET-811).** Branch `bgpvipconfig-crd` (11 commits on
-   an Aug-04 base, 269 behind): 5 commits are merged #6326 content,
-   `e776f417e` is merged #6643, 2 are vendor commits → all drop; TP delta
-   = `e61b7fa6f` (CR → `BGPVIPPeersJSON`, dynamic informer/lister —
-   client-go has no typed BGPVIPConfig clients even on master),
-   `a06d490f5`, `b1527a97e`, `56ab76d64` (passwordSecret): 15 files,
-   +946/−112 incl. tests. Keep the ConfigMap fallback (CR wins when
-   present). Adapt enums/communities, drop `status.observedGeneration`
-   (per-condition only), SSA `Rendered` with `FieldManager:
-   "machine-config-operator"` + condition-writer unit tests. Expect
-   conflicts in `pkg/operator/sync.go` and the on-prem templates (#6643,
-   #6673 landed since).
+   **Step 2 — MCO: #6685 (fixes) + #6686 (consumer) OPEN.** #6685:
+   resourcemerge merges `BGPVIPPeersJSON` (day-2 changes were silently
+   dropped) + `disable-connected-check` per neighbor (v6 sessions stuck
+   Active after reboot). #6686, stacked: CR-only consumer — dynamic
+   informer created only when `BGPBasedVIPManagement` is enabled (the CRD
+   arrives with the gate), direct GET before the first list, transport
+   mapping identical to the installer's ConfigMap producer (only "true"
+   flags, bare-seconds timers → byte-identical peers file), passwordSecret
+   resolution (basic-auth, `password` ≤ 80 B), bootstrap reads
+   `--bgp-vip-config-file` (default `/assets/manifests/cluster-bgp-vip-02-config.yml`)
+   and finds Secrets by namespace/name in the same dir, `Rendered` via SSA
+   only after the ControllerConfig apply, NodeDisruptionPolicy None for
+   the peers file. Of the prepared branch's 11 commits, 7 were already
+   merged (#6326, #6643) and 2 were vendor commits; the 4 TP commits were
+   cherry-picked, adapted to the merged API (enum renames, `BGPCommunity`,
+   no `status.observedGeneration`) and squashed. Day-0 proof: `/testwith
+   openshift/installer/main/e2e-metal-ipi-bgp-vip` including #6686.
 
-   **Step 3 — CNO (OPNET-812).** (a) api-only bump to ≥ 8c03d1c42 (k8s
-   1.37 already in). (b) Branch `bgpvipconfig-crd` (9 commits, Jul-31
-   base, 109 behind): 4 commits are merged #3047 content, 2 vendor →
-   drop; TP delta = `26e115d72` (read the CR via `dynamicinformer`),
-   `2566dc602` (passwordSecret → copy to `openshift-frr-k8s`),
-   `a5680c393` (render the password inline — **keep** until
-   metallb/frr-k8s#511 ships in the frr-k8s image CNO deploys): 7 files,
-   +537/−174. ConfigMap fallback as in MCO; SSA `SessionsConfigured`
-   with `FieldManager: "cluster-network-operator"` + tests. Conflicts
-   expected in `pkg/network/bgp_vip.go` (#3195 peer port/timer contract).
+   **Step 3 — CNO (OPNET-812), next.** (a) api-only bump to ≥ 8c03d1c42
+   (main pins `f8795cdde518`; k8s 1.37 already in). (b) CR-only consumer
+   from `bgpvipconfig-crd` (`26e115d72` dynamicinformer read, `2566dc602`
+   passwordSecret → copy to `openshift-frr-k8s`, `a5680c393` inline
+   interim — **keep** until metallb/frr-k8s#511 ships in the image CNO
+   deploys), same API adaptations, ConfigMap read removed, SSA
+   `SessionsConfigured`. Conflicts expected in `pkg/network/bgp_vip.go`.
 
-   **Step 4 — flip + cleanup.** After 1–3 are in a nightly: installer
-   drops the ConfigMap, consumers drop the fallback (can wait for TP
-   promotion). Validation: `/testwith` combos on the bgp-vip lanes for
-   day-0 (the CR bootstrap path has **never** run — api-1/api-3 applied
-   the CRD by hand), the local stock cluster for day-2 (`oc edit
-   bgpvipconfig cluster`, ~45 s, no reboot via the peers-file
-   NodeDisruptionPolicy). Earlier: installer re-vendor DONE 10-21. Jira pass
+   **Step 4 — installer drops the ConfigMap asset** (`bgpvipconfig.go` +
+   test + wiring) once #6686 and the CNO consumer are in a nightly; MCO's
+   `--bgp-vip-config-file` flag stays (it now names the CR file).
+   Earlier: installer re-vendor DONE 10-21. Jira pass
    done the same day: OPNET-809/782/784 closed, OPNET-811/812 descriptions
    corrected. **Vendor bumps opened 2026-10-14** — api@8c03d1c42 requires
    k8s.io 0.37.1, so each is a full Kubernetes 1.37 bump (not a small api
