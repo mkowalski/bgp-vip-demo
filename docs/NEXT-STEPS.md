@@ -251,8 +251,10 @@ closed as superseded).
    mapped 1:1, unset stays unset, `omitzero` on passwordSecret; rendered
    CR accepted by `oc apply --dry-run=server` against the real CRD
    (empty passwordSecret rejected). ConfigMap still emitted (drop in step
-   4). `/test e2e-metal-ipi-bgp-vip` running — first day-0 CR run ever.
-   Jira: OPNET-810 is Closed with this bullet undone → reopen or new story.
+   4). `e2e-metal-ipi-bgp-vip` presubmit **SUCCESS** — first day-0 CR
+   install ever (CR applied at bootstrap, 6/6). Needs reviewers
+   (cybertron/zaneb/honza). Jira: OPNET-810 is Closed with this bullet
+   undone → reopen or new story (Mat's call).
 
    **Step 2 — MCO: #6685 (fixes) + #6686 (consumer) OPEN.** #6685:
    resourcemerge merges `BGPVIPPeersJSON` (day-2 changes were silently
@@ -269,8 +271,11 @@ closed as superseded).
    the peers file. Of the prepared branch's 11 commits, 7 were already
    merged (#6326, #6643) and 2 were vendor commits; the 4 TP commits were
    cherry-picked, adapted to the merged API (enum renames, `BGPCommunity`,
-   no `status.observedGeneration`) and squashed. Day-0 proof: `/testwith
-   openshift/installer/main/e2e-metal-ipi-bgp-vip` including #6686.
+   no `status.observedGeneration`) and squashed. **Day-0 proof SUCCESS
+   10-27** (multi-PR `installer#11026 + MCO#6686` on `e2e-metal-ipi-bgp-vip`:
+   bootstrap from the CR + Secret manifests, bgp-vip-verify 6/6). #6685's
+   only red is the `unit` flake family (`TestOSBuildController*`, red on
+   every MCO PR) → `/retest`; #6686 has no reds. Both need MCO approvers.
 
    **Step 3 — CNO (OPNET-812), both PRs open 10-27.** (a) **CNO#3206**
    (chai-bot): api `da0032bf0c5f` + client-go `48133ed95dad` *together* —
@@ -286,7 +291,15 @@ closed as superseded).
    `renderInlinePassword`, reference+copy path tested), `SessionsConfigured`
    via SSA (field manager `cluster-network-operator`, only that condition),
    missing CR → nothing rendered / no condition (as before),
-   `docs/bgp_vip_management.md` rewritten. Open the PR after (a) merges.
+   `docs/bgp_vip_management.md` rewritten. **Full-stack day-0 proof
+   10-27** (installer#11026 + CNO#3207 + MCO#6686 on
+   `e2e-metal-ipi-bgp-vip-ovn-bgp-metallb`): every BGP step green, red only
+   in conformance on payload-wide failures (RUN-LEDGER "Multi-PR day-0
+   proofs"). #3206 state: Mat lgtm'd; four **required** reds that are all
+   payload/infra flakes (`fdp-qe` 83672, `windows`, `dualstack-bgp` install
+   died at bootkube with the API VIP unreachable — 7/10 red across CNO PRs,
+   `hypershift-e2e-aks` NodePool upgrades) → `/retest`/`/override` +
+   `approved`. Then rebase #3207 to one commit and request review.
 
    **Step 4 — installer drops the ConfigMap asset** (`bgpvipconfig.go` +
    test + wiring) once #6686 and the CNO consumer are in a nightly; MCO's

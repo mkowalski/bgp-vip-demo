@@ -6,7 +6,7 @@ Dates from:  gh api repos/<org>/<repo>/pulls/<n> --jq '[.created_at,.merged_at,.
 """
 import datetime as dt
 
-TODAY = dt.date(2026, 10, 27)
+TODAY = dt.date(2026, 10, 28)
 START = dt.date(2026, 6, 20)
 END = dt.date(2026, 10, 31)
 
