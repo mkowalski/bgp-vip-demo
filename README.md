@@ -5,7 +5,7 @@ Working demo and upstreaming workspace of
 (OPNET-595/OPNET-773): BGP-based VIP management for on-premise OpenShift —
 kube-vip (routing-table mode) + frr-k8s static pods replacing keepalived.
 
-**Status (2026-10-28): DevPreview is merged in every repo, the TP `BGPVIPConfig` API (api#2972) and its payload CRD (api#3127, finding K) too, the CI lanes and their fixes (release#87192/#87522), the **nightly 5.1 periodics (release#87186; `bgp-vip` green on all six runs since it went live)**, and the platform-pod-convention fixes (**MCO#6673, OPNET-818** and **CNO#3202, OPNET-819**). **Tech Preview consumer wave — all PRs open and proven on day 0 (10-27)**: **installer#11026** (CR + Secrets alongside the ConfigMap; its own lane green), **MCO#6685 + #6686** (fixes + CR-only consumer), **CNO#3206 + #3207** (chai-bot's api/client-go bump + CR-only consumer); the ConfigMap path is being removed everywhere, no fallback. Multi-PR runs with the installer CR proved both consumers: MCO alone **SUCCESS**, the full stack **green on every BGP step** and red only on payload-wide conformance failures. release#87762 (CRD guard) is approved+verified, needs lgtm. Payload side cleared: `5.1.0-0.nightly-2026-10-27-151641` is Accepted and carries MCO#6673, CNO#3202 and api#3127 — the 10-28 `ovn-bgp-metallb` periodic has every BGP step green and the finding-I tests passing. Also open: **metallb/frr-k8s#511** (mixed inline/secret passwords, fixes #484; awaiting review), ovn-k#7099 (finding C, parked), frr-k8s#470 and enhancements#1982 (awaiting reviewers). Full handoff: docs/RUN-LEDGER.md 'HANDOFF STATE'.**
+**Status (2026-10-30): DevPreview is merged in every repo, the TP `BGPVIPConfig` API (api#2972) and its payload CRD (api#3127, finding K) too, the CI lanes and their fixes (release#87192/#87522), the **nightly 5.1 periodics (release#87186; `bgp-vip` green on all eight runs since it went live)**, the platform-pod-convention fixes (**MCO#6673, OPNET-818** and **CNO#3202, OPNET-819**), the CRD guard in the lane (**release#87762**, 10-28) and the frr-k8s webhook fix (**metallb/frr-k8s#511**, 10-28). **Tech Preview consumer wave — four PRs open, all proven on day 0 (10-27), none reviewed by a human yet**: **installer#11026** (CR + Secrets alongside the ConfigMap; its own lane green), **MCO#6685 + #6686** (fixes + CR-only consumer; #6685 has emy's lgtm), **CNO#3206 + #3207** (chai-bot's api/client-go bump with Mat's lgtm + CR-only consumer); the ConfigMap path is being removed everywhere, no fallback, and the last step — **installer#11049**, drop the ConfigMap asset — is open as a held draft stacked on #11026 (merge only once both consumers are in an Accepted nightly). Payload healthy again: `5.1.0-0.nightly-2026-10-29-150612` Accepted; the `ovn-bgp-metallb` periodic has every BGP step green and the finding-I tests passing, its conformance red is payload-wide **plus finding L** (new 10-30: `API LBs follow /readyz` fails on BGP VIP clusters — local clients reach the local not-ready apiserver through the VIP during master boot; unfiled, RUN-LEDGER findings ledger). Also open: ovn-k#7099 (finding C, parked), frr-k8s#470 and enhancements#1982 (awaiting reviewers). **The dev host metal-u15 is decommissioned 2026-10-31; nothing lives there that is not on GitHub.** Full handoff: docs/RUN-LEDGER.md 'HANDOFF STATE'.**
 All six demo criteria proven across 27 install runs (see
 [docs/demo-results.md](docs/demo-results.md), [docs/RUN-LEDGER.md](docs/RUN-LEDGER.md)):
 API + Ingress VIPs advertised via BGP from bootstrap through steady state,
@@ -50,8 +50,8 @@ Upstream state:
   #12 + #15; FRRouting/frr#22654 fixed upstream via #22676. **Not**
   fixed upstream: metallb/frr-k8s#484 (webhook rejects a shared neighbor
   that mixes `passwordSecret` and inline `password`) was auto-closed as
-  stale on 2026-09-20 — our fix is **metallb/frr-k8s#511** (open, see
-  below). Closed/superseded: installer#10710
+  stale on 2026-09-20 — our fix is **metallb/frr-k8s#511** (merged
+  2026-10-28, see below; not in a frr-k8s release yet). Closed/superseded: installer#10710
   (by #10713), CNO#3080 (dup of #3070), kube-vip#6, kube-vip#14 (by #12),
   MCO#6655 (by #6661).
 - **Merged — CI, continued (10-21/22)**: **release#87443** (chai-bot,
@@ -84,7 +84,7 @@ Upstream state:
   the payload-wide IPSec FDP test 83672 flake, overridden).
 - **Open**: **ovn-k#7099**
   (OCPBUGS-130338, finding C: VTEP picks the VIP) — draft, parked.
-  **metallb/frr-k8s#511** (2026-10-22, `fix/484-mixed-password-validation`):
+  **Merged 2026-10-28: metallb/frr-k8s#511** (`97c0d9349`, `fix/484-mixed-password-validation`):
   the validation webhook used an *empty* password for unresolved
   `passwordSecret` references, so a neighbor shared by a secret-backed
   FRRConfiguration (ours) and an inline-password one (MetalLB) was
@@ -93,8 +93,10 @@ Upstream state:
   a validation-only placeholder, keeps the known-password conflict
   checks, works on deep copies, and adds controller + webhook regression
   tests (both creation orders, updates, peer/VRF isolation, strict
-  reconciliation). Once it ships in the frr-k8s image CNO deploys, the
-  CNO inline fallback can revert to `passwordSecret` rendering.
+  reconciliation). Not in a frr-k8s release yet (v0.0.27 predates it);
+  once it ships in the frr-k8s image CNO deploys (`metallb-frr`, built
+  from github.com/openshift/frr), flip CNO's `renderInlinePassword` so
+  the FRRConfiguration carries the `passwordSecret` reference.
   metallb/frr-k8s#470 (redistribution design) and
   openshift/enhancements#1982 await reviewers.
 
@@ -164,10 +166,11 @@ the **target design**: the ConfigMap goes away — the installer generates the
 admission-validated, day-2-editable CR plus a basic-auth Secret; the
 operators watch the CR and report progress through status conditions.
 Everything below the MCO-internal transport is byte-identical to Dev Preview
-— the node-side contract never moves. As of 2026-10-22 only the CRD and the
-install-config field alignment (installer#10931) are merged; the installer
-still writes the ConfigMap, and the CR generation + operator consumers
-follow the vendor bumps (OPNET-811 via MCO#6661, OPNET-812 after CNO#3183):
+— the node-side contract never moves. As of 2026-10-30 the CRD ships in the
+payload (api#3127) and the whole consumer wave is open and day-0 proven:
+installer#11026 writes the CR + Secrets next to the ConfigMap, MCO#6686 and
+CNO#3207 read only the CR, installer#11049 (held) removes the ConfigMap once
+they are in a nightly:
 
 <img src="drawings/bgp-vip-tp-objects.svg" alt="Tech Preview objects and configuration flow" style="width: 95%; max-width: 1000px;">
 
@@ -182,18 +185,19 @@ replace paths).
 | Repo | PR branch (canonical) | Dev/demo branch |
 |---|---|---|
 | openshift/api | merged (#2923) | `OPNET-595-bgp-vip-management` |
-| installer | merged (#10718) | `OPNET-595-bgp-vip-management-vendored` |
-| machine-config-operator | merged (#6326, #6643, #6661 vendor, #6673 pod conventions) | `bgpvipconfig-crd` — the OPNET-811 consumer (11 commits on an Aug base, incl. a vendor commit + `mkowalski/openshift-api` replace pin to drop on rebase onto main, which now has the API) |
-| cluster-network-operator | merged (#3047, #3195, #3046, #3183 k8s 1.37, #3202 pod conventions) | `bgpvipconfig-crd` — the OPNET-812 consumer (9 commits on an old base, 1 replace pin; needs the api-only bump to ≥ 8c03d1c42 first) |
+| installer | merged (#10718, #10931 install-config ↔ CRD, #10985 k8s 1.37); **open #11026** (`opnet-810-bgpvipconfig-cr`: CR + peer Secrets, day-0 proven) → **open #11049** (`opnet-810-drop-bgpvip-configmap`: drop the ConfigMap; held draft, stacked on #11026) | `OPNET-595-bgp-vip-management-vendored`; the Aug prototype `bgpvipconfig-crd` (1864ea3844) is superseded, kept on the fork |
+| machine-config-operator | merged (#6326, #6643, #6661 vendor, #6673 pod conventions); **open #6685** (`opnet-811-bgp-vip-fixes`: peers-JSON merge + disable-connected-check; lgtm) → **open #6686** (`opnet-811-bgpvipconfig-consumer`: CR-only consumer, day-0 proven) | the Aug prototype `bgpvipconfig-crd` (56ab76d64) is superseded, kept on the fork |
+| cluster-network-operator | merged (#3047, #3195, #3046, #3183 k8s 1.37, #3202 pod conventions); **open #3206** (chai-bot api/client-go bump; lgtm) → **open #3207** (`opnet-812-bgpvipconfig-consumer`: CR-only consumer, full-stack day-0 proven) | the Aug prototype `bgpvipconfig-crd` (a5680c393) is superseded, kept on the fork |
 | baremetal-runtimecfg | merged (#395) | `OPNET-595-bgp-vip-management` |
 | kube-vip | upstream #1604 #1627 #1636 #1671 #1675 merged; downstream #2/#3/#4/#12/#15 merged, #6/#14 closed | `OPNET-595-bgp-vip-management` |
-| metallb/frr-k8s | open #470 (`redistribution-support`, design doc), **open #511** (`fix/484-mixed-password-validation`, mixed inline/secret passwords) | — |
-| dev-scripts | merged (#1929, #1939, #1945) | `/root/dev-scripts` on the host: `bgp-5.1-run` (deploy config of the running cluster) |
-| openshift/release | merged (#80926, #81065, #81957, #82698, #82912, #86746, #87443, #87192, #87186); **open #87522** (`bgp-vip-lb-echo-namespace`) | fork is `mkowalski/openshift-release` (renamed from `mkowalski/release`; old URL redirects) |
+| metallb/frr-k8s | open #470 (`redistribution-support`, design doc); **merged #511** (2026-10-28, `fix/484-mixed-password-validation`, mixed inline/secret passwords — not in a release yet) | — |
+| dev-scripts | merged (#1929, #1939, #1945) | `/root/dev-scripts` on metal-u15: `bgp-5.1-run` (deploy config of the last cluster) — **host decommissioned 2026-10-31** |
+| openshift/release | merged (#80926, #81065, #81957, #82698, #82912, #86746, #87443, #87192, #87186, #87522, **#87762** CRD guard) | fork is `mkowalski/openshift-release` (renamed from `mkowalski/release`; old URL redirects). The installer fork was renamed too: `mkowalski/openshift-installer` (old `mkowalski/installer` redirects) |
 
-Images: the running cluster (run 5.1-stock, since 2026-10-16) is the **stock
+Images: the last cluster (run 5.1-stock, 2026-10-16 → host decommissioned
+2026-10-31) was the **stock
 nightly** `5.1.0-0.nightly-2026-10-16-040146` — no custom images, no fork
-`replace`s; only the three masters' frr-k8s static pod manifest is
+`replace`s; only the three masters' frr-k8s static pod manifest was
 hot-patched with MCO#6643's diff (merged since). Previous 5.1 cycle
 (5.1-evpn) used `quay.io/mkowalski/ocp-release:bgp-vip-5.1` (base
 5.1.0-0.nightly-2026-10-06-091356 + CNO#3047+#3046 image).

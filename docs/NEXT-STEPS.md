@@ -14,7 +14,18 @@ TechPreview, EP 066d3556).
 
 ### Phase 0 — now, nothing blocked (parallel)
 
-1. Review-chase (updated 2026-10-26): **finding I/J fixes merged** —
+1. Review-chase (updated 2026-10-30 — **host metal-u15 goes away 10-31;
+   the live board is RUN-LEDGER "Where things stand"**): the TP consumer
+   wave is the only open feature work — installer#11026 (no review yet),
+   MCO#6685 (lgtm emy, needs approve + OCL-flake retest) → #6686 (no
+   review yet), CNO#3206 (lgtm Mat, needs override of fdp-qe + approve) →
+   #3207 (rebase + review after), installer#11049 (held draft, step 4).
+   release#87762 and frr-k8s#511 merged 10-28. Periodics: `bgp-vip` 8/8
+   green; `ovn-bgp-metallb` every BGP step green, conformance red on
+   payload-wide tests **plus finding L (ours, new 10-30, unfiled)**; `evpn`
+   red on finding C until ovn-k#7099. Jira: OPNET-811/812 still "To Do"
+   with PRs open → In Progress; OPNET-810 Closed but carries #11026/#11049.
+   Earlier (2026-10-26): **finding I/J fixes merged** —
    MCO#6673 (10-23, OPNET-818 closed) and CNO#3202 (10-26, OPNET-819
    closed). **Periodics: `bgp-vip` 4/4 green (10-23→26); `ovn-bgp-metallb`
    red both runs on finding B** because `nightly/latest` is still
@@ -234,27 +245,30 @@ closed as superseded).
 
 ### Phase 3 — TechPreview
 
-0. **TP consumer PRs — status 2026-10-27** (decision by Mat 10-27: **no
+0. **TP consumer PRs — status 2026-10-30** (decision by Mat 10-27: **no
    ConfigMap fallback in the consumers, remove the ConfigMap path
    everywhere** — no deployments use it). Merge order that keeps every
    install green: installer emits CR **and** ConfigMap → MCO/CNO switch to
-   CR-only → installer drops the ConfigMap.
+   CR-only → installer drops the ConfigMap. **Two of six merged (api#3127,
+   release#87762); the other four are open and have had no human review
+   as of 10-30 — the remaining work is review-chasing, not code.** Live
+   state: RUN-LEDGER "Where things stand" (refreshed 10-30).
 
    **Step 0 — DONE: openshift/api#3127 merged 10-26** (finding K; CRD in
-   the integration stream and in nightly 10-27-082258). Guard:
-   **release#87762** (`bgp-vip-verify [1/6]` asserts the CRD), open,
-   needs Mat's signature.
+   every Accepted nightly since 10-27-151641). Guard
+   **release#87762 MERGED 10-28** (`bgp-vip-verify [1/6]` asserts the CRD;
+   the 10-29/10-30 `bgp-vip` periodics ran with it, green).
 
-   **Step 1 — installer#11026 OPEN** (`754370665d`): `BGPVIPConfigCR`
-   asset — `manifests/cluster-bgp-vip-02-config.yml` + one basic-auth
-   Secret per peer password in `manifests/<name>-secret.yaml`, enums
-   mapped 1:1, unset stays unset, `omitzero` on passwordSecret; rendered
-   CR accepted by `oc apply --dry-run=server` against the real CRD
-   (empty passwordSecret rejected). ConfigMap still emitted (drop in step
-   4). `e2e-metal-ipi-bgp-vip` presubmit **SUCCESS** — first day-0 CR
-   install ever (CR applied at bootstrap, 6/6). Needs reviewers
-   (cybertron/zaneb/honza). Jira: OPNET-810 is Closed with this bullet
-   undone → reopen or new story (Mat's call).
+   **Step 1 — installer#11026 OPEN** (`754370665d`, unchanged since 10-27):
+   `BGPVIPConfigCR` asset — `manifests/cluster-bgp-vip-02-config.yml` + one
+   basic-auth Secret per peer password in `manifests/<name>-secret.yaml`,
+   enums mapped 1:1, unset stays unset, `omitzero` on passwordSecret;
+   rendered CR accepted by `oc apply --dry-run=server` against the real
+   CRD. ConfigMap still emitted (dropped in step 4). `e2e-metal-ipi-bgp-vip`
+   presubmit **SUCCESS** — first day-0 CR install ever. **Needs reviewers**
+   (requested andfasano/rwsu; cybertron/zaneb/honza are the natural ones).
+   Jira: OPNET-810 is Closed with this bullet undone → reopen or new story
+   (Mat's call; `jira/valid-reference` was granted regardless).
 
    **Step 2 — MCO: #6685 (fixes) + #6686 (consumer) OPEN.** #6685:
    resourcemerge merges `BGPVIPPeersJSON` (day-2 changes were silently
@@ -273,36 +287,57 @@ closed as superseded).
    cherry-picked, adapted to the merged API (enum renames, `BGPCommunity`,
    no `status.observedGeneration`) and squashed. **Day-0 proof SUCCESS
    10-27** (multi-PR `installer#11026 + MCO#6686` on `e2e-metal-ipi-bgp-vip`:
-   bootstrap from the CR + Secret manifests, bgp-vip-verify 6/6). #6685's
-   only red is the `unit` flake family (`TestOSBuildController*`, red on
-   every MCO PR) → `/retest`; #6686 has no reds. Both need MCO approvers.
+   bootstrap from the CR + Secret manifests, bgp-vip-verify 6/6).
+   **10-30 state:** #6685 has **emy's lgtm (10-28)** and Mat's
+   `/override-sticky ci/prow/unit`; the lgtm re-ran the pipeline and
+   `e2e-gcp-op-ocl-part1` (required) went red 10-28 17:35 — untriaged,
+   almost certainly a flake (the PR has no OCL code) → compare with the
+   job's history, `/retest`, then it needs `approved`. #6686 unchanged,
+   no reds, no human review yet (requested cybertron/pablintino).
 
    **Step 3 — CNO (OPNET-812), both PRs open 10-27.** (a) **CNO#3206**
    (chai-bot): api `da0032bf0c5f` + client-go `48133ed95dad` *together* —
    api alone fails to build against the Oct-1 client-go (dropped
    `config/v1alpha1` CRIOCredentialProviderConfig applyconfigurations);
    tree byte-identical to the pair I verified (build/vet/19 test pkgs,
-   k8s 0.37.1 unchanged). Mat lgtm+merge. (b) **CNO#3207**, stacked on
+   k8s 0.37.1 unchanged). Mat lgtm'd 10-27. (b) **CNO#3207**, stacked on
    #3206 (`6e97c9955`):
    re-implemented on today's `bgp_vip.go` (the Aug cherry-pick had 12
    conflict blocks) — CR via dynamic client, feature-gated dynamic informer
    in operconfig, VIPs from Infrastructure status, passwordSecret resolved
-   + rendered inline (interim for frr-k8s#484; #511 flips
-   `renderInlinePassword`, reference+copy path tested), `SessionsConfigured`
-   via SSA (field manager `cluster-network-operator`, only that condition),
-   missing CR → nothing rendered / no condition (as before),
-   `docs/bgp_vip_management.md` rewritten. **Full-stack day-0 proof
-   10-27** (installer#11026 + CNO#3207 + MCO#6686 on
+   + rendered inline (interim for frr-k8s#484; **#511 merged upstream
+   10-28** — flip `renderInlinePassword` once a frr-k8s release with it
+   reaches the payload's `metallb-frr` image; reference+copy path tested),
+   `SessionsConfigured` via SSA (field manager `cluster-network-operator`,
+   only that condition), missing CR → nothing rendered / no condition (as
+   before), `docs/bgp_vip_management.md` rewritten. **Full-stack day-0
+   proof 10-27** (installer#11026 + CNO#3207 + MCO#6686 on
    `e2e-metal-ipi-bgp-vip-ovn-bgp-metallb`): every BGP step green, red only
    in conformance on payload-wide failures (RUN-LEDGER "Multi-PR day-0
-   proofs"). #3206 state: Mat lgtm'd; four **required** reds that are all
-   payload/infra flakes (`fdp-qe` 83672, `windows`, `dualstack-bgp` install
-   died at bootkube with the API VIP unreachable — 7/10 red across CNO PRs,
-   `hypershift-e2e-aks` NodePool upgrades) → `/retest`/`/override` +
-   `approved`. Then rebase #3207 to one commit and request review.
+   proofs"). **10-30 state:** #3206 still red on the required
+   `e2e-aws-ovn-fdp-qe` after Mat's 10-29 `/test` (test 83672, payload-wide
+   flake) → `/override` + `/approve`; CodeRabbit's "changes requested" on
+   both is bot noise, but its one real nit on #3207 (`bgp_vip.go:161`, seed
+   the condition inputs when `FromUnstructured` fails) should be folded in
+   when #3207 is rebased to one commit after #3206 merges.
 
-   **Step 4 — installer drops the ConfigMap asset** (`bgpvipconfig.go` +
-   test + wiring) once #6686 and the CNO consumer are in a nightly; MCO's
+   **Step 4 — installer drops the ConfigMap asset: OPEN as
+   openshift/installer#11049 (2026-10-30, held draft)**, branch
+   `mkowalski/openshift-installer:opnet-810-drop-bgpvip-configmap`, one
+   commit `57c6209d86` stacked on #11026: deletes
+   `pkg/asset/manifests/bgpvipconfig.go` + `_test.go`, the 4 wiring lines
+   in `operators.go`, the "alongside the ConfigMap" doc comment in
+   `bgpvipconfigcr.go`; the shared `bgpInstallConfig()` test fixture moved
+   into `bgpvipconfigcr_test.go` (+30/−302; vet/test/lint clean). Nothing
+   else reads the ConfigMap (checked: openshift/release step registry,
+   dev-scripts, installer docs; MCO#6686 keeps the name only in negative
+   test fixtures). Stale `manifests/bgp-vip-config.yaml` in old asset dirs
+   stays harmless — `Manifests.Load` globs the directory. **Un-hold only
+   when** #11026 is merged (rebase onto main → 1 commit) **and** MCO#6686 +
+   CNO#3207 are in an **Accepted nightly** (`oc adm release info --commits`;
+   merged ≠ built — ART lagged merges by days in October); proof via
+   `/testwith … openshift/cluster-network-operator#3207
+   openshift/machine-config-operator#6686` before that. MCO's
    `--bgp-vip-config-file` flag stays (it now names the CR file).
    Earlier: installer re-vendor DONE 10-21. Jira pass
    done the same day: OPNET-809/782/784 closed, OPNET-811/812 descriptions
@@ -440,7 +475,7 @@ Earlier history: BGPVIPStatus dropped (6d527fe4).
 | frr-k8s (metallb/frr-k8s) | Feature request: advertise redistributed/table-direct routes (CRD egress is bound to declared prefixes; our raw `-out` route-map permits couple to internal naming — fragile across bumps) | **FILED: https://github.com/metallb/frr-k8s/issues/469**; design doc **PR OPEN: https://github.com/metallb/frr-k8s/pull/470** — **maintainer review received 2026-09-29 (fedepaol)**: flat `allowedPrefixes` too narrow, wants the `toReceive`-style selector. **REVISED 6101f9d (2026-09-30)**: `allowed: {mode: all\|filtered, prefixes: [PrefixSelector]}` reusing the existing type; `mode` defaults to `filtered`, fail-closed, any `all` producer wins the merge. **THEN deep-review self-audit (7 specialists) found a real design flaw — 4-way convergence: revision 2 let redistributed routes out by appending selectors to the neighbor's `-allowed-` prefix-list, which is the source-blind sole egress gate; a range or `mode: all` there also matches routes RECEIVED from other peers → the node silently becomes a transit router. REVISED AGAIN 3133ddc: origin-scoped egress — `set tag <table>` on ingress, `match tag` clause in the `-out` route-map, added only for neighbors opting in via the new `toAdvertise.redistributed.tables: [ids]`; neighbor prefix-lists and validateOutgoingPrefixes untouched; cross-producer composition well-defined (references resolve against the merged router); reserved tables 253-255 rejected, family-max le/ge, Merge/Security/Internal-types sections, no-transit e2e.** CNO impact: `redistribute: [{table: 198, allowed: {prefixes: [VIP/32s]}}]` + `redistributed: {tables: [198]}` per ToR peer — still zero functional cost and the rawConfig `permit 4000` hack disappears. PR description carries a mermaid flow diagram. **d91965f (2026-09-30)**: CodeRabbit on rev 3 found a real gap — BGP picks one best path per prefix before outbound policy, so the same prefix in two tables carries one tag and a neighbor opted into the other table silently under-advertises (no fallback); design now REJECTS overlapping table filters per family on the merged router (CIDR-contains + length-window-intersect predicate, ~15 lines when implemented; `mode: all` = family-wide selector). Narrow corner case, zero impact on our single-table use. **db1b163 (2026-10-01)**: CodeRabbit security finding — declared-prefix `-out` clauses ran before the opt-in clause and matched by prefix alone, so a table route sharing an NLRI with a declared prefix bypassed the opt-in; fixed by adding `match tag untagged` (FRR 10.4 keyword, verified in docs) to the declared-prefix clauses so tagged routes exit only via opt-in — origin-scoping now applied to BOTH clause kinds; no-bypass e2e added. **fedepaol round 2 (2026-10-01)**: advertisement-direction wording fixed (0453e51); Dual-stack / Generated FRR Configuration (incl. Origin-scoped egress) / Internal types sections DROPPED as implementation detail at his request (4b06c1a, 350→239 lines) — behavioral contracts (no-transit, no-bypass, single-best-path overlap reason, v4/v6 mixing) preserved mechanism-free in Security/Validation/API sections; the tag mechanism lives in branch history (db1b163, 0453e51) for the implementer. PR mermaid reduced to flow boxes. **All four round-2 comments answered by Mat (2026-10-01)**: direction wording and impl-detail removal confirmed as fixed; the router-vs-neighbor placement question answered holding the router-level position (`allowed` = FRR's `router bgp / redistribute ... route-map`, i.e. what enters BGP; moving it to neighbors would make ingress the union of per-neighbor filters; per-neighbor subsets of one table are the one thing the current shape cannot express — `toAdvertise.redistributed.tables` is an object so a per-table selector can be added later). **Awaiting fedepaol's response.** Ref copies: docs/frr-k8s-feature-request-draft.md, docs/frr-k8s-redistribute-design-draft.md; implementation offer stands |
 | metallb-operator (metallb/metallb-operator) | BUG: manifest-install deadlock — controller/speaker mount certs secrets whose producing monitor Services only render with DEPLOY_SERVICEMONITORS=true (found coex-2) | **FILED: OCPBUGS-105394** (2026-08-07, by Mat; draft: docs/metallb-operator-servicemonitors-bug-draft.md) |
 | metallb-operator (metallb/metallb-operator) | BUG: webhook server's METALLB_BGP_TYPE is a static manifest value, never reconciled from the MetalLB CR's bgpBackend — validation rejects IPv6 resources in frr-k8s mode as "native bgp mode does not support ipv6" (found coex-3) | **FILED: OCPBUGS-105395** (2026-08-07, by Mat; draft: docs/metallb-operator-webhook-bgptype-bug-draft.md) |
-| frr-k8s (metallb/frr-k8s) | BUG: validation webhook blanks passwordSecret before merge validation (resetSecrets) — secret-ref + inline password for a shared neighbor is permanently rejected even when values match; wedges ALL FRRConfiguration writes (found api-2; MetalLB always inlines, so any passwordSecret adopter collides) | **FILED: https://github.com/metallb/frr-k8s/issues/484 — auto-closed as STALE 2026-09-20, never fixed** (earlier note here claiming "fixed upstream" was wrong). **FIX PR: https://github.com/metallb/frr-k8s/pull/511 (2026-10-22, Mat, `fix/484-mixed-password-validation`, +531/-3)**: `internal/controller/validate.go` validates unresolved secret refs with a validation-only placeholder password instead of an empty one, keeps the known-password conflict checks, works on deep copies so validation cannot mutate caller-owned configs; regression tests in `validate_test.go` + `webhooks/frrconfiguration_password_test.go` (both creation orders, updates, peer/VRF isolation, input immutability, strict reconciliation). Then: the CNO inline-password fallback can revert to passwordSecret rendering once a frr-k8s release/vendor bump with #511 reaches the CNO DaemonSet — verify the fix version at the CRD-wave rework (OPNET-812) |
+| frr-k8s (metallb/frr-k8s) | BUG: validation webhook blanks passwordSecret before merge validation (resetSecrets) — secret-ref + inline password for a shared neighbor is permanently rejected even when values match; wedges ALL FRRConfiguration writes (found api-2; MetalLB always inlines, so any passwordSecret adopter collides) | **FILED: https://github.com/metallb/frr-k8s/issues/484 — auto-closed as STALE 2026-09-20, never fixed** (earlier note here claiming "fixed upstream" was wrong). **FIX PR MERGED: https://github.com/metallb/frr-k8s/pull/511 (opened 2026-10-22, merged 2026-10-28 as `97c0d9349`; fedepaol asked whether it was a real scenario, Mat answered 10-29)**: `internal/controller/validate.go` validates unresolved secret refs with a validation-only placeholder password instead of an empty one, keeps the known-password conflict checks, works on deep copies so validation cannot mutate caller-owned configs; regression tests in `validate_test.go` + `webhooks/frrconfiguration_password_test.go`. **Not in a frr-k8s release yet** (v0.0.27 is 2026-10-14). Then: flip CNO's `renderInlinePassword` (code path exists in CNO#3207) once a frr-k8s release/vendor bump with #511 reaches the payload's `metallb-frr` image (built from `github.com/openshift/frr`, see RUNBOOK "FRR provenance") |
 | frr-k8s (metallb/frr-k8s) | RFE: file-form FRRConfiguration source (disk-loaded manifests merged with API CRs; fedepaol's suggestion on EP #1982) — removes bootstrap frr.conf + CRD handover seam | **TO FILE, pre-GA — deliberately deferred** until #469/#470 conclude; details in "Pre-GA" note under Phase 3 above. NOT covered by #470 (that PR is redistribution API only) |
 | FRR | upstream: b2c17ad52 backport request to stable/10.4 (pending); NEW zebra bug (addr/route same-batch race) **FILED: https://github.com/FRRouting/frr/issues/22654** — **root cause FIXED**: branch `table-scoped-early-cleanup` on mkowalski/frr (8989c33); upstream PR against FRRouting/frr referencing #22654 STILL TO SUBMIT (fix forward-ports: master needs the same table check; master already has the vrf scoping + the debug-path UAF fix); downstream: frr10 RPM backport **filed as RHEL-193997** | `patches/frr/0001-zebra-Do-not-clear-selected-flag-on-route-about-to-b.patch`, `patches/frr/0002-zebra-scope-early-route-queue-cleanup-to-the-matchin.patch`, `lab/frr-lab-addr-route-race.sh` |
 | dev-scripts | **PR OPEN** — https://github.com/openshift-metal3/dev-scripts/pull/1929 (`ENABLE_BGP_TOR`, live-validated) | dev-scripts repo |
@@ -755,4 +790,8 @@ re-sign (`git rebase --exec 'git commit --amend --no-edit -S'`).
 | OPNET-815 (A) | dev-scripts | **MERGED 2026-10-21 with #1945** — pushed as 420499a — ToR `ebgp-multihop` + 4784/udp for multihop BFD |
 | OPNET-815 (C) | ovn-kubernetes | **OCPBUGS-130338** — unmanaged VTEP discovery picks the API/Ingress VIP (kube-vip on v4; any VIP on v6). **Fix validated live** on branch `mkowalski/ovn-kubernetes:ocpbugs-130338-vtep-primary-ifaddr` (patch in bug + `patches/ovn-kubernetes/`); upstream PR pending; release#86746 check [4/5] now passes with it |
 | OPNET-778 | PoC | github.com/mkowalski/bgp-vip-demo (complete) |
+| OPNET-809 | openshift/api | **CLOSED** — #2972 (TP `BGPVIPConfig` CRD, merged 2026-10-14) + #3127 (CRD shipped in the payload, finding K, merged 2026-10-26) |
+| OPNET-810 | installer | Jira **Closed** (10-21, for the install-config ↔ CRD alignment #10931 + the 1.37 re-vendor #10985) **but carries two open PRs**: **#11026** (emit the `BGPVIPConfig` CR + peer Secrets alongside the ConfigMap; day-0 proven; no review yet) and **#11049** (drop the ConfigMap; held draft, stacked on #11026 — merge last). Reopen or re-home under a new story — Mat's call |
+| OPNET-811 | machine-config-operator | Jira **To Do** (should be In Progress): vendor via #6661 (merged 10-22); **#6685** (fixes: peers-JSON merge, disable-connected-check; lgtm emy 10-28, needs approve) → **#6686** (CR-only consumer; day-0 proven; no review yet) |
+| OPNET-812 | cluster-network-operator | Jira **To Do** (should be In Progress): **#3206** (chai-bot api/client-go bump; lgtm Mat, needs fdp-qe override + approve) → **#3207** (CR-only consumer; full-stack day-0 proven; rebase to 1 commit + review after #3206) |
 | OPNET-621/622/623 | testing/CI | **STARTED 2026-07-30**: (a) dev-scripts one-click knob **MERGED: openshift-metal3/dev-scripts#1939** (2026-07-31) (`BGP_VIP_MANAGEMENT=true` renders bgpVIPConfig into the install-config; hard-fail validation without ENABLE_BGP_TOR or a DevPreview FEATURE_SET; render+guardrails validated on metal-u15; **full install validated 2026-07-31** — knob-deployed cluster passes the CI verify script verbatim, see RUN-LEDGER row 27); (b) CI lane **MERGED: openshift/release#82698** (2026-07-31) (`baremetalds-e2e-bgp-vip` workflow: install + `baremetalds-e2e-bgp-vip-verify` acceptance step — vipManagement=BGP, static pods/no keepalived, ToR path counts per VIP via vtysh, console 200; verify script validated verbatim against the live run26 cluster; optional on-demand presubmit `e2e-metal-ipi-bgp-vip` on openshift/installer, red-by-design until the feature PRs merge, `/pj-rehearse ack` posted). **First combined run executed 2026-08-04** via multi-PR testing (`/testwith openshift/installer/main/e2e-metal-ipi-bgp-vip` + MCO#6326 + CNO#3047 + runtimecfg#395, commented on installer#10718): all four PRs merged into one payload, the dev-scripts knob + guardrails executed in CI, the installer rendered bgpVIPConfig, and MCO selected the BGP path — failing exactly at the designed D1 fail-fast: `kube-vip ("") image is missing from the release payload` (frr-k8s resolved fine from the metallb-frr tag). Sole blocker for a green lane: the ocp/5.0 integration stream never received the kube-vip istag despite the successful 2026-07-29 promotion (quay push confirmed in the postsubmit log) — **DPTP question posted on release#81957**; once the tag materializes, restore MCO's image-references commit (kept ready as cherry-pick 6894c3065-equivalent) and rerun the /testwith. Note: CNO#3047 needed a rebase for the multi-PR merge (upstream added bootstrapResult/TLS plumbing to renderAdditionalRoutingCapabilities; merged signatures). Follow-ups once green: extend presubmit to MCO/CNO, conformance variant, dualstack variant, nightly periodic |
