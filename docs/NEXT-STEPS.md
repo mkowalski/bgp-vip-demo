@@ -14,8 +14,20 @@ TechPreview, EP 066d3556).
 
 ### Phase 0 — now, nothing blocked (parallel)
 
-1. Review-chase (updated 2026-10-30 — **host metal-u15 goes away 10-31;
-   the live board is RUN-LEDGER "Where things stand"**): the TP consumer
+1. **Update 2026-11-06 — the TP consumer wave is done except one PR in
+   the merge pool.** Merged: MCO#6685 (10-30), CNO#3206 (11-02), MCO#6686
+   + installer#11026 (11-04), CNO#3207 (11-05). **installer#11073**
+   (chai-bot; drops the never-released `bgp-vip-config` ConfigMap) has
+   lgtm + approved + verified and waits for tide; installer#11049 closed
+   as superseded. Remaining work, in order: (1) watch #11073 merge;
+   (2) confirm the first nightly with #11073 is Accepted and the BGP
+   periodics stay green on it; (3) Jira pass: OPNET-811/812 → Closed (both
+   still "To Do"), OPNET-810 already Closed (comment with #11026/#11073);
+   (4) OPNET-820 / finding L fix; (5) Tech Preview graduation (§E: gate
+   promotion, 5+ gate-tagged e2e tests, alerts, install-config docs);
+   (6) flip CNO `renderInlinePassword` once a frr-k8s release with #511
+   reaches `metallb-frr`. Live board: RUN-LEDGER "Where things stand".
+   History (2026-10-30 — **host metal-u15 went away 10-31**): the TP consumer
    wave is the only open feature work — installer#11026 (no review yet),
    MCO#6685 (lgtm emy, needs approve + OCL-flake retest) → #6686 (no
    review yet), CNO#3206 (lgtm Mat, needs override of fdp-qe + approve) →
@@ -245,7 +257,24 @@ closed as superseded).
 
 ### Phase 3 — TechPreview
 
-0. **TP consumer PRs — status 2026-10-30** (decision by Mat 10-27: **no
+0. **TP consumer PRs — status 2026-11-06: steps 0-3 MERGED, step 4 in
+   the merge pool.** MCO#6685 (10-30, `f126b46ba`), CNO#3206 (11-02,
+   `4b839b0fc`), MCO#6686 (11-04, `e2f4c5b38`), installer#11026 (11-04,
+   `83929093d`), CNO#3207 (11-05, `e2c7bfa30`; the CodeRabbit
+   `FromUnstructured` nit is folded in). Step 4 is **installer#11073**
+   (chai-bot, head `b701c7e3c`), the same production diff as Mat's #11049,
+   which is closed as superseded. Mat can't lgtm his own PR, hence the bot
+   copy. Gate used instead of an Accepted nightly (5.1 nightlies Rejected
+   since 11-04 on an unrelated HyperShift `BackendDisruption` failure):
+   payload runs `/payload-job-with-prs …-e2e-metal-ipi-bgp-vip-ovn-bgp-metallb
+   CNO#3207 MCO#6686` on #11049 and #11073 — install + all three BGP verify
+   steps green on both. The #11049 conformance had 5 blocking failures:
+   2 also in the periodic, and 3 new ones clustered in one 15-minute
+   disruption window, judged unrelated. The ConfigMap was never released,
+   so #11073 carries no back-compat code (Mat, 11-06). First nightly with
+   all three consumers: `5.1.0-0.nightly-2026-11-06-113542`.
+   Earlier status (2026-10-30) follows.
+   Original status 2026-10-30 (decision by Mat 10-27: **no
    ConfigMap fallback in the consumers, remove the ConfigMap path
    everywhere** — no deployments use it). Merge order that keeps every
    install green: installer emits CR **and** ConfigMap → MCO/CNO switch to
@@ -321,8 +350,11 @@ closed as superseded).
    the condition inputs when `FromUnstructured` fails) should be folded in
    when #3207 is rebased to one commit after #3206 merges.
 
-   **Step 4 — installer drops the ConfigMap asset: OPEN as
-   openshift/installer#11049 (2026-10-30, held draft)**, branch
+   **Step 4 — installer drops the ConfigMap asset: installer#11073 in the
+   merge pool 2026-11-06 (lgtm/approved/verified); #11049 closed as
+   superseded. Text below is the 10-30 plan — the "Stale … old asset dirs"
+   point is moot (never released).** Was: OPEN as
+   openshift/installer#11049 (2026-10-30, held draft), branch
    `mkowalski/openshift-installer:opnet-810-drop-bgpvip-configmap`, one
    commit `57c6209d86` stacked on #11026: deletes
    `pkg/asset/manifests/bgpvipconfig.go` + `_test.go`, the 4 wiring lines
@@ -791,8 +823,8 @@ re-sign (`git rebase --exec 'git commit --amend --no-edit -S'`).
 | OPNET-815 (C) | ovn-kubernetes | **OCPBUGS-130338** — unmanaged VTEP discovery picks the API/Ingress VIP (kube-vip on v4; any VIP on v6). **Fix validated live** on branch `mkowalski/ovn-kubernetes:ocpbugs-130338-vtep-primary-ifaddr` (patch in bug + `patches/ovn-kubernetes/`); upstream PR pending; release#86746 check [4/5] now passes with it |
 | OPNET-778 | PoC | github.com/mkowalski/bgp-vip-demo (complete) |
 | OPNET-809 | openshift/api | **CLOSED** — #2972 (TP `BGPVIPConfig` CRD, merged 2026-10-14) + #3127 (CRD shipped in the payload, finding K, merged 2026-10-26) |
-| OPNET-810 | installer | Jira **Closed** (10-21, for the install-config ↔ CRD alignment #10931 + the 1.37 re-vendor #10985) **but carries two open PRs**: **#11026** (emit the `BGPVIPConfig` CR + peer Secrets alongside the ConfigMap; day-0 proven; no review yet) and **#11049** (drop the ConfigMap; held draft, stacked on #11026 — merge last). Reopen or re-home under a new story — Mat's call |
-| OPNET-811 | machine-config-operator | Jira **To Do** (should be In Progress): vendor via #6661 (merged 10-22); **#6685** (fixes: peers-JSON merge, disable-connected-check; lgtm emy 10-28, needs approve) → **#6686** (CR-only consumer; day-0 proven; no review yet) |
-| OPNET-812 | cluster-network-operator | Jira **To Do** (should be In Progress): **#3206** (chai-bot api/client-go bump; lgtm Mat, needs fdp-qe override + approve) → **#3207** (CR-only consumer; full-stack day-0 proven; rebase to 1 commit + review after #3206) |
+| OPNET-810 | installer | Jira **Closed** (10-21). Follow-ups landed under the same key: **#11026 MERGED 11-04** (`83929093d`, CR + peer Secrets) and **#11073 in the merge pool 11-06** (chai-bot, drop the never-released ConfigMap; lgtm/approved/verified). #11049 (same change, Mat) closed as superseded. Add a Jira comment linking both once #11073 merges |
+| OPNET-811 | machine-config-operator | **Code complete 11-04** — vendor via #6661 (10-22), **#6685 MERGED 10-30**, **#6686 MERGED 11-04** (CR-only consumer). Jira still **To Do** → close |
+| OPNET-812 | cluster-network-operator | **Code complete 11-05** — **#3206 MERGED 11-02** (chai-bot api/client-go bump), **#3207 MERGED 11-05** (CR-only consumer). Jira still **To Do** → close. Follow-up: flip `renderInlinePassword` once frr-k8s#511 ships |
 | OPNET-820 | MCO / baremetal-runtimecfg / kube-vip | **Bug, filed 2026-10-30** (finding L): under BGP VIP management the API VIP is a local address before haproxy's `/readyz` redirect exists, so local clients hit the not-ready local kube-apiserver during master boot (`API LBs follow /readyz` conformance test, 3/4 BGP runs, 0/300 stock metal HA). No PR yet; fix candidates a/b/c in the bug |
 | OPNET-621/622/623 | testing/CI | **STARTED 2026-07-30**: (a) dev-scripts one-click knob **MERGED: openshift-metal3/dev-scripts#1939** (2026-07-31) (`BGP_VIP_MANAGEMENT=true` renders bgpVIPConfig into the install-config; hard-fail validation without ENABLE_BGP_TOR or a DevPreview FEATURE_SET; render+guardrails validated on metal-u15; **full install validated 2026-07-31** — knob-deployed cluster passes the CI verify script verbatim, see RUN-LEDGER row 27); (b) CI lane **MERGED: openshift/release#82698** (2026-07-31) (`baremetalds-e2e-bgp-vip` workflow: install + `baremetalds-e2e-bgp-vip-verify` acceptance step — vipManagement=BGP, static pods/no keepalived, ToR path counts per VIP via vtysh, console 200; verify script validated verbatim against the live run26 cluster; optional on-demand presubmit `e2e-metal-ipi-bgp-vip` on openshift/installer, red-by-design until the feature PRs merge, `/pj-rehearse ack` posted). **First combined run executed 2026-08-04** via multi-PR testing (`/testwith openshift/installer/main/e2e-metal-ipi-bgp-vip` + MCO#6326 + CNO#3047 + runtimecfg#395, commented on installer#10718): all four PRs merged into one payload, the dev-scripts knob + guardrails executed in CI, the installer rendered bgpVIPConfig, and MCO selected the BGP path — failing exactly at the designed D1 fail-fast: `kube-vip ("") image is missing from the release payload` (frr-k8s resolved fine from the metallb-frr tag). Sole blocker for a green lane: the ocp/5.0 integration stream never received the kube-vip istag despite the successful 2026-07-29 promotion (quay push confirmed in the postsubmit log) — **DPTP question posted on release#81957**; once the tag materializes, restore MCO's image-references commit (kept ready as cherry-pick 6894c3065-equivalent) and rerun the /testwith. Note: CNO#3047 needed a rebase for the multi-PR merge (upstream added bootstrapResult/TLS plumbing to renderAdditionalRoutingCapabilities; merged signatures). Follow-ups once green: extend presubmit to MCO/CNO, conformance variant, dualstack variant, nightly periodic |

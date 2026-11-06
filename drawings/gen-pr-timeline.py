@@ -6,9 +6,9 @@ Dates from:  gh api repos/<org>/<repo>/pulls/<n> --jq '[.created_at,.merged_at,.
 """
 import datetime as dt
 
-TODAY = dt.date(2026, 10, 28)
+TODAY = dt.date(2026, 11, 6)
 START = dt.date(2026, 6, 20)
-END = dt.date(2026, 10, 31)
+END = dt.date(2026, 11, 10)
 
 X0, X1 = 262, 950          # plot area
 Y0 = 100                   # first row
@@ -41,7 +41,7 @@ PRS = [
     (None, "#1945 v6 ToR peer + e2e fields + multihop BFD", "2026-08-06", "2026-10-21", "merged", "l"),
     ("FRRouting/frr", "#22676 zebra table-scoped fix", "2026-07-15", "2026-07-21", "merged", "r"),
     ("metallb/frr-k8s", "#470 redistribute design", "2026-07-15", None, "open", "l"),
-    (None, "#511 mixed inline + secret-backed passwords (fixes #484)", "2026-10-22", None, "open", "l"),
+    (None, "#511 mixed inline + secret-backed passwords (fixes #484)", "2026-10-22", "2026-10-28", "merged", "l"),
     ("ovn-kubernetes", "#7099 VTEP prefers node primary addr (OCPBUGS-130338; issue #7090)", "2026-10-12", None, "open", "l"),
     ("openshift/release", "#80926 kube-vip project onboarding", "2026-06-23", "2026-06-24", "merged", "r"),
     (None, "#81065 kube-vip rebasebot periodic", "2026-06-25", "2026-07-15", "merged", "r"),
@@ -53,7 +53,7 @@ PRS = [
     (None, "#87192 lanes read expectations from the bgp-vip CR", "2026-10-16", "2026-10-22", "merged", "l"),
     (None, "#87522 lb-echo test workload out of default/ (finding I)", "2026-10-22", "2026-10-22", "merged", "l"),
     (None, "#87443 ovn-bgp-pre: from dev-scripts, not src (chai-bot via Slack)", "2026-10-21", "2026-10-21", "merged", "l"),
-    (None, "#87762 bgp-vip-verify guards the CRD in the payload", "2026-10-27", None, "open", "l"),
+    (None, "#87762 bgp-vip-verify guards the CRD in the payload", "2026-10-27", "2026-10-28", "merged", "l"),
     ("cluster-network-operator", "#3046 statusmanager DS fix", "2026-07-10", "2026-10-21", "merged", "l"),
     (None, "#3047 BGP VIP support — DevPreview complete in-payload", "2026-07-10", "2026-10-15", "merged", "l"),
     (None, "#3070 frr-k8s CRD align", "2026-07-20", "2026-07-22", "merged", "r"),
@@ -61,8 +61,8 @@ PRS = [
     (None, "#3089 api vendor bump", "2026-07-24", "2026-07-29", "merged", "l"),
     (None, "#3195 align frr-k8s 5.1 CRDs (nextHop/allowAsIn/EVPN)", "2026-10-15", "2026-10-20", "merged", "l"),
     (None, "#3202 master-monitor: system-cluster-critical, mgmt annotation, no limits (OPNET-819)", "2026-10-22", "2026-10-26", "merged", "l"),
-    (None, "#3206 vendor api + client-go to master (chai-bot; OPNET-812)", "2026-10-27", None, "open", "l"),
-    (None, "#3207 BGPVIPConfig CR consumer, ConfigMap path removed (OPNET-812)", "2026-10-27", None, "open", "l"),
+    (None, "#3206 vendor api + client-go to master (chai-bot; OPNET-812)", "2026-10-27", "2026-11-02", "merged", "l"),
+    (None, "#3207 BGPVIPConfig CR consumer, ConfigMap path removed (OPNET-812)", "2026-10-27", "2026-11-05", "merged", "l"),
     ("baremetal-runtimecfg", "#395 FRR peer-file rendering", "2026-07-10", "2026-08-13", "merged", "l"),
     ("ocp-build-data", "#11838 ose-kube-vip in payload", "2026-07-15", "2026-08-14", "merged", "l"),
     ("machine-config-operator", "#6326 BGP VIP static pods", "2026-07-22", "2026-10-02", "merged", "l"),
@@ -71,14 +71,16 @@ PRS = [
     (None, "#6655 vendor api + k8s 1.37 — closed: MCO team's #6661 supersedes", "2026-10-14", None, "closed", "l"),
     (None, "#6661 MCO k8s 1.37 rebase (umohnani8; api 6cace88a ⊇ BGPVIPConfig; OPNET-811 prereq)", "2026-10-16", "2026-10-22", "merged", "l"),
     (None, "#6673 static pods: no limits, mgmt annotation, kube-vip in kni-infra (OPNET-818)", "2026-10-22", "2026-10-23", "merged", "l"),
-    (None, "#6685 peers propagation + disable-connected-check (OPNET-811 fixes)", "2026-10-27", None, "open", "l"),
-    (None, "#6686 BGPVIPConfig CR consumer, ConfigMap path removed (OPNET-811)", "2026-10-27", None, "open", "l"),
+    (None, "#6685 peers propagation + disable-connected-check (OPNET-811 fixes)", "2026-10-27", "2026-10-30", "merged", "l"),
+    (None, "#6686 BGPVIPConfig CR consumer, ConfigMap path removed (OPNET-811)", "2026-10-27", "2026-11-04", "merged", "l"),
     ("openshift/installer", "#10710 vendor pin — closed (#10713)", "2026-07-24", None, "closed", "l"),
     (None, "#10713 rebase/vendor wave", "2026-07-24", "2026-07-28", "merged", "l"),
     (None, "#10718 BGP VIP support", "2026-07-28", "2026-08-17", "merged", "l"),
     (None, "#10931 install-config aligned with the CRD", "2026-09-29", "2026-10-20", "merged", "l"),
     (None, "#10985 vendor openshift/api 8c03d1c + k8s 1.37 (OPNET-810)", "2026-10-14", "2026-10-21", "merged", "l"),
-    (None, "#11026 emit the BGPVIPConfig CR + peer password Secrets (OPNET-810)", "2026-10-27", None, "open", "l"),
+    (None, "#11026 emit the BGPVIPConfig CR + peer password Secrets (OPNET-810)", "2026-10-27", "2026-11-04", "merged", "l"),
+    (None, "#11049 drop the bgp-vip-config ConfigMap — closed: superseded by #11073", "2026-10-30", None, "closed", "l"),
+    (None, "#11073 drop the bgp-vip-config ConfigMap (chai-bot; in the merge pool)", "2026-11-06", None, "open", "l"),
 ]
 
 PHASES = [
@@ -97,6 +99,8 @@ PHASES = [
     ("merge week", "2026-10-19", "2026-10-21"),
     ("CI + conventions in", "2026-10-22", "2026-10-26"),
     ("TP consumers", "2026-10-27", "2026-10-27"),
+    ("TP consumer merges", "2026-10-30", "2026-11-05"),
+    ("ConfigMap removal", "2026-11-06", "2026-11-06"),
 ]
 
 COLORS = {
@@ -127,10 +131,15 @@ out.append("".join(axis))
 
 # phase bands
 ph = []
+row_end = [-1e9] * 5
 for i, (name, a, b) in enumerate(PHASES):
     xa, xb = x(dt.date.fromisoformat(a)), x(dt.date.fromisoformat(b))
-    # labels alternate over five rows (y=28..66) so the dense October phases do not overlap
-    ty = 28 + (i % 5) * 9.5
+    # labels go on the first of five rows (y=28..66) where they do not overlap the previous label
+    half = len(name) * 3.0
+    cx = (xa + xb) / 2
+    r = next((k for k in range(5) if row_end[k] < cx - half - 4), min(range(5), key=lambda k: row_end[k]))
+    row_end[r] = cx + half
+    ty = 28 + r * 9.5
     ph.append(f'<rect x="{xa:.0f}" y="82" width="{xb-xa:.0f}" height="10" rx="3" fill="#dbeafe"/>'
               f'<line x1="{(xa+xb)/2:.0f}" y1="{ty+2}" x2="{(xa+xb)/2:.0f}" y2="82" stroke="#bfdbfe" stroke-width="1"/>'
               f'<text x="{(xa+xb)/2:.0f}" y="{ty}" text-anchor="middle" font-size="9" font-weight="600" fill="#1e40af">{name}</text>')

@@ -114,7 +114,7 @@
   <text x="730" y="455" text-anchor="middle" font-size="10" fill="#3730a3">ns openshift-frr-k8s, sessions only</text>
   <text x="730" y="469" text-anchor="middle" font-size="10" fill="#3730a3">+ BFDProfile "vip-bfd"</text>
   <text x="730" y="483" text-anchor="middle" font-size="10" fill="#3730a3">neighbor passwordSecret reference</text>
-  <text x="730" y="497" text-anchor="middle" font-size="10" fill="#3730a3">(frr-k8s#484 → fix PR #511, open)</text>
+  <text x="730" y="497" text-anchor="middle" font-size="10" fill="#3730a3">(rendered inline until frr-k8s#511 ships)</text>
   <line x1="730" y1="386" x2="730" y2="413" stroke="#475569" stroke-width="2" marker-end="url(#arrow2)"/>
   <text x="748" y="404" font-size="10" fill="#64748b">renders</text>
 
@@ -150,7 +150,7 @@
   <text x="500" y="738" text-anchor="middle" font-size="10" fill="#64748b">user surface: install-config at day-0, the admission-validated BGPVIPConfig CR at day-2 &#8212; with status conditions Rendered + SessionsConfigured reporting progress</text>
 
   <line x1="30" y1="764" x2="970" y2="764" stroke="#e2e8f0" stroke-width="1"/>
-  <text x="500" y="777" text-anchor="middle" font-size="9.5" fill="#475569">Status 2026-10-22: target design. Merged so far: the BGPVIPConfig CRD (api#2972, 10-14), install-config fields aligned with it (installer#10931, 10-20), the installer</text>
-  <text x="500" y="790" text-anchor="middle" font-size="9.5" fill="#475569">vendor bump (#10985); the MCO vendor rides #6661, the CNO vendor follows #3183 (OPNET-811/812). Not yet implemented: installer CR + Secret generation, MCO/CNO watching</text>
-  <text x="500" y="803" text-anchor="middle" font-size="9.5" fill="#475569">the CR, the Rendered/SessionsConfigured conditions, the NodeDisruptionPolicy. The node-side contract below the transport is already the merged Dev Preview one.</text>
+  <text x="500" y="777" text-anchor="middle" font-size="9.5" fill="#475569">Status 2026-11-06: implemented. CRD in the payload (api#3127); installer emits the CR + Secrets (#11026, 11-04); MCO reads only the CR (#6686, 11-04);</text>
+  <text x="500" y="790" text-anchor="middle" font-size="9.5" fill="#475569">CNO reads only the CR (#3207, 11-05), with Rendered/SessionsConfigured conditions. The ConfigMap is dropped by installer#11073 (in the merge pool). Left: CNO renders</text>
+  <text x="500" y="803" text-anchor="middle" font-size="9.5" fill="#475569">the peer password inline until a frr-k8s release with #511 reaches the payload. The node-side contract below the transport is the merged Dev Preview one.</text>
 </svg>
