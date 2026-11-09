@@ -6,9 +6,9 @@ Dates from:  gh api repos/<org>/<repo>/pulls/<n> --jq '[.created_at,.merged_at,.
 """
 import datetime as dt
 
-TODAY = dt.date(2026, 11, 6)
+TODAY = dt.date(2026, 11, 9)
 START = dt.date(2026, 6, 20)
-END = dt.date(2026, 11, 10)
+END = dt.date(2026, 11, 13)
 
 X0, X1 = 262, 950          # plot area
 Y0 = 100                   # first row
@@ -80,7 +80,7 @@ PRS = [
     (None, "#10985 vendor openshift/api 8c03d1c + k8s 1.37 (OPNET-810)", "2026-10-14", "2026-10-21", "merged", "l"),
     (None, "#11026 emit the BGPVIPConfig CR + peer password Secrets (OPNET-810)", "2026-10-27", "2026-11-04", "merged", "l"),
     (None, "#11049 drop the bgp-vip-config ConfigMap — closed: superseded by #11073", "2026-10-30", None, "closed", "l"),
-    (None, "#11073 drop the bgp-vip-config ConfigMap (chai-bot; in the merge pool)", "2026-11-06", None, "open", "l"),
+    (None, "#11073 drop the bgp-vip-config ConfigMap (chai-bot)", "2026-11-06", "2026-11-06", "merged", "l"),
 ]
 
 PHASES = [

@@ -150,7 +150,7 @@
   <text x="500" y="738" text-anchor="middle" font-size="10" fill="#64748b">user surface: install-config at day-0, the admission-validated BGPVIPConfig CR at day-2 &#8212; with status conditions Rendered + SessionsConfigured reporting progress</text>
 
   <line x1="30" y1="764" x2="970" y2="764" stroke="#e2e8f0" stroke-width="1"/>
-  <text x="500" y="777" text-anchor="middle" font-size="9.5" fill="#475569">Status 2026-11-06: implemented. CRD in the payload (api#3127); installer emits the CR + Secrets (#11026, 11-04); MCO reads only the CR (#6686, 11-04);</text>
-  <text x="500" y="790" text-anchor="middle" font-size="9.5" fill="#475569">CNO reads only the CR (#3207, 11-05), with Rendered/SessionsConfigured conditions. The ConfigMap is dropped by installer#11073 (in the merge pool). Left: CNO renders</text>
+  <text x="500" y="777" text-anchor="middle" font-size="9.5" fill="#475569">Status 2026-11-09: implemented, in Accepted nightlies since 11-07. CRD in the payload (api#3127); installer emits the CR + Secrets (#11026, 11-04); MCO reads only the CR (#6686, 11-04);</text>
+  <text x="500" y="790" text-anchor="middle" font-size="9.5" fill="#475569">CNO reads only the CR (#3207, 11-05), with Rendered/SessionsConfigured conditions. The ConfigMap is gone (installer#11073, 11-06). Left: CNO renders</text>
   <text x="500" y="803" text-anchor="middle" font-size="9.5" fill="#475569">the peer password inline until a frr-k8s release with #511 reaches the payload. The node-side contract below the transport is the merged Dev Preview one.</text>
 </svg>

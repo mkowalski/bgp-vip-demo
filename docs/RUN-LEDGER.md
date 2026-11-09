@@ -67,7 +67,7 @@ WORKER_VCPU=8 WORKER_MEMORY=16384 WORKER_DISK=60). Enabling code changes:
   cycle, alternating the inert realm attribute 1↔2 so each re-assertion is a
   real kernel change (kernel emits NO netlink event for a no-op replace).
 
-## HANDOFF STATE (written 2026-10-12, board refreshed 2026-11-06, for the next agent)
+## HANDOFF STATE (written 2026-10-12, board refreshed 2026-11-09, for the next agent)
 
 **2026-10-30: this host (metal-u15) is decommissioned on 2026-10-31.** The
 live cluster, `/root/dev-scripts`, `/tmp/opencode` tooling and everything
@@ -96,25 +96,25 @@ urllib re-issues it as GET → 405; story creation = `issuetype: Story`,
 `gh` token cannot list signing keys; the Jira account cannot add attachments
 on OCPBUGS. The `task` subagent tool is denied by user rules — work inline.
 
-### Where things stand (PR board — refreshed 2026-11-06 16:00 UTC)
+### Where things stand (PR board — refreshed 2026-11-09 08:45 UTC)
 
-**The TP consumer wave is merged; its last PR is in the merge pool.**
-Order that kept every install green, all done except the last step:
+**The TP consumer wave is complete (11-06) and in Accepted nightlies since 11-07.**
+Order that kept every install green:
 api#3127 (10-26) → release#87762 (10-28) → MCO#6685 (10-30) → CNO#3206
 (11-02) → MCO#6686 + installer#11026 (11-04) → CNO#3207 (11-05) →
-**installer#11073** (in the merge pool).
+**installer#11073** (11-06).
 
 | Item | State | Next |
 |---|---|---|
-| **openshift/installer#11073** OPNET-810 — stop emitting the `bgp-vip-config` ConfigMap (chai-bot; same production diff as #11049: delete `bgpvipconfig.go` + test, unwire `operators.go`, CR doc comment, fixture moved; `operators_test.go` unchanged vs main) | head `b701c7e3c`, 1 commit; **`lgtm` + `approved` + `verified` by Mat 11-06 15:58**, in the merge pool. Back-compat material removed on Mat's request: the ConfigMap only ever existed on `main` and was never released | tide merges it; then check the first nightly carrying it |
+| **openshift/installer#11073** OPNET-810 — stop emitting the `bgp-vip-config` ConfigMap (chai-bot; same production diff as #11049: delete `bgpvipconfig.go` + test, unwire `operators.go`, CR doc comment, fixture moved; `operators_test.go` unchanged vs main) | head `b701c7e3c`, 1 commit; **MERGED 11-06 17:42 (`256f7ce85`)**; lgtm/approved/verified by Mat 15:58. Back-compat material removed on Mat's request: the ConfigMap only ever existed on `main` and was never released | — |
 | **openshift/installer#11049** (Mat's copy of the same change) | **closed 11-06 15:59, superseded by #11073**. Mat can't lgtm his own PR | — |
-| Payload evidence for the removal | `/payload-job-with-prs periodic-ci-openshift-release-main-nightly-5.1-e2e-metal-ipi-bgp-vip-ovn-bgp-metallb openshift/cluster-network-operator#3207 openshift/machine-config-operator#6686`. On #11049 (run `93154830…`, Prow `2118649568642994176`): install + all 3 BGP verify steps green. Conformance: 5 blocking failures, of which 2 are in the periodic (API LBs `/readyz` = finding L, Prometheus proxy) and 3 new (Conntrack UDP ITP=Local, must-gather, HAProxy DCM PID). The 3 new ones clustered in 14:30–14:47 with console/oauth disruption, judged unrelated. On #11073 `d24752c7` (run `cf680070…`, Prow `2118685982227173376`): install + all 3 BGP verify steps green; conformance was still running at 16:00 | compare the #11073 conformance result with #11049's three new failures (a repeat would merit a look) |
+| Payload evidence for the removal | `/payload-job-with-prs periodic-ci-openshift-release-main-nightly-5.1-e2e-metal-ipi-bgp-vip-ovn-bgp-metallb openshift/cluster-network-operator#3207 openshift/machine-config-operator#6686`. On #11049 (run `93154830…`, Prow `2118649568642994176`): install + all 3 BGP verify steps green. Conformance: 5 blocking failures, of which 2 are in the periodic (API LBs `/readyz` = finding L, Prometheus proxy) and 3 new (Conntrack UDP ITP=Local, must-gather, HAProxy DCM PID). The 3 new ones clustered in 14:30–14:47 with console/oauth disruption, judged unrelated. On #11073 `d24752c7` (run `cf680070…`, Prow `2118685982227173376`): install + all 3 BGP verify steps green; conformance `1 blocking / 11 informing / 2238 pass` — only the Prometheus proxy test (also in the periodic); none of #11049's three new failures repeated → noise | — |
 | **MCO#6685 / #6686** OPNET-811 | **MERGED 10-30 (`f126b46ba`) / 11-04 (`e2f4c5b38`)** | Jira OPNET-811 still To Do → close |
 | **CNO#3206 / #3207** OPNET-812 | **MERGED 11-02 (`4b839b0fc`) / 11-05 (`e2c7bfa30`)**; the CodeRabbit `FromUnstructured` nit was folded in; `renderInlinePassword = true` still | Jira OPNET-812 still To Do → close; flip `renderInlinePassword` after frr-k8s#511 ships |
 | **installer#11026** OPNET-810 | **MERGED 11-04 (`83929093d`)**, including the secret-name hashing/collision handling | — |
-| Payload | first nightly with MCO#6686 + CNO#3207 + installer#11026: **`5.1.0-0.nightly-2026-11-06-113542`** (Ready). Rejected since 11-04-194059 on an unrelated HyperShift `BackendDisruption` aggregation failure; `nightly/latest` = `11-04-060553` (Accepted, pre-consumers) | watch for the first Accepted nightly with #11073 → the periodics then exercise the CR-only path |
-| Nightly periodics | `bgp-vip` **14/15 green** (10-23 → 11-06; the 11-01 red was the post-step `gather-audit-logs`, verify passed). `ovn-bgp-metallb` (11-02/04/06): every BGP step green, red only in conformance (payload-wide failures + finding L). `evpn` (11-03/05): red at `bgp-vip-ovn-bgp-evpn-verify` = finding C | none of them has run the CR-only consumers yet (no Accepted nightly carries them) |
-| **OPNET-820** finding L (`API LBs follow /readyz`) | Jira **To Do**, no PR; still failing in every `ovn-bgp-metallb` conformance run | pick a fix candidate (a/b/c in the bug) |
+| Payload | **`5.1.0-0.nightly-2026-11-07-070556` Accepted** — first with installer#11026 + #11073, MCO#6686, CNO#3207. `11-08-173648` Accepted too (current `nightly/latest`); others in between Rejected on the HyperShift `BackendDisruption` failure | — |
+| Nightly periodics | **CR-only path now exercised.** `bgp-vip` **17/18 green** (10-23 → 11-09; 11-08 on 11-07-070556 and 11-09 on 11-08-173648 both green, verify 6/6 incl. the CRD check). `ovn-bgp-metallb` [11-09](https://prow.ci.openshift.org/view/gs/test-platform-results-public/logs/periodic-ci-openshift-release-main-nightly-5.1-e2e-metal-ipi-bgp-vip-ovn-bgp-metallb/2119611341911101440) on 11-08-173648: install + all BGP pre/verify steps green; conformance `6 blocking / 10 informing / 2232 pass`, none BGP-related (3 Prometheus tests `Interrupted by User` at the suite deadline, the alerting-rules runbook test, WorkloadAwarePreemption, an ephemeral-storage API `connection reset`); `API LBs follow /readyz` **passed**. `evpn` (11-03/05): red at `bgp-vip-ovn-bgp-evpn-verify` = finding C; next run Tue 11-10 | watch the 11-10 `evpn` and 11-11 `ovn-bgp-metallb` runs |
+| **OPNET-820** finding L (`API LBs follow /readyz`) | Jira **To Do**, no PR; intermittent — failed 11-06 periodic, passed in the #11073 payload run and the 11-09 periodic | pick a fix candidate (a/b/c in the bug) |
 | ovn-k#7099 (finding C) | draft, untouched since 10-15 | parked by Mat |
 | metallb/frr-k8s#511 | merged 10-28, **not released** (latest v0.0.27, 10-14) | wait for a release + openshift/frr pickup |
 | metallb/frr-k8s#470, enhancements#1982 | open; #470 got a stale-bot ping 11-01 (Mat answered 11-02); #1982 untouched since 08-10 | need maintainers / reviewers |

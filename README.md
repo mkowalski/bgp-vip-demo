@@ -5,7 +5,7 @@ Working demo and upstreaming workspace of
 (OPNET-595/OPNET-773): BGP-based VIP management for on-premise OpenShift —
 kube-vip (routing-table mode) + frr-k8s static pods replacing keepalived.
 
-**Status (2026-11-06): the Tech Preview consumer wave is merged and the last PR is in the merge pool.** DevPreview is merged in every repo, as are the TP `BGPVIPConfig` API (api#2972), its payload CRD (api#3127), the CI lanes and periodics, and the platform-pod-convention fixes (MCO#6673, CNO#3202). **TP consumers merged:** **MCO#6685** (10-30) and **MCO#6686** (11-04, CR-only consumer), **CNO#3206** (11-02, api/client-go bump) and **CNO#3207** (11-05, CR-only consumer), **installer#11026** (11-04, CR + peer Secrets). **Last step: installer#11073** (chai-bot, OPNET-810) stops emitting the never-released `bgp-vip-config` ConfigMap. It has `lgtm` + `approved` + `verified` (11-06 15:58) and is in the merge pool. It supersedes Mat's **installer#11049** (closed 11-06). Proof: payload runs with CNO#3207 + MCO#6686 on both #11049 and #11073 passed install and all three BGP verify steps. The ConfigMap variant was never released, so nothing needs back-compat handling. Payload: the first nightly with all three consumers is `5.1.0-0.nightly-2026-11-06-113542` (Ready). The last Accepted one is still `11-04-060553`, because 5.1 nightlies are rejected on an unrelated HyperShift `BackendDisruption` failure. Periodics: `bgp-vip` green 14/15 since 10-23 (the one red was a post-step `gather-audit-logs`); `ovn-bgp-metallb` has every BGP step green, red only in conformance (payload-wide failures **plus finding L, OPNET-820**); `evpn` is red on finding C until ovn-k#7099. Still open outside the consumer wave: OPNET-820 (finding L, no PR yet), ovn-k#7099 (finding C, parked draft), metallb/frr-k8s#470 and enhancements#1982 (awaiting reviewers), and frr-k8s#511 shipping in a release so CNO can drop `renderInlinePassword`. **The dev host metal-u15 was decommissioned on 2026-10-31.** Next steps: docs/NEXT-STEPS.md Phase 3 and RUN-LEDGER 'Where things stand'.
+**Status (2026-11-09): the Tech Preview consumer wave is complete and running in Accepted nightlies.** DevPreview is merged in every repo, as are the TP `BGPVIPConfig` API (api#2972), its payload CRD (api#3127), the CI lanes and periodics, and the platform-pod-convention fixes (MCO#6673, CNO#3202). **TP consumers merged:** MCO#6685 (10-30), CNO#3206 (11-02), MCO#6686 + installer#11026 (11-04), CNO#3207 (11-05), and **installer#11073** (11-06 17:42, chai-bot, drops the never-released `bgp-vip-config` ConfigMap; Mat's identical #11049 closed as superseded). **The ConfigMap is gone from every repo.** `5.1.0-0.nightly-2026-11-07-070556` (Accepted) is the first nightly with all of them; `11-08-173648` is Accepted too. Periodics on the CR-only path: `bgp-vip` green 11-08 and 11-09 (verify 6/6); `ovn-bgp-metallb` 11-09 has every BGP step green and is red only in conformance (6 blocking failures, none BGP-related; 3 Prometheus tests interrupted at the suite deadline, plus WorkloadAwarePreemption and an ephemeral-storage API reset; `API LBs follow /readyz` passed). Still open: OPNET-820 (finding L, intermittent, no PR yet), ovn-k#7099 (finding C, parked draft; `evpn` stays red), metallb/frr-k8s#470 and enhancements#1982 (awaiting reviewers), and frr-k8s#511 (merged, not released) before CNO can drop `renderInlinePassword`. Jira: OPNET-811/812 are still To Do with all PRs merged. Next: Tech Preview graduation (docs/NEXT-STEPS.md §E). **The dev host metal-u15 was decommissioned on 2026-10-31.** Next steps: docs/NEXT-STEPS.md Phase 3 and RUN-LEDGER 'Where things stand'.
 All six demo criteria proven across 27 install runs (see
 [docs/demo-results.md](docs/demo-results.md), [docs/RUN-LEDGER.md](docs/RUN-LEDGER.md)):
 API + Ingress VIPs advertised via BGP from bootstrap through steady state,
@@ -91,10 +91,13 @@ Upstream state:
   password Secrets next to the ConfigMap, OPNET-810), **CNO#3207** (11-05,
   `e2c7bfa30`: CR-only consumer, OPNET-812). First nightly with all of
   them: `5.1.0-0.nightly-2026-11-06-113542`.
-- **In the merge pool (11-06)**: **installer#11073** (chai-bot, OPNET-810,
-  head `b701c7e3c`): stops emitting the `bgp-vip-config` ConfigMap. The
+- **Merged 2026-11-06 17:42**: **installer#11073** (chai-bot, OPNET-810,
+  `256f7ce85`): stops emitting the `bgp-vip-config` ConfigMap. The
   ConfigMap only ever existed on `main` and was never released, so there
-  is no back-compat material. `lgtm` + `approved` + `verified` 15:58 UTC.
+  is no back-compat material. In the payload since the Accepted
+  `5.1.0-0.nightly-2026-11-07-070556`. The #11073 payload run's
+  conformance had 1 blocking failure (Prometheus proxy, also in the
+  periodic).
   Payload proof: CNO#3207 + MCO#6686 + #11073 (`d24752c7`, same
   production diff) passed install and all three BGP verify steps. Mat's
   identical **installer#11049** was closed as superseded.
@@ -185,8 +188,8 @@ Everything below the MCO-internal transport is byte-identical to Dev Preview
 — the node-side contract never moves. As of 2026-11-06 this is the
 implemented design: the CRD ships in the payload (api#3127), MCO#6686 and
 CNO#3207 read only the CR (merged 11-04 / 11-05), installer#11026 writes the
-CR + Secrets (merged 11-04), and installer#11073 — in the merge pool —
-stops writing the ConfigMap. CNO still renders the resolved password inline
+CR + Secrets (merged 11-04), and installer#11073 (merged 11-06)
+stopped writing the ConfigMap; all of it is in Accepted nightlies since 11-07. CNO still renders the resolved password inline
 until a frr-k8s release with #511 reaches the payload:
 
 <img src="drawings/bgp-vip-tp-objects.svg" alt="Tech Preview objects and configuration flow" style="width: 95%; max-width: 1000px;">
@@ -202,7 +205,7 @@ replace paths).
 | Repo | PR branch (canonical) | Dev/demo branch |
 |---|---|---|
 | openshift/api | merged (#2923) | `OPNET-595-bgp-vip-management` |
-| installer | merged (#10718, #10931 install-config ↔ CRD, #10985 k8s 1.37); **merged #11026** (11-04, CR + peer Secrets); **#11073** (chai-bot, drop the ConfigMap — lgtm/approved, in the merge pool); #11049 (`opnet-810-drop-bgpvip-configmap`, same change) closed as superseded 11-06 | `OPNET-595-bgp-vip-management-vendored`; the Aug prototype `bgpvipconfig-crd` (1864ea3844) is superseded, kept on the fork |
+| installer | merged (#10718, #10931 install-config ↔ CRD, #10985 k8s 1.37); **merged #11026** (11-04, CR + peer Secrets); **merged #11073** (11-06, chai-bot, drop the ConfigMap); #11049 (`opnet-810-drop-bgpvip-configmap`, same change) closed as superseded 11-06 | `OPNET-595-bgp-vip-management-vendored`; the Aug prototype `bgpvipconfig-crd` (1864ea3844) is superseded, kept on the fork |
 | machine-config-operator | merged (#6326, #6643, #6661 vendor, #6673 pod conventions); **merged #6685** (10-30, peers-JSON merge + disable-connected-check) and **#6686** (11-04, CR-only consumer) | the Aug prototype `bgpvipconfig-crd` (56ab76d64) is superseded, kept on the fork |
 | cluster-network-operator | merged (#3047, #3195, #3046, #3183 k8s 1.37, #3202 pod conventions); **merged #3206** (11-02, chai-bot api/client-go bump) and **#3207** (11-05, CR-only consumer) | the Aug prototype `bgpvipconfig-crd` (a5680c393) is superseded, kept on the fork |
 | baremetal-runtimecfg | merged (#395) | `OPNET-595-bgp-vip-management` |

@@ -14,8 +14,12 @@ TechPreview, EP 066d3556).
 
 ### Phase 0 — now, nothing blocked (parallel)
 
-1. **Update 2026-11-06 — the TP consumer wave is done except one PR in
-   the merge pool.** Merged: MCO#6685 (10-30), CNO#3206 (11-02), MCO#6686
+1. **Update 2026-11-09 — the TP consumer wave is complete.**
+   installer#11073 merged 11-06 17:42; everything is in the Accepted
+   nightly `5.1.0-0.nightly-2026-11-07-070556` and later, and the
+   `bgp-vip` / `ovn-bgp-metallb` periodics on it have every BGP step
+   green. Items (1) and (2) below are done; next are (3)-(6).
+   Previous update (2026-11-06): Merged: MCO#6685 (10-30), CNO#3206 (11-02), MCO#6686
    + installer#11026 (11-04), CNO#3207 (11-05). **installer#11073**
    (chai-bot; drops the never-released `bgp-vip-config` ConfigMap) has
    lgtm + approved + verified and waits for tide; installer#11049 closed
@@ -257,8 +261,10 @@ closed as superseded).
 
 ### Phase 3 — TechPreview
 
-0. **TP consumer PRs — status 2026-11-06: steps 0-3 MERGED, step 4 in
-   the merge pool.** MCO#6685 (10-30, `f126b46ba`), CNO#3206 (11-02,
+0. **TP consumer PRs — status 2026-11-09: ALL MERGED.** installer#11073
+   merged 11-06 17:42 (`256f7ce85`); in Accepted nightlies since
+   11-07-070556; periodics on it green on every BGP step.
+   Status 2026-11-06: MCO#6685 (10-30, `f126b46ba`), CNO#3206 (11-02,
    `4b839b0fc`), MCO#6686 (11-04, `e2f4c5b38`), installer#11026 (11-04,
    `83929093d`), CNO#3207 (11-05, `e2c7bfa30`; the CodeRabbit
    `FromUnstructured` nit is folded in). Step 4 is **installer#11073**
@@ -350,8 +356,8 @@ closed as superseded).
    the condition inputs when `FromUnstructured` fails) should be folded in
    when #3207 is rebased to one commit after #3206 merges.
 
-   **Step 4 — installer drops the ConfigMap asset: installer#11073 in the
-   merge pool 2026-11-06 (lgtm/approved/verified); #11049 closed as
+   **Step 4 — installer drops the ConfigMap asset: installer#11073 MERGED
+   2026-11-06 17:42; #11049 closed as
    superseded. Text below is the 10-30 plan — the "Stale … old asset dirs"
    point is moot (never released).** Was: OPEN as
    openshift/installer#11049 (2026-10-30, held draft), branch
@@ -823,7 +829,7 @@ re-sign (`git rebase --exec 'git commit --amend --no-edit -S'`).
 | OPNET-815 (C) | ovn-kubernetes | **OCPBUGS-130338** — unmanaged VTEP discovery picks the API/Ingress VIP (kube-vip on v4; any VIP on v6). **Fix validated live** on branch `mkowalski/ovn-kubernetes:ocpbugs-130338-vtep-primary-ifaddr` (patch in bug + `patches/ovn-kubernetes/`); upstream PR pending; release#86746 check [4/5] now passes with it |
 | OPNET-778 | PoC | github.com/mkowalski/bgp-vip-demo (complete) |
 | OPNET-809 | openshift/api | **CLOSED** — #2972 (TP `BGPVIPConfig` CRD, merged 2026-10-14) + #3127 (CRD shipped in the payload, finding K, merged 2026-10-26) |
-| OPNET-810 | installer | Jira **Closed** (10-21). Follow-ups landed under the same key: **#11026 MERGED 11-04** (`83929093d`, CR + peer Secrets) and **#11073 in the merge pool 11-06** (chai-bot, drop the never-released ConfigMap; lgtm/approved/verified). #11049 (same change, Mat) closed as superseded. Add a Jira comment linking both once #11073 merges |
+| OPNET-810 | installer | Jira **Closed** (10-21). Follow-ups landed under the same key: **#11026 MERGED 11-04** (`83929093d`, CR + peer Secrets) and **#11073 MERGED 11-06** (`256f7ce85`, chai-bot, drop the never-released ConfigMap). #11049 (same change, Mat) closed as superseded. Add a Jira comment linking both |
 | OPNET-811 | machine-config-operator | **Code complete 11-04** — vendor via #6661 (10-22), **#6685 MERGED 10-30**, **#6686 MERGED 11-04** (CR-only consumer). Jira still **To Do** → close |
 | OPNET-812 | cluster-network-operator | **Code complete 11-05** — **#3206 MERGED 11-02** (chai-bot api/client-go bump), **#3207 MERGED 11-05** (CR-only consumer). Jira still **To Do** → close. Follow-up: flip `renderInlinePassword` once frr-k8s#511 ships |
 | OPNET-820 | MCO / baremetal-runtimecfg / kube-vip | **Bug, filed 2026-10-30** (finding L): under BGP VIP management the API VIP is a local address before haproxy's `/readyz` redirect exists, so local clients hit the not-ready local kube-apiserver during master boot (`API LBs follow /readyz` conformance test, 3/4 BGP runs, 0/300 stock metal HA). No PR yet; fix candidates a/b/c in the bug |
