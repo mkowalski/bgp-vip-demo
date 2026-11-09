@@ -67,7 +67,7 @@ WORKER_VCPU=8 WORKER_MEMORY=16384 WORKER_DISK=60). Enabling code changes:
   cycle, alternating the inert realm attribute 1↔2 so each re-assertion is a
   real kernel change (kernel emits NO netlink event for a no-op replace).
 
-## HANDOFF STATE (written 2026-10-12, board refreshed 2026-11-09, for the next agent)
+## HANDOFF STATE (written 2026-10-12, board refreshed 2026-11-09 evening, for the next agent)
 
 **2026-10-30: this host (metal-u15) is decommissioned on 2026-10-31.** The
 live cluster, `/root/dev-scripts`, `/tmp/opencode` tooling and everything
@@ -96,7 +96,20 @@ urllib re-issues it as GET → 405; story creation = `issuetype: Story`,
 `gh` token cannot list signing keys; the Jira account cannot add attachments
 on OCPBUGS. The `task` subagent tool is denied by user rules — work inline.
 
-### Where things stand (PR board — refreshed 2026-11-09 08:45 UTC)
+### Where things stand (PR board — refreshed 2026-11-09 evening)
+
+**Tech Preview graduation started 11-09.** Requests to chai-bot go through
+the Slack DM thread; nothing is posted on GitHub without Mat's go-ahead.
+
+| Item | State | Next |
+|---|---|---|
+| **openshift/api#3165** OPNET-595 — `BGPBasedVIPManagement` → TechPreviewNoUpgrade (chai-bot) | head `28708b8`: `44b2281` one-line `features.go` + generated files (TechPreview `infrastructures`/`controllerconfigs` CRDs split into Hypershift + SelfManagedHA; `bgpvipconfigs` annotation gains TechPreviewNoUpgrade); `28708b8` test-only fix in `config/v1/types_infrastructure_test.go`. All checks pass incl. unit, verify, hypershift-integration — except **`verify-crd-schema`**: 8 errors, all the pre-existing IBM Cloud `serviceEndpoints[].url` CEL cost in the 4 split files (our `vipManagement` rule costs 4). Mat: "not us" | approver `/override ci/prow/verify-crd-schema`; lgtm + approve (JoelSpeed) |
+| **dev-scripts#1989** — accept `FEATURE_SET=TechPreviewNoUpgrade` (chai-bot) | only `validation.sh` + `config_example.sh`; lgtm + approved + ok-to-test; images, shellcheck, 5 agent jobs green; `e2e-agent-5control-ipv4` red on a kube-apiserver rollout timeout in a non-BGP run (unrelated); metal-ipi jobs pending | tide; maybe `/retest` the 5control job |
+| **OPNET-823** — peer password exposure (CodeRabbit on #3165) | Bug filed 11-09 (child of OPNET-595, BM Networking, Mat). MCO part requested from chai-bot (Slack ts `1794234814.927539`): no password in ControllerConfig, `frr-peers.json` unchanged, draft PR; suggested pull-secret-style resolution in the template/bootstrap controllers, with a MachineConfig-readers check first. **CNO not to be modified yet** | review chai-bot's draft MCO PR |
+| **Origin e2e tests** (`[OCPFeatureGate:BGPBasedVIPManagement]`) | design `docs/superpowers/specs/2026-11-09-bgp-vip-origin-tests-design.md` (option A: `openshift/bgp-vip` + `openshift/bgp-vip/disruptive`, 7 tests, daily `e2e-metal-ipi-bgp-vip-dualstack`) | Mat's approval → plan → implement on a live v4v6 dev-scripts cluster; no origin/release PRs until Mat says so |
+| Lanes → TechPreviewNoUpgrade | waiting for #3165 in a nightly | switch `FEATURE_SET`; bump api in installer/MCO/CNO |
+
+### Board 2026-11-09 08:45 UTC (consumer wave; still accurate for those items)
 
 **The TP consumer wave is complete (11-06) and in Accepted nightlies since 11-07.**
 Order that kept every install green:

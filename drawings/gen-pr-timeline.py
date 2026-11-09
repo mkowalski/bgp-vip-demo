@@ -36,9 +36,11 @@ PRS = [
     ("openshift/api", "#2923 gate + vipManagement", "2026-07-09", "2026-07-24", "merged", "l"),
     (None, "#2972 BGPVIPConfig CRD (TP API)", "2026-08-10", "2026-10-14", "merged", "l"),
     (None, "#3127 ship the BGPVIPConfig CRD in the payload (finding K)", "2026-10-26", "2026-10-26", "merged", "l"),
+    (None, "#3165 gate → TechPreviewNoUpgrade (chai-bot; needs crd-schema override)", "2026-11-09", None, "open", "l"),
     ("dev-scripts", "#1929 BGP ToR", "2026-07-09", "2026-07-23", "merged", "r"),
     (None, "#1939 BGP_VIP_MANAGEMENT knob", "2026-07-30", "2026-07-31", "merged", "l"),
     (None, "#1945 v6 ToR peer + e2e fields + multihop BFD", "2026-08-06", "2026-10-21", "merged", "l"),
+    (None, "#1989 accept TechPreviewNoUpgrade (chai-bot; lgtm/approved)", "2026-11-09", None, "open", "l"),
     ("FRRouting/frr", "#22676 zebra table-scoped fix", "2026-07-15", "2026-07-21", "merged", "r"),
     ("metallb/frr-k8s", "#470 redistribute design", "2026-07-15", None, "open", "l"),
     (None, "#511 mixed inline + secret-backed passwords (fixes #484)", "2026-10-22", "2026-10-28", "merged", "l"),
@@ -101,6 +103,7 @@ PHASES = [
     ("TP consumers", "2026-10-27", "2026-10-27"),
     ("TP consumer merges", "2026-10-30", "2026-11-05"),
     ("ConfigMap removal", "2026-11-06", "2026-11-06"),
+    ("TP graduation", "2026-11-09", "2026-11-09"),
 ]
 
 COLORS = {

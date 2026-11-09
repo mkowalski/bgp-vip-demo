@@ -14,7 +14,18 @@ TechPreview, EP 066d3556).
 
 ### Phase 0 — now, nothing blocked (parallel)
 
-1. **Update 2026-11-09 — the TP consumer wave is complete.**
+1. **Update 2026-11-09 evening — Tech Preview graduation (5) under way.**
+   Gate promotion **api#3165** (chai-bot) is green except the IBM Cloud
+   `verify-crd-schema` baseline (needs an approver `/override`), then
+   lgtm/approve. **dev-scripts#1989** (TechPreviewNoUpgrade accepted)
+   has lgtm/approved, CI running. Origin e2e tests: design written
+   (`docs/superpowers/specs/2026-11-09-bgp-vip-origin-tests-design.md`,
+   option A, two suites, 7 tests, new dual-stack daily lane), awaiting
+   Mat's approval before the plan + implementation. **OPNET-823** filed
+   for the password exposure CodeRabbit raised on #3165; chai-bot is on
+   the MCO part (draft PR), CNO held. Still open from below: (3) Jira
+   pass, (4) OPNET-820, (6) `renderInlinePassword`.
+   Earlier update 2026-11-09 — the TP consumer wave is complete.
    installer#11073 merged 11-06 17:42; everything is in the Accepted
    nightly `5.1.0-0.nightly-2026-11-07-070556` and later, and the
    `bgp-vip` / `ovn-bgp-metallb` periodics on it have every BGP step
@@ -654,7 +665,20 @@ review: CPU/memory limits (deliberate, matches the frr-k8s DS
 requests-only convention), runAsNonRoot (vtysh requires root - run21),
 SA token unmount (exporter TokenReviews its scrapers).
 
-## E. Tech Preview criteria (EP graduation) not started
+## E. Tech Preview criteria (EP graduation) — IN PROGRESS (2026-11-09)
+
+Status 2026-11-09:
+
+| Criterion | State |
+|---|---|
+| Gate promotion → TechPreviewNoUpgrade | **openshift/api#3165** open (chai-bot). Only `verify-crd-schema` red: pre-existing IBM Cloud `serviceEndpoints[].url` CEL cost re-flagged because the generator split the TechPreview `infrastructures`/`controllerconfigs` CRDs into Hypershift + SelfManagedHA files with no baseline. Needs `/override ci/prow/verify-crd-schema` + lgtm/approve (JoelSpeed). |
+| dev-scripts accepts TechPreviewNoUpgrade | **dev-scripts#1989** lgtm/approved/ok-to-test; tide waits on metal-ipi jobs (`e2e-agent-5control-ipv4` red, unrelated). |
+| 5+ gate-tagged e2e tests, 7x/week, incl. dual-stack | Design written 2026-11-09 (`docs/superpowers/specs/2026-11-09-bgp-vip-origin-tests-design.md`): suites `openshift/bgp-vip` (5 tests) + `openshift/bgp-vip/disruptive` (2 tests), new daily `e2e-metal-ipi-bgp-vip-dualstack`, `openshift/bgp-vip` added to the daily v4 lane. Awaiting Mat's approval → writing-plans → implementation. |
+| Lanes on TechPreviewNoUpgrade | after #3165 is in a nightly: switch `FEATURE_SET` in the BGP workflows; bump openshift/api in installer/MCO/CNO. |
+| Credential hygiene (CodeRabbit on #3165) | **OPNET-823** (Bug, filed 11-09): password in `ControllerConfig.spec.bgpVIPPeersJSON` (MCO) and in the `bgp-vip` FRRConfiguration (CNO); 64 KiB `bgpVIPPeersJSON` vs CRD limits. chai-bot on the MCO part (draft PR, pull-secret-style render-time resolution proposed); CNO held. |
+| Metrics + alerts, install-config docs | not started |
+
+Original list:
 
 - 5+ e2e tests `[OCPFeatureGate:BGPBasedVIPManagement]`, CI 7x/week (BGP peer
   simulation in CI — the ToR container pattern from this repo is the seed).
@@ -832,5 +856,7 @@ re-sign (`git rebase --exec 'git commit --amend --no-edit -S'`).
 | OPNET-810 | installer | Jira **Closed** (10-21). Follow-ups landed under the same key: **#11026 MERGED 11-04** (`83929093d`, CR + peer Secrets) and **#11073 MERGED 11-06** (`256f7ce85`, chai-bot, drop the never-released ConfigMap). #11049 (same change, Mat) closed as superseded. Add a Jira comment linking both |
 | OPNET-811 | machine-config-operator | **Code complete 11-04** — vendor via #6661 (10-22), **#6685 MERGED 10-30**, **#6686 MERGED 11-04** (CR-only consumer). Jira still **To Do** → close |
 | OPNET-812 | cluster-network-operator | **Code complete 11-05** — **#3206 MERGED 11-02** (chai-bot api/client-go bump), **#3207 MERGED 11-05** (CR-only consumer). Jira still **To Do** → close. Follow-up: flip `renderInlinePassword` once frr-k8s#511 ships |
+| OPNET-823 | machine-config-operator / cluster-network-operator | **Bug, filed 2026-11-09** from the CodeRabbit review of api#3165: resolved BGP peer password exposed in `ControllerConfig.spec.bgpVIPPeersJSON` (MCO) and the `bgp-vip` FRRConfiguration (CNO); plus the 64 KiB transport vs CRD limit mismatch. MCO part requested from chai-bot 11-09 (draft PR); CNO not to be modified yet |
+| OPNET-595 (TP) | openshift/api, dev-scripts | **api#3165** gate → TechPreviewNoUpgrade (open, needs `/override` of `verify-crd-schema` + review); **dev-scripts#1989** (lgtm/approved). Epic still lacks a 5.1.0 target version (Jira bot warning) |
 | OPNET-820 | MCO / baremetal-runtimecfg / kube-vip | **Bug, filed 2026-10-30** (finding L): under BGP VIP management the API VIP is a local address before haproxy's `/readyz` redirect exists, so local clients hit the not-ready local kube-apiserver during master boot (`API LBs follow /readyz` conformance test, 3/4 BGP runs, 0/300 stock metal HA). No PR yet; fix candidates a/b/c in the bug |
 | OPNET-621/622/623 | testing/CI | **STARTED 2026-07-30**: (a) dev-scripts one-click knob **MERGED: openshift-metal3/dev-scripts#1939** (2026-07-31) (`BGP_VIP_MANAGEMENT=true` renders bgpVIPConfig into the install-config; hard-fail validation without ENABLE_BGP_TOR or a DevPreview FEATURE_SET; render+guardrails validated on metal-u15; **full install validated 2026-07-31** — knob-deployed cluster passes the CI verify script verbatim, see RUN-LEDGER row 27); (b) CI lane **MERGED: openshift/release#82698** (2026-07-31) (`baremetalds-e2e-bgp-vip` workflow: install + `baremetalds-e2e-bgp-vip-verify` acceptance step — vipManagement=BGP, static pods/no keepalived, ToR path counts per VIP via vtysh, console 200; verify script validated verbatim against the live run26 cluster; optional on-demand presubmit `e2e-metal-ipi-bgp-vip` on openshift/installer, red-by-design until the feature PRs merge, `/pj-rehearse ack` posted). **First combined run executed 2026-08-04** via multi-PR testing (`/testwith openshift/installer/main/e2e-metal-ipi-bgp-vip` + MCO#6326 + CNO#3047 + runtimecfg#395, commented on installer#10718): all four PRs merged into one payload, the dev-scripts knob + guardrails executed in CI, the installer rendered bgpVIPConfig, and MCO selected the BGP path — failing exactly at the designed D1 fail-fast: `kube-vip ("") image is missing from the release payload` (frr-k8s resolved fine from the metallb-frr tag). Sole blocker for a green lane: the ocp/5.0 integration stream never received the kube-vip istag despite the successful 2026-07-29 promotion (quay push confirmed in the postsubmit log) — **DPTP question posted on release#81957**; once the tag materializes, restore MCO's image-references commit (kept ready as cherry-pick 6894c3065-equivalent) and rerun the /testwith. Note: CNO#3047 needed a rebase for the multi-PR merge (upstream added bootstrapResult/TLS plumbing to renderAdditionalRoutingCapabilities; merged signatures). Follow-ups once green: extend presubmit to MCO/CNO, conformance variant, dualstack variant, nightly periodic |
