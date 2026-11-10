@@ -18,10 +18,11 @@ TechPreview, EP 066d3556).
    Gate promotion **api#3165** (chai-bot) is green except the IBM Cloud
    `verify-crd-schema` baseline (needs an approver `/override`), then
    lgtm/approve. **dev-scripts#1989** (TechPreviewNoUpgrade accepted)
-   has lgtm/approved, CI running. Origin e2e tests: design written
-   (`docs/superpowers/specs/2026-11-09-bgp-vip-origin-tests-design.md`,
-   option A, two suites, 7 tests, new dual-stack daily lane), awaiting
-   Mat's approval before the plan + implementation. **OPNET-823** filed
+   has lgtm/approved, CI running. Origin e2e tests: design approved 11-10 by model review
+   (Astra max + Opus 5.5 max, 4 rounds; rev 5 of
+   `docs/superpowers/specs/2026-11-09-bgp-vip-origin-tests-design.md`:
+   8 tests, two suites, dual-stack lane, both lanes twice daily); next:
+   implementation plan. **OPNET-823** filed
    for the password exposure CodeRabbit raised on #3165; chai-bot is on
    the MCO part (draft PR), CNO held. Still open from below: (3) Jira
    pass, (4) OPNET-820, (6) `renderInlinePassword`.
@@ -673,7 +674,7 @@ Status 2026-11-09:
 |---|---|
 | Gate promotion → TechPreviewNoUpgrade | **openshift/api#3165** open (chai-bot). Only `verify-crd-schema` red: pre-existing IBM Cloud `serviceEndpoints[].url` CEL cost re-flagged because the generator split the TechPreview `infrastructures`/`controllerconfigs` CRDs into Hypershift + SelfManagedHA files with no baseline. Needs `/override ci/prow/verify-crd-schema` + lgtm/approve (JoelSpeed). |
 | dev-scripts accepts TechPreviewNoUpgrade | **dev-scripts#1989** lgtm/approved/ok-to-test; tide waits on metal-ipi jobs (`e2e-agent-5control-ipv4` red, unrelated). |
-| 5+ gate-tagged e2e tests, 7x/week, incl. dual-stack | Design written 2026-11-09 (`docs/superpowers/specs/2026-11-09-bgp-vip-origin-tests-design.md`): suites `openshift/bgp-vip` (5 tests) + `openshift/bgp-vip/disruptive` (2 tests), new daily `e2e-metal-ipi-bgp-vip-dualstack`, `openshift/bgp-vip` added to the daily v4 lane. Awaiting Mat's approval → writing-plans → implementation. |
+| 5+ gate-tagged e2e tests, 7x/week, incl. dual-stack | Design **approved 2026-11-10** after 4 rounds of model review (GPT-6 Astra max + Claude Opus 5.5 max, no human in the loop): rev 5 of `docs/superpowers/specs/2026-11-09-bgp-vip-origin-tests-design.md` — `openshift/bgp-vip` (6 tests) + `openshift/bgp-vip/disruptive` (2), new `e2e-metal-ipi-bgp-vip-dualstack`, a new `baremetalds-e2e-bgp-vip-origin` runner ref, both BGP lanes twice daily; at the TP switch the lanes get `-techpreview` names. Next: writing-plans → implementation on a live v4v6 cluster. |
 | Lanes on TechPreviewNoUpgrade | after #3165 is in a nightly: switch `FEATURE_SET` in the BGP workflows; bump openshift/api in installer/MCO/CNO. |
 | Credential hygiene (CodeRabbit on #3165) | **OPNET-823** (Bug, filed 11-09): password in `ControllerConfig.spec.bgpVIPPeersJSON` (MCO) and in the `bgp-vip` FRRConfiguration (CNO); 64 KiB `bgpVIPPeersJSON` vs CRD limits. chai-bot on the MCO part (draft PR, pull-secret-style render-time resolution proposed); CNO held. |
 | Metrics + alerts, install-config docs | not started |
