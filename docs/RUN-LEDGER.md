@@ -96,7 +96,7 @@ urllib re-issues it as GET → 405; story creation = `issuetype: Story`,
 `gh` token cannot list signing keys; the Jira account cannot add attachments
 on OCPBUGS. The `task` subagent tool is denied by user rules — work inline.
 
-### Where things stand (PR board — refreshed 2026-11-09 evening)
+### Where things stand (PR board — refreshed 2026-11-11)
 
 **Tech Preview graduation started 11-09.** Requests to chai-bot go through
 the Slack DM thread; nothing is posted on GitHub without Mat's go-ahead.
@@ -104,9 +104,9 @@ the Slack DM thread; nothing is posted on GitHub without Mat's go-ahead.
 | Item | State | Next |
 |---|---|---|
 | **openshift/api#3165** OPNET-595 — `BGPBasedVIPManagement` → TechPreviewNoUpgrade (chai-bot) | head `28708b8`: `44b2281` one-line `features.go` + generated files (TechPreview `infrastructures`/`controllerconfigs` CRDs split into Hypershift + SelfManagedHA; `bgpvipconfigs` annotation gains TechPreviewNoUpgrade); `28708b8` test-only fix in `config/v1/types_infrastructure_test.go`. All checks pass incl. unit, verify, hypershift-integration — except **`verify-crd-schema`**: 8 errors, all the pre-existing IBM Cloud `serviceEndpoints[].url` CEL cost in the 4 split files (our `vipManagement` rule costs 4). Mat: "not us" | approver `/override ci/prow/verify-crd-schema`; lgtm + approve (JoelSpeed) |
-| **dev-scripts#1989** — accept `FEATURE_SET=TechPreviewNoUpgrade` (chai-bot) | only `validation.sh` + `config_example.sh`; lgtm + approved + ok-to-test; images, shellcheck, 5 agent jobs green; `e2e-agent-5control-ipv4` red on a kube-apiserver rollout timeout in a non-BGP run (unrelated); metal-ipi jobs pending | tide; maybe `/retest` the 5control job |
+| **dev-scripts#1989** — accept `FEATURE_SET=TechPreviewNoUpgrade` (chai-bot) | **MERGED 11-09 16:26** (`8566e6b`); only `validation.sh` + `config_example.sh`; lgtm + approved + ok-to-test; images, shellcheck, 5 agent jobs green; `e2e-agent-5control-ipv4` red on a kube-apiserver rollout timeout in a non-BGP run (unrelated); metal-ipi jobs pending | tide; maybe `/retest` the 5control job |
 | **OPNET-823** — peer password exposure (CodeRabbit on #3165) | Bug filed 11-09 (child of OPNET-595, BM Networking, Mat). MCO part requested from chai-bot (Slack ts `1794234814.927539`): no password in ControllerConfig, `frr-peers.json` unchanged, draft PR; suggested pull-secret-style resolution in the template/bootstrap controllers, with a MachineConfig-readers check first. **CNO not to be modified yet** | review chai-bot's draft MCO PR |
-| **Origin e2e tests** (`[OCPFeatureGate:BGPBasedVIPManagement]`) | design rev 5 **approved 11-10** by GPT-6 Astra max + Claude Opus 5.5 max (4 rounds, review log in the doc): 8 tests in `openshift/bgp-vip` + `openshift/bgp-vip/disruptive`, runner ref `baremetalds-e2e-bgp-vip-origin`, daily-twice `e2e-metal-ipi-bgp-vip-dualstack` + v4 lane | implementation plan → implement on a live v4v6 dev-scripts cluster (none available yet); no origin/release PRs until Mat says so |
+| **Origin e2e tests** (`[OCPFeatureGate:BGPBasedVIPManagement]`) | **openshift/origin#31893 opened 11-11**: 8 tests in `openshift/bgp-vip` (6) + `openshift/bgp-vip/disruptive` (2), plan `docs/superpowers/plans/2026-11-10-bgp-vip-origin-tests.md`. Validated live on metal-u15 (v4v6, 3+2, DevPreview, `5.1.0-0.nightly-multi-2026-11-09-143447`): 6/6 + 2/2 pass; failover withdrawal 6s, 0 failed API probes after the cut; ingress move 0/76 failed probes per VIP; day-2 timers need the `clear bgp *` reset (frr-k8s reload does not renegotiate) | review on #31893; release-lane branch (no PR until Mat says so) |
 | Lanes → TechPreviewNoUpgrade | waiting for #3165 in a nightly | switch `FEATURE_SET`; bump api in installer/MCO/CNO |
 
 ### Board 2026-11-09 08:45 UTC (consumer wave; still accurate for those items)
@@ -243,7 +243,7 @@ the division of remaining work agreed with Mat:
 - Follow-up idea NOT done (noted on the bug): surface residual ambiguity as
   `Accepted=False` per the CRD text; needs a node→cluster-manager signal.
 
-### Live cluster (metal-u15, `/root/dev-scripts`, kubeconfig `/root/dev-scripts/ocp/ostest/auth/kubeconfig`) — **GONE WITH THE HOST ON 2026-10-31**
+### Live cluster (metal-u15, `/root/dev-scripts`, kubeconfig `/root/dev-scripts/ocp/ostest/auth/kubeconfig`) — host decommissioned 2026-10-31, **back 2026-11-10** with a fresh v4v6 BGP VIP cluster (DevPreview, dev-scripts `8566e6b`)
 
 Kept for the record of what was validated on it; nothing below exists after
 the host is decommissioned. To get a cluster again: dev-scripts with
